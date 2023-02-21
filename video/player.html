@@ -1,17 +1,17 @@
 <html>
   <head>
     <title>Video Player</title>
-    <link href="https://vjs.zencdn.net/8.0.4/video-js.css" rel="stylesheet"/>
+    <link href='https://vjs.zencdn.net/8.0.4/video-js.css' rel='stylesheet'/>
     <style>body{margin:0}</style>
   </head>
   <body>
-    <video id="my-video" class="video-js vjs-fill" controls preload="auto" data-setup="{}" />
+    <video id='my-video' class='video-js vjs-fill' controls preload='auto' data-setup='{}' />
     <script>
-      var video = document.getElementById("my-video");      
+      var video = document.getElementById('my-video');      
       video.src = 
         decodeURIComponent(document.location.hash.substring(1))
         || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
     </script>
-    <script src="https://vjs.zencdn.net/8.0.4/video.min.js"></script>
+    <script src='https://vjs.zencdn.net/8.0.4/video.min.js'></script>
   </body>
 </html>
