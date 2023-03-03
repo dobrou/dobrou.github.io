@@ -11,6 +11,13 @@
       video.src = 
         decodeURIComponent(document.location.hash.substring(1))
         || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+      
+      var lastTimerId = setTimeout(() => video.style.cursor='none', 5000);
+      video.addEventListener('mousemove', () => {
+        clearTimeout(lastTimerId);
+        video.style.cursor='';
+        lastTimerId = setTimeout(() => video.style.cursor='none', 2000);
+      });
     </script>
     <script src='https://vjs.zencdn.net/8.0.4/video.min.js'></script>
   </body>
