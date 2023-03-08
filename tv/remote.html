@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="description" content="Remote control for Samsung TV using IP WebSocket API">
+  <title>Samsung TV Web Remote Control</title>  
+  <style>html,body{overflow:hidden;display:block;height:100%} #text{width: 99%} *{font-size:xx-large;padding:0.15em;background-color:#222;color:#DDD}</style>
+</head>
+<body>
+  <input type='text' id='text'>
+  <div>
+    <input type='button' onclick='sendKey(this.id)' id='POWER' value='POWER'>
+    <input type='button' onclick='sendKey(this.id)' id='HOME' value='HOME'>
+    <input type='button' onclick='sendKey(this.id)' id='CONVERGENCE' value='BROWSER'>
+  </div><div>
+    <input type='button' onclick='sendKey(this.id)' id='PMODE' value='PICTURE'>
+    <input type='button' onclick='sendKey(this.id)' id='MENU' value='MENU'>
+    <input type='button' onclick='sendKey(this.id)' id='MORE' value='MORE'>
+  </div><div>
+    <input type='button' onclick='sendKey(this.id)' id='MUTE' value='MUTE'>
+    <input type='button' onclick='sendKey(this.id)' id='VOLUP' value='VOLUP'>
+    <input type='button' onclick='sendKey(this.id)' id='VOLDOWN' value='VOLDOWN'>
+  </div><div>
+    <input type='button' onclick='sendKey(this.id)' id='ENTER' value='ENTER'>
+    <input type='button' onclick='sendKey(this.id)' id='RETURN' value='RETURN'>
+    <input type='button' onclick='sendKey(this.id)' id='UP' value='UP'>
+    <input type='button' onclick='sendKey(this.id)' id='DOWN' value='DOWN'>
+    <input type='button' onclick='sendKey(this.id)' id='LEFT' value='LEFT'>
+    <input type='button' onclick='sendKey(this.id)' id='RIGHT' value='RIGHT'>
+  </div><div>
+    <input type='button' onclick='sendKey(this.id)' id='PLAY' value='PLAY'>
+    <input type='button' onclick='sendKey(this.id)' id='PAUSE' value='PAUSE'>
+    <input type='button' onclick='sendKey(this.id)' id='REWIND' value='REWIND 10s'>
+    <input type='button' onclick='sendKey(this.id)' id='FF' value='FORWARD 10s'>
+  </div>  
+  <div><a href='https://samsung:8002/api/v2/'>https://samsung:8002/api/v2/</a></div>
+  <div id='status'>loading</div>
+  <script>  
+    
+    function connect() {      
+      const host  = document.cookie.match(/host=([^;]+)(;|$)/)?.at(1) || 'samsung';
+      const token = document.cookie.match(/token=([^;]+)(;|$)/)?.at(1) || '';
+      
+      var socket = new WebSocket('wss://'+host+':8002/api/v2/channels/samsung.remote.control?name=V2ViUmVtb3Rl&token='+token);
+      window.sendKey   = (key)    => socket.send('{"method":"ms.remote.control","params":{"Cmd":"Click","Option":"false","TypeOfRemote":"SendRemoteKey","DataOfCmd":"KEY_'+key+'"}}');
+      window.setText   = (txt)    => socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+btoa(txt)+'","Option":"false","TypeOfRemote":"SendInputString","DataOfCmd":"base64"}}');
+      window.setTextEnd= (txt)    => socket.send('{"method":"ms.remote.control","params":{"TypeOfRemote":"SendInputEnd"}}');
+      window.moveMouse = (dx,dy)  => socket.send('{"method":"ms.remote.control","params":{"Cmd":"Move","Position":{"x":'+dx+',"y":'+dy+',"Time":"'+Date.now()+'"},"TypeOfRemote":"ProcessMouseDevice"}}');
+      window.clickMouse= (isRight)=> socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(isRight?'Right':'Left')+'Click","TypeOfRemote":"ProcessMouseDevice"}}');
+      window.setStatus = (status) => document.getElementById('status').innerHTML = status;
+      setStatus('connecting '+host);
+      
+      socket.addEventListener('open' , e => console.log(e));
+      socket.addEventListener('error', e => console.log(e));
+      socket.addEventListener('close', e => console.log(e));
+
+      socket.addEventListener('open' , e => setStatus(token==''?'Waiting: Please ALLOW new remote on TV':'OK'));
+      socket.addEventListener('error', e => socket.close());
+      socket.addEventListener('close', e => setTimeout(connect,1000));
+      socket.addEventListener('message', e => {
+          setStatus('OK:' + e.data);
+          var data = JSON.parse(e.data)
+          console.log(data);
+          
+          // store token with new auth
+          // {"data":{"clients":[{"attributes":{"name":"V2ViUmVtb3Rl"},"connectTime":1678283059081,"deviceName":"V2ViUmVtb3Rl","id":"1651562-156e-4515-111c-2165156156b8","isHost":false}],"id":"1231232-123e-1361-123c-1231231328b8","token":"56468986"},"event":"ms.channel.connect"}
+          // {"data":{"clients":[{"attributes":{"name":null,"token":"12345686"},"connectTime":1678282410087,"deviceName":"Smart Device","id":"a156156f-3156-5659-56a-51561561565","isHost":false}],"id":"132123cf-3156-4165-58a-5f156156156"},"event":"ms.channel.connect"}
+          if(data.event=='ms.channel.connect' && data.data?.token) 
+            document.cookie = 'token='+data.data.token;
+          
+          // text input update from tv
+          // {"data":"enable","event":"ms.remote.imeDone"}
+          // {"data":"url","entrylimit":2048,"event":"ms.remote.imeStart"}
+          if(data.event == 'ms.remote.imeStart')
+            document.getElementById('text').focus();
+          // {"data":"YWFh","entrylimit":2048,"event":"ms.remote.imeUpdate"}
+          if(data.event == 'ms.remote.imeUpdate')
+            document.getElementById('text').value = atob(data.data);
+          // {"event":"ms.remote.imeEnd"}        
+          if(data.event == 'ms.remote.imeEnd')
+            document.getElementById('text').blur();
+            
+          // {"event":"ms.remote.touchEnable"}
+          if(data.event == 'ms.remote.touchEnable')
+            window.isTouch = true;
+          // {"event":"ms.remote.touchDisable"}
+          if(data.event == 'ms.remote.touchDisable')
+            window.isTouch = false;        
+      });
+    }
+    connect();
+   
+    // shift+mouse move cursor
+    document.addEventListener("mousemove",   e => e.shiftKey ? moveMouse(e.movementX, e.movementY) : null);
+    document.addEventListener("click",       e => e.shiftKey ? (clickMouse(false),e.preventDefault()) : null);
+    document.addEventListener("contextmenu", e => e.shiftKey ? (clickMouse(true), e.preventDefault()) : null);
+    
+    // touch move cursor
+    var lastTouch;
+    var lastTouchMoved;
+    var startTouch;
+    document.body.addEventListener('touchstart', e => startTouch = e.changedTouches[0]);
+    document.body.addEventListener('touchend', e => { 
+      if(!lastTouchMoved && e.target==document.body) sendKey('ENTER');
+      if(lastTouchMoved && !window.isTouch){
+        var touch = e.changedTouches[0];
+        var dx = touch.pageX-startTouch.pageX;
+        var dy = touch.pageY-startTouch.pageY;
+        var key = Math.abs(dx)>Math.abs(dy) ? (dx>0?'RIGHT':'LEFT') : (dy>0?'DOWN':'UP');
+        sendKey(key);
+      }
+      lastTouch = startTouch = lastTouchMoved = null; 
+    });
+    document.body.addEventListener('touchmove', e =>{
+      var touch = e.changedTouches[0];
+      if(lastTouch)
+        moveMouse(touch.pageX-lastTouch.pageX,touch.pageY-lastTouch.pageY);
+      lastTouch = touch;
+      lastTouchMoved = true;
+    });
+
+    // text input
+    document.getElementById('text').addEventListener('input', e => setText(e.target.value));
+    document.getElementById('text').addEventListener('change', e => setTextEnd());
+    
+    // keypress forward
+    const keyMap = new Map([
+      ["m", "MUTE"], ["+", "VOLUP"], ["-", "VOLDOWN"],
+      ["Enter", "ENTER"],["Backspace", "RETURN"],["Escape", "RETURN"],
+      ["ArrowUp", "UP"],["ArrowDown", "DOWN"],["ArrowLeft", "LEFT"],["ArrowRight", "RIGHT"],
+      ["Home", "HOME"],["h", "HOME"],
+      [" ", "PLAY_BACK"],["p", "PAUSE"],["PageUp", "REWIND"],["PageDown", "FF"],
+      ["o", "MENU"],["s", "MORE"],
+      ["0", "0"],["1", "1"],["2", "2"],["3", "3"],["4", "4"],["5", "5"],["6", "6"],["7", "7"],["8", "8"],["9", "9"],
+    ]);
+    document.addEventListener("keydown", e => e.target.id!='text' && keyMap.has(e.key) ? sendKey(keyMap.get(e.key)) : null );
+  </script>
+</body>
+</html>
