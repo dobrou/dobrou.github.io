@@ -14,30 +14,30 @@
 <body>
   <input type='text' id='text'>
   <div>
-    <input type='button' onclick='sendKey(this.id)' id='POWER' value='POWER'>
-    <input type='button' onclick='sendKey(this.id)' id='HOME' value='HOME'>
-    <input type='button' onclick='sendKey(this.id)' id='CONVERGENCE' value='BROWSER'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='POWER' value='POWER'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='HOME' value='HOME'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='CONVERGENCE' value='BROWSER'>
   </div><div>
-    <input type='button' onclick='sendKey(this.id)' id='PMODE' value='PICTURE'>
-    <input type='button' onclick='sendKey(this.id)' id='MENU' value='MENU'>
-    <input type='button' onclick='sendKey(this.id)' id='MORE' value='MORE'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='PMODE' value='PICTURE'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='MENU' value='MENU'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='MORE' value='MORE'>
   </div><div>
-    <input type='button' onclick='sendKey(this.id)' id='RETURN' value='BACK'>
-    <input type='button' onclick='sendKey(this.id)' id='UP' value='UP'>
-    <input type='button' onclick='sendKey(this.id)' id='DOWN' value='DOWN'>
-    <input type='button' onclick='sendKey(this.id)' id='LEFT' value='LEFT'>
-    <input type='button' onclick='sendKey(this.id)' id='RIGHT' value='RIGHT'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='RETURN' value='BACK'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='UP' value='UP'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='DOWN' value='DOWN'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='LEFT' value='LEFT'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='RIGHT' value='RIGHT'>
   </div><div>
-    <input type='button' onclick='sendKey(this.id)' id='PLAY' value='PLAY'>
-    <input type='button' onclick='sendKey(this.id)' id='PAUSE' value='PAUSE'>
-    <input type='button' onclick='sendKey(this.id)' id='REWIND' value='REW 10s'>
-    <input type='button' onclick='sendKey(this.id)' id='FF' value='FWD 10s'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='PLAY' value='PLAY'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='PAUSE' value='PAUSE'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='REWIND' value='REW 10s'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='FF' value='FWD 10s'>
   </div><div>
-    <input type='button' onclick='sendKey(this.id)' id='MUTE' value='MUTE'>
-    <input type='button' onclick='sendKey(this.id)' id='VOLUP' value='VOLUP'>
-    <input type='button' onclick='sendKey(this.id)' id='VOLDOWN' value='VOLDOWN'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='MUTE' value='MUTE'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='VOLUP' value='VOLUP'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='VOLDOWN' value='VOLDOWN'>
   </div><div>
-    <input type='button' onclick='sendKey(this.id)' id='ENTER' value='ENTER'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='ENTER' value='ENTER'>
     <input type='button' onclick='clickMouse()'     id='CLICKLEFT' value='CLICKLEFT'>
     <input type='button' onclick='clickMouse(true)' id='CLICKRIGHT' value='CLICKRIGHT'>
   </div>  
@@ -50,7 +50,9 @@
       
       var socket = new WebSocket('wss://'+host+':8002/api/v2/channels/samsung.remote.control?name=V2ViUmVtb3Rl&token='+token);
       window.setStatus = (status) => document.getElementById('status').innerHTML = status;
-      window.sendKey   = (key)    => console.log(key)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"Click","Option":"false","TypeOfRemote":"SendRemoteKey","DataOfCmd":"KEY_'+key+'"}}');
+      window.clickKey  = (key,cmd)=> console.log(key)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(cmd||'Click')+'","Option":"false","TypeOfRemote":"SendRemoteKey","DataOfCmd":"KEY_'+key+'"}}');
+      window.pressKey  = (key)    => clickKey(key,'Press');
+      window.releaseKey= (key)    => clickKey(key,'Release');
       window.setText   = (txt)    => console.log(txt)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+btoa(txt)+'","Option":"false","TypeOfRemote":"SendInputString","DataOfCmd":"base64"}}');
       window.setTextEnd= ()       => socket.send('{"method":"ms.remote.control","params":{"TypeOfRemote":"SendInputEnd"}}');
       window.moveMouse = (dx,dy)  => socket.send('{"method":"ms.remote.control","params":{"Cmd":"Move","Position":{"x":'+dx+',"y":'+dy+',"Time":"'+Date.now()+'"},"TypeOfRemote":"ProcessMouseDevice"}}');
@@ -60,7 +62,6 @@
       socket.addEventListener('open' , e => console.log(e));
       socket.addEventListener('error', e => console.log(e));
       socket.addEventListener('close', e => console.log(e));
-
       socket.addEventListener('open' , e => setStatus(token==''?'Waiting: Please ALLOW new remote on TV':'OK'));
       socket.addEventListener('error', e => socket.close());
       socket.addEventListener('close', e => setTimeout(connect,1000));
@@ -121,13 +122,12 @@
       var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
       var touchMoved = (dx!=0||dy!=0);
       if(!touchMoved && e.target==document.body) 
-        window.isTouch && !touchLong ? clickMouse() : sendKey('ENTER');
+        window.isTouch && !touchLong ? clickMouse() : clickKey('ENTER');
       if(touchMoved && touchQuick) {
         var key = Math.abs(dx)>Math.abs(dy) ? (dx>0?'RIGHT':'LEFT') : (dy>0?'DOWN':'UP');
-        sendKey(key);
+        clickKey(key);
       }
     });
-
     // text input
     document.getElementById('text').addEventListener('input', e => setText(e.target.value));
     document.getElementById('text').addEventListener('change', e => setTextEnd());
@@ -142,14 +142,13 @@
       ['o', 'MENU'],['s', 'MORE'],
       ['0', '0'],['1', '1'],['2', '2'],['3', '3'],['4', '4'],['5', '5'],['6', '6'],['7', '7'],['8', '8'],['9', '9'],
     ]);
-    document.addEventListener('keydown', e => e.target.id!='text' && keyMap.has(e.key) ? sendKey(keyMap.get(e.key)) : null );
-
+    document.addEventListener('keydown', e => e.target.id!='text' && keyMap.has(e.key) ? clickKey(keyMap.get(e.key)) : null );
     // back button hook
     history.replaceState(null, document.title, location.pathname+"#!");
     history.pushState(null, document.title, location.pathname);
     window.addEventListener('popstate', e=> {
       if(location.hash == '#!') {
-        sendKey('RETURN');
+        clickKey('RETURN');
         setTimeout(_=> history.pushState(null, document.title, window.location.href.split('#')[0]));
       }
     });    
