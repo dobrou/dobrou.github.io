@@ -1,9 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta name="description" content="Remote control for Samsung TV using IP WebSocket API">
+  <meta name="description" content="Remote control for Samsung TV using IP WebSocket API. Supports Touch, Mouse, Keyboard and Text input.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
   <title>Samsung TV Web Remote Control</title>  
-  <style>html,body{overflow:hidden;display:block;height:100%} #text{width: 99%} *{font-size:xx-large;padding:0.15em;background-color:#222;color:#DDD}</style>
+  <style>
+    html,body {overflow:hidden;display:block;height:100%} 
+    * {font-size:large;padding:0.15em;background-color:#222;color:#DDD}
+    #text {width: 99%} 
+    #status,a {user-select:none}
+  </style>
 </head>
 <body>
   <input type='text' id='text'>
@@ -16,12 +22,7 @@
     <input type='button' onclick='sendKey(this.id)' id='MENU' value='MENU'>
     <input type='button' onclick='sendKey(this.id)' id='MORE' value='MORE'>
   </div><div>
-    <input type='button' onclick='sendKey(this.id)' id='MUTE' value='MUTE'>
-    <input type='button' onclick='sendKey(this.id)' id='VOLUP' value='VOLUP'>
-    <input type='button' onclick='sendKey(this.id)' id='VOLDOWN' value='VOLDOWN'>
-  </div><div>
-    <input type='button' onclick='sendKey(this.id)' id='ENTER' value='ENTER'>
-    <input type='button' onclick='sendKey(this.id)' id='RETURN' value='RETURN'>
+    <input type='button' onclick='sendKey(this.id)' id='RETURN' value='BACK'>
     <input type='button' onclick='sendKey(this.id)' id='UP' value='UP'>
     <input type='button' onclick='sendKey(this.id)' id='DOWN' value='DOWN'>
     <input type='button' onclick='sendKey(this.id)' id='LEFT' value='LEFT'>
@@ -29,25 +30,32 @@
   </div><div>
     <input type='button' onclick='sendKey(this.id)' id='PLAY' value='PLAY'>
     <input type='button' onclick='sendKey(this.id)' id='PAUSE' value='PAUSE'>
-    <input type='button' onclick='sendKey(this.id)' id='REWIND' value='REWIND 10s'>
-    <input type='button' onclick='sendKey(this.id)' id='FF' value='FORWARD 10s'>
+    <input type='button' onclick='sendKey(this.id)' id='REWIND' value='REW 10s'>
+    <input type='button' onclick='sendKey(this.id)' id='FF' value='FWD 10s'>
+  </div><div>
+    <input type='button' onclick='sendKey(this.id)' id='MUTE' value='MUTE'>
+    <input type='button' onclick='sendKey(this.id)' id='VOLUP' value='VOLUP'>
+    <input type='button' onclick='sendKey(this.id)' id='VOLDOWN' value='VOLDOWN'>
+  </div><div>
+    <input type='button' onclick='sendKey(this.id)' id='ENTER' value='ENTER'>
+    <input type='button' onclick='clickMouse()'     id='CLICKLEFT' value='CLICKLEFT'>
+    <input type='button' onclick='clickMouse(true)' id='CLICKRIGHT' value='CLICKRIGHT'>
   </div>  
   <div><a href='https://samsung:8002/api/v2/'>https://samsung:8002/api/v2/</a></div>
   <div id='status'>loading</div>
   <script>  
-    
     function connect() {      
       const host  = document.cookie.match(/host=([^;]+)(;|$)/)?.at(1) || 'samsung';
       const token = document.cookie.match(/token=([^;]+)(;|$)/)?.at(1) || '';
       
       var socket = new WebSocket('wss://'+host+':8002/api/v2/channels/samsung.remote.control?name=V2ViUmVtb3Rl&token='+token);
-      window.sendKey   = (key)    => socket.send('{"method":"ms.remote.control","params":{"Cmd":"Click","Option":"false","TypeOfRemote":"SendRemoteKey","DataOfCmd":"KEY_'+key+'"}}');
-      window.setText   = (txt)    => socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+btoa(txt)+'","Option":"false","TypeOfRemote":"SendInputString","DataOfCmd":"base64"}}');
-      window.setTextEnd= (txt)    => socket.send('{"method":"ms.remote.control","params":{"TypeOfRemote":"SendInputEnd"}}');
-      window.moveMouse = (dx,dy)  => socket.send('{"method":"ms.remote.control","params":{"Cmd":"Move","Position":{"x":'+dx+',"y":'+dy+',"Time":"'+Date.now()+'"},"TypeOfRemote":"ProcessMouseDevice"}}');
-      window.clickMouse= (isRight)=> socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(isRight?'Right':'Left')+'Click","TypeOfRemote":"ProcessMouseDevice"}}');
       window.setStatus = (status) => document.getElementById('status').innerHTML = status;
-      setStatus('connecting '+host);
+      window.sendKey   = (key)    => console.log(key)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"Click","Option":"false","TypeOfRemote":"SendRemoteKey","DataOfCmd":"KEY_'+key+'"}}');
+      window.setText   = (txt)    => console.log(txt)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+btoa(txt)+'","Option":"false","TypeOfRemote":"SendInputString","DataOfCmd":"base64"}}');
+      window.setTextEnd= ()       => socket.send('{"method":"ms.remote.control","params":{"TypeOfRemote":"SendInputEnd"}}');
+      window.moveMouse = (dx,dy)  => socket.send('{"method":"ms.remote.control","params":{"Cmd":"Move","Position":{"x":'+dx+',"y":'+dy+',"Time":"'+Date.now()+'"},"TypeOfRemote":"ProcessMouseDevice"}}');
+      window.clickMouse= (isRight)=> console.log(isRight)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(isRight?'Right':'Left')+'Click","TypeOfRemote":"ProcessMouseDevice"}}');
+      setStatus('Connecting: '+host);
       
       socket.addEventListener('open' , e => console.log(e));
       socket.addEventListener('error', e => console.log(e));
@@ -57,7 +65,7 @@
       socket.addEventListener('error', e => socket.close());
       socket.addEventListener('close', e => setTimeout(connect,1000));
       socket.addEventListener('message', e => {
-          setStatus('OK:' + e.data);
+          setStatus('OK: Connected');
           var data = JSON.parse(e.data)
           console.log(data);
           
@@ -96,26 +104,28 @@
     
     // touch move cursor
     var lastTouch;
-    var lastTouchMoved;
     var startTouch;
-    document.body.addEventListener('touchstart', e => startTouch = e.changedTouches[0]);
-    document.body.addEventListener('touchend', e => { 
-      if(!lastTouchMoved && e.target==document.body) sendKey('ENTER');
-      if(lastTouchMoved && !window.isTouch){
-        var touch = e.changedTouches[0];
-        var dx = touch.pageX-startTouch.pageX;
-        var dy = touch.pageY-startTouch.pageY;
+    document.body.addEventListener('touchstart', e => startTouch = lastTouch = e);
+    document.body.addEventListener('touchmove', e =>{
+      if(e.timeStamp-startTouch.timeStamp < 200) return;
+      var dx = e.changedTouches[0].pageX-lastTouch.changedTouches[0].pageX;
+      var dy = e.changedTouches[0].pageY-lastTouch.changedTouches[0].pageY;
+      var z = 2.5;
+      moveMouse(z*dx,z*dy);
+      lastTouch = e;
+    });
+    document.body.addEventListener('touchend', e => {
+      var touchQuick = e.timeStamp-startTouch.timeStamp < 200;
+      var touchLong  = e.timeStamp-startTouch.timeStamp > 1000;
+      var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
+      var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
+      var touchMoved = (dx!=0||dy!=0);
+      if(!touchMoved && e.target==document.body) 
+        window.isTouch && !touchLong ? clickMouse() : sendKey('ENTER');
+      if(touchMoved && touchQuick) {
         var key = Math.abs(dx)>Math.abs(dy) ? (dx>0?'RIGHT':'LEFT') : (dy>0?'DOWN':'UP');
         sendKey(key);
       }
-      lastTouch = startTouch = lastTouchMoved = null; 
-    });
-    document.body.addEventListener('touchmove', e =>{
-      var touch = e.changedTouches[0];
-      if(lastTouch)
-        moveMouse(touch.pageX-lastTouch.pageX,touch.pageY-lastTouch.pageY);
-      lastTouch = touch;
-      lastTouchMoved = true;
     });
 
     // text input
@@ -124,15 +134,25 @@
     
     // keypress forward
     const keyMap = new Map([
-      ["m", "MUTE"], ["+", "VOLUP"], ["-", "VOLDOWN"],
-      ["Enter", "ENTER"],["Backspace", "RETURN"],["Escape", "RETURN"],
-      ["ArrowUp", "UP"],["ArrowDown", "DOWN"],["ArrowLeft", "LEFT"],["ArrowRight", "RIGHT"],
-      ["Home", "HOME"],["h", "HOME"],
-      [" ", "PLAY_BACK"],["p", "PAUSE"],["PageUp", "REWIND"],["PageDown", "FF"],
-      ["o", "MENU"],["s", "MORE"],
-      ["0", "0"],["1", "1"],["2", "2"],["3", "3"],["4", "4"],["5", "5"],["6", "6"],["7", "7"],["8", "8"],["9", "9"],
+      ['m', 'MUTE'], ['+', 'VOLUP'], ['-', 'VOLDOWN'],
+      ['Enter', 'ENTER'],['Backspace', 'RETURN'],['Escape', 'RETURN'],
+      ['ArrowUp', 'UP'],['ArrowDown', 'DOWN'],['ArrowLeft', 'LEFT'],['ArrowRight', 'RIGHT'],
+      ['Home', 'HOME'],['h', 'HOME'],
+      [' ', 'PLAY_BACK'],['p', 'PAUSE'],['PageUp', 'REWIND'],['PageDown', 'FF'],
+      ['o', 'MENU'],['s', 'MORE'],
+      ['0', '0'],['1', '1'],['2', '2'],['3', '3'],['4', '4'],['5', '5'],['6', '6'],['7', '7'],['8', '8'],['9', '9'],
     ]);
-    document.addEventListener("keydown", e => e.target.id!='text' && keyMap.has(e.key) ? sendKey(keyMap.get(e.key)) : null );
+    document.addEventListener('keydown', e => e.target.id!='text' && keyMap.has(e.key) ? sendKey(keyMap.get(e.key)) : null );
+
+    // back button hook
+    history.replaceState(null, document.title, location.pathname+"#!");
+    history.pushState(null, document.title, location.pathname);
+    window.addEventListener('popstate', e=> {
+      if(location.hash == '#!') {
+        sendKey('RETURN');
+        setTimeout(_=> history.pushState(null, document.title, window.location.href.split('#')[0]));
+      }
+    });    
   </script>
 </body>
 </html>
