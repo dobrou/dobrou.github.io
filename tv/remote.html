@@ -28,25 +28,25 @@
     <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='LEFT' value='LEFT'>
     <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='RIGHT' value='RIGHT'>
   </div><div>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='ENTER' value='ENTER'>
+    <input type='button' onclick='clickMouse()'     id='CLICKLEFT' value='CLICKLEFT'>
+    <input type='button' onclick='clickMouse(true)' id='CLICKRIGHT' value='CLICKRIGHT'>
+  </div><div>
     <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='PLAY' value='PLAY'>
     <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='PAUSE' value='PAUSE'>
     <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='REWIND' value='REW 10s'>
     <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='FF' value='FWD 10s'>
   </div><div>
     <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='MUTE' value='MUTE'>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='VOLUP' value='VOLUP'>
     <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='VOLDOWN' value='VOLDOWN'>
-  </div><div>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='ENTER' value='ENTER'>
-    <input type='button' onclick='clickMouse()'     id='CLICKLEFT' value='CLICKLEFT'>
-    <input type='button' onclick='clickMouse(true)' id='CLICKRIGHT' value='CLICKRIGHT'>
+    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='VOLUP' value='VOLUP'>
   </div>  
   <div><a href='https://samsung:8002/api/v2/'>https://samsung:8002/api/v2/</a></div>
   <div id='status'>loading</div>
   <script>  
     const host = document.cookie.match(/host=([^;]+)(;|$)/)?.at(1) || 'samsung';
     const touchMoveScale = 3;
-    const touchQuickMs = 200;
+    const touchQuickMs = () => window.isTouch ? 100 : 300;
     const touchLongMs = 1000;
     
     function connect() {      
@@ -112,14 +112,14 @@
     var startTouch;
     document.body.addEventListener('touchstart', e => startTouch = lastTouch = e);
     document.body.addEventListener('touchmove', e =>{
-      if(e.timeStamp-startTouch.timeStamp < touchQuickMs) return;
+      if(e.timeStamp-startTouch.timeStamp < touchQuickMs()) return;
       var dx = e.changedTouches[0].pageX-lastTouch.changedTouches[0].pageX;
       var dy = e.changedTouches[0].pageY-lastTouch.changedTouches[0].pageY;
       moveMouse(touchMoveScale*dx,touchMoveScale*dy);
       lastTouch = e;
     });
     document.body.addEventListener('touchend', e => {
-      var touchQuick = e.timeStamp-startTouch.timeStamp < touchQuickMs;
+      var touchQuick = e.timeStamp-startTouch.timeStamp < touchQuickMs();
       var touchLong  = e.timeStamp-startTouch.timeStamp > touchLongMs;
       var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
       var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
