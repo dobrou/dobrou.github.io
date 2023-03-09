@@ -44,8 +44,12 @@
   <div><a href='https://samsung:8002/api/v2/'>https://samsung:8002/api/v2/</a></div>
   <div id='status'>loading</div>
   <script>  
+    const host = document.cookie.match(/host=([^;]+)(;|$)/)?.at(1) || 'samsung';
+    const touchMoveScale = 3;
+    const touchQuickMs = 200;
+    const touchLongMs = 1000;
+    
     function connect() {      
-      const host  = document.cookie.match(/host=([^;]+)(;|$)/)?.at(1) || 'samsung';
       const token = document.cookie.match(/token=([^;]+)(;|$)/)?.at(1) || '';
       
       var socket = new WebSocket('wss://'+host+':8002/api/v2/channels/samsung.remote.control?name=V2ViUmVtb3Rl&token='+token);
@@ -108,16 +112,15 @@
     var startTouch;
     document.body.addEventListener('touchstart', e => startTouch = lastTouch = e);
     document.body.addEventListener('touchmove', e =>{
-      if(e.timeStamp-startTouch.timeStamp < 200) return;
+      if(e.timeStamp-startTouch.timeStamp < touchQuickMs) return;
       var dx = e.changedTouches[0].pageX-lastTouch.changedTouches[0].pageX;
       var dy = e.changedTouches[0].pageY-lastTouch.changedTouches[0].pageY;
-      var z = 3;
-      moveMouse(z*dx,z*dy);
+      moveMouse(touchMoveScale*dx,touchMoveScale*dy);
       lastTouch = e;
     });
     document.body.addEventListener('touchend', e => {
-      var touchQuick = e.timeStamp-startTouch.timeStamp < 200;
-      var touchLong  = e.timeStamp-startTouch.timeStamp > 1000;
+      var touchQuick = e.timeStamp-startTouch.timeStamp < touchQuickMs;
+      var touchLong  = e.timeStamp-startTouch.timeStamp > touchLongMs;
       var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
       var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
       var touchMoved = (dx!=0||dy!=0);
