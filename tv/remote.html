@@ -110,7 +110,7 @@
       if(e.timeStamp-startTouch.timeStamp < 200) return;
       var dx = e.changedTouches[0].pageX-lastTouch.changedTouches[0].pageX;
       var dy = e.changedTouches[0].pageY-lastTouch.changedTouches[0].pageY;
-      var z = 2.5;
+      var z = 3;
       moveMouse(z*dx,z*dy);
       lastTouch = e;
     });
