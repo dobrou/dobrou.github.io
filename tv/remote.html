@@ -6,42 +6,41 @@
   <title>Samsung TV Web Remote Control</title>  
   <style>
     html,body {overflow:hidden;display:block;height:100%} 
-    * {font-size:large;padding:0.15em;background-color:#222;color:#DDD}
+    * {font-size:large;padding:0.2em;background-color:#222;color:#DDD}
     #text {width: 99%} 
-    #status,a {user-select:none}
+    #status {user-select:none}
   </style>
 </head>
 <body>
   <input type='text' id='text'>
   <div>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='POWER' value='POWER'>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='HOME' value='HOME'>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='CONVERGENCE' value='BROWSER'>
+    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='POWER' value='POWER'>
+    <input type='button' onclick='clickKey(this.id)' id='HOME' value='HOME &#x2302;'>
+    <input type='button' onclick='clickKey(this.id)' id='CONVERGENCE' value='WWW &#x1F310;'>
   </div><div>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='PMODE' value='PICTURE'>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='MENU' value='MENU'>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='MORE' value='MORE'>
+    <input type='button' onclick='clickKey(this.id)' id='PMODE' value='PICTURE&#x26ED;'>
+    <input type='button' onclick='clickKey(this.id)' id='MENU' value='MENU&#x2630;'>
+    <input type='button' onclick='clickKey(this.id)' id='MORE' value='MORE'>
   </div><div>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='RETURN' value='BACK'>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='UP' value='UP'>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='DOWN' value='DOWN'>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='LEFT' value='LEFT'>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='RIGHT' value='RIGHT'>
+    <input type='button' onclick='clickMouse()'      id='CLICKLEFT' value='CLICKL'>
+    <input type='button' onclick='clickKey(this.id)' id='RETURN' value='BACK'>
+    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='UP' value='    &#x21E7;    '>
+    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='ENTER' value='ENTER&#x23CE;'>
   </div><div>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='ENTER' value='ENTER'>
-    <input type='button' onclick='clickMouse()'     id='CLICKLEFT' value='CLICKLEFT'>
-    <input type='button' onclick='clickMouse(true)' id='CLICKRIGHT' value='CLICKRIGHT'>
+    <input type='button' onclick='clickMouse(true)'  id='CLICKRIGHT' value='CLICKR'>
+    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='LEFT' value='    &#x21E6;   '>
+    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='DOWN' value='    &#x21E9;    '>
+    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='RIGHT' value='   &#x21E8;    '>
   </div><div>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='PLAY' value='PLAY'>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='PAUSE' value='PAUSE'>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='REWIND' value='REW 10s'>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='FF' value='FWD 10s'>
+    <input type='button' onclick='clickKey(this.id)' id='PLAY' value='PLAY&#x25b6;&#xFE0F;'>
+    <input type='button' onclick='clickKey(this.id)' id='PAUSE' value='PAUSE&#x23f8;'>
+    <input type='button' onclick='clickKey(this.id)' id='REWIND' value='&#x23ea;10s'>
+    <input type='button' onclick='clickKey(this.id)' id='FF' value='10s&#x23e9;'>
   </div><div>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='MUTE' value='MUTE'>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='VOLDOWN' value='VOLDOWN'>
-    <input type='button' onclick='clickKey(this.id)' onpointerdown='pressKey(this.id)' id='VOLUP' value='VOLUP'>
+    <input type='button' onclick='clickKey(this.id)' id='MUTE' value='MUTE&#x1F507;'>
+    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='VOLDOWN' value='&#x1F509; VOL -'>
+    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='VOLUP' value='VOL + &#x1F50A;'>
   </div>  
-  <div><a href='https://samsung:8002/api/v2/'>https://samsung:8002/api/v2/</a></div>
   <div id='status'>loading</div>
   <script>  
     const host = document.cookie.match(/host=([^;]+)(;|$)/)?.at(1) || 'samsung';
@@ -50,9 +49,9 @@
     const touchLongMs = 1000;
     
     function connect() {      
-      const token = document.cookie.match(/token=([^;]+)(;|$)/)?.at(1) || '';
-      
+      const token = document.cookie.match(/token=([^;]+)(;|$)/)?.at(1) || '';      
       var socket = new WebSocket('wss://'+host+':8002/api/v2/channels/samsung.remote.control?name=V2ViUmVtb3Rl&token='+token);
+      
       window.setStatus = (status) => document.getElementById('status').innerHTML = status;
       window.clickKey  = (key,cmd)=> console.log(key)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(cmd||'Click')+'","Option":"false","TypeOfRemote":"SendRemoteKey","DataOfCmd":"KEY_'+key+'"}}');
       window.pressKey  = (key)    => clickKey(key,'Press');
@@ -61,16 +60,17 @@
       window.setTextEnd= ()       => socket.send('{"method":"ms.remote.control","params":{"TypeOfRemote":"SendInputEnd"}}');
       window.moveMouse = (dx,dy)  => socket.send('{"method":"ms.remote.control","params":{"Cmd":"Move","Position":{"x":'+dx+',"y":'+dy+',"Time":"'+Date.now()+'"},"TypeOfRemote":"ProcessMouseDevice"}}');
       window.clickMouse= (isRight)=> console.log(isRight)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(isRight?'Right':'Left')+'Click","TypeOfRemote":"ProcessMouseDevice"}}');
-      setStatus('Connecting: '+host);
       
-      socket.addEventListener('open' , e => console.log(e));
-      socket.addEventListener('error', e => console.log(e));
-      socket.addEventListener('close', e => console.log(e));
-      socket.addEventListener('open' , e => setStatus(token==''?'Waiting: Please ALLOW new remote on TV':'OK'));
-      socket.addEventListener('error', e => socket.close());
-      socket.addEventListener('close', e => setTimeout(connect,1000));
+      setStatus('Connecting: <a href=\'https://'+host+':8002/api/v2/\'>https://'+host+':8002/api/v2/</a>');
+      socket.addEventListener('open' , e => setStatus(token==''?'Waiting: Turn TV On and ALLOW new remote':'OK'));
+      socket.addEventListener('error', e => {
+        setStatus('Connection FAILED, check here <a href=\'https://'+host+':8002/api/v2/\'>https://'+host+':8002/api/v2/</a>, allow untrusted certificate if needed');
+        socket.close();
+      });
+      socket.addEventListener('close', e => setTimeout(connect,2000));
       socket.addEventListener('message', e => {
           setStatus('OK: Connected');
+        
           var data = JSON.parse(e.data)
           console.log(data);
           
@@ -78,7 +78,7 @@
           // {"data":{"clients":[{"attributes":{"name":"V2ViUmVtb3Rl"},"connectTime":1678283059081,"deviceName":"V2ViUmVtb3Rl","id":"1651562-156e-4515-111c-2165156156b8","isHost":false}],"id":"1231232-123e-1361-123c-1231231328b8","token":"56468986"},"event":"ms.channel.connect"}
           // {"data":{"clients":[{"attributes":{"name":null,"token":"12345686"},"connectTime":1678282410087,"deviceName":"Smart Device","id":"a156156f-3156-5659-56a-51561561565","isHost":false}],"id":"132123cf-3156-4165-58a-5f156156156"},"event":"ms.channel.connect"}
           if(data.event=='ms.channel.connect' && data.data?.token) 
-            document.cookie = 'token='+data.data.token;
+            document.cookie = 'token='+data.data.token+'; max-age=31536000';
           
           // text input update from tv
           // {"data":"enable","event":"ms.remote.imeDone"}
@@ -111,7 +111,8 @@
     var lastTouch;
     var startTouch;
     document.body.addEventListener('touchstart', e => startTouch = lastTouch = e);
-    document.body.addEventListener('touchmove', e =>{
+    document.body.addEventListener('touchmove', e => {
+      if(e.target!=document.body) return;
       if(e.timeStamp-startTouch.timeStamp < touchQuickMs()) return;
       var dx = e.changedTouches[0].pageX-lastTouch.changedTouches[0].pageX;
       var dy = e.changedTouches[0].pageY-lastTouch.changedTouches[0].pageY;
@@ -119,38 +120,38 @@
       lastTouch = e;
     });
     document.body.addEventListener('touchend', e => {
+      if(e.target!=document.body && startTouch.target!=document.body) return;
       var touchQuick = e.timeStamp-startTouch.timeStamp < touchQuickMs();
       var touchLong  = e.timeStamp-startTouch.timeStamp > touchLongMs;
       var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
       var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
       var touchMoved = (dx!=0||dy!=0);
-      if(!touchMoved && e.target==document.body) 
+      if(!touchMoved)
         window.isTouch && !touchLong ? clickMouse() : clickKey('ENTER');
-      if(touchMoved && touchQuick) {
-        var key = Math.abs(dx)>Math.abs(dy) ? (dx>0?'RIGHT':'LEFT') : (dy>0?'DOWN':'UP');
-        clickKey(key);
-      }
+      if(touchMoved && touchQuick)
+        clickKey(Math.abs(dx)>Math.abs(dy) ? (dx>0?'RIGHT':'LEFT') : (dy>0?'DOWN':'UP'));
     });
+    
     // text input
     document.getElementById('text').addEventListener('input', e => setText(e.target.value));
     document.getElementById('text').addEventListener('change', e => setTextEnd());
     
     // keypress forward
     const keyMap = new Map([
-      ['m', 'MUTE'], ['+', 'VOLUP'], ['-', 'VOLDOWN'],
-      ['Enter', 'ENTER'],['Backspace', 'RETURN'],['Escape', 'RETURN'],
-      ['ArrowUp', 'UP'],['ArrowDown', 'DOWN'],['ArrowLeft', 'LEFT'],['ArrowRight', 'RIGHT'],
-      ['Home', 'HOME'],['h', 'HOME'],
-      [' ', 'PLAY_BACK'],['p', 'PAUSE'],['PageUp', 'REWIND'],['PageDown', 'FF'],
-      ['o', 'MENU'],['s', 'MORE'],
-      ['0', '0'],['1', '1'],['2', '2'],['3', '3'],['4', '4'],['5', '5'],['6', '6'],['7', '7'],['8', '8'],['9', '9'],
+      ['m','MUTE'], ['+','VOLUP'], ['-','VOLDOWN'],
+      ['Enter','ENTER'],['Backspace','RETURN'],['Escape','RETURN'],
+      ['ArrowUp','UP'],['ArrowDown','DOWN'],['ArrowLeft','LEFT'],['ArrowRight','RIGHT'],
+      ['Home','HOME'],['h','HOME'],
+      [' ','PLAY_BACK'],['p','PAUSE'],['PageUp','REWIND'],['r','REWIND'],['PageDown','FF'],['f','FF'],
+      ['o','MENU'],['s','MORE'],
+      ['0','0'],['1','1'],['2','2'],['3','3'],['4','4'],['5','5'],['6','6'],['7','7'],['8','8'],['9','9'],
     ]);
-    document.addEventListener('keydown', e => e.target.id!='text' && keyMap.has(e.key) ? pressKey(keyMap.get(e.key)) : null );
-    document.addEventListener('keyup',   e => e.target.id!='text' && keyMap.has(e.key) ? clickKey(keyMap.get(e.key)) : null );
+    document.addEventListener('keydown', e => e.target.id!='text' && keyMap.has(e.key) ? pressKey(  keyMap.get(e.key)) : null );
+    document.addEventListener('keyup',   e => e.target.id!='text' && keyMap.has(e.key) ? releaseKey(keyMap.get(e.key)) : null );
 
     // back button hook
     history.replaceState(null, document.title, location.pathname+"#!");
-    history.pushState(null, document.title, location.pathname);
+    history.pushState(   null, document.title, location.pathname);
     window.addEventListener('popstate', e=> {
       if(location.hash == '#!') {
         clickKey('RETURN');
