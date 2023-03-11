@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="description" content="Remote control for Samsung TV using SmartThings API.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+  <title>Samsung TV Web Remote Control</title>  
+  <style>
+    html,body {overflow:hidden;display:block;height:100%} 
+    * {font-size:large;padding:0.2em;background-color:#222;color:#DDD}
+    #link {width: 99%}
+    #status {user-select:none}
+  </style>
+</head>
+<body>
+  <input type='text' id='link' onchange='openLink(this.value)'>
+  <div>
+    <input type='button' onclick='sendCmd(this.id)' id='switch:on'  value='OFF '>
+    <input type='button' onclick='sendCmd(this.id)' id='switch:off' value=' ON '>
+    <input type='button' onclick='clickKey(this.id)' id='HOME' value='HOME &#x2302;'>
+    <input type='button' onclick='clickKey(this.id)' id='MENU' value='MENU&#x2630;'>
+  </div><div>
+    <input type='button' onclick='clickKey(this.id)' id='BACK' value='BACK'>
+    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='UP' value='    &#x21E7;    '>
+    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='OK' value='ENTER&#x23CE;'>
+  </div><div>
+    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='LEFT' value='    &#x21E6;   '>
+    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='DOWN' value='    &#x21E9;    '>
+    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='RIGHT' value='   &#x21E8;    '>
+  </div><div>
+    <input type='button' onclick='sendCmd(this.id)' id='mediaPlayback:play'  value='PLAY&#x25b6;&#xFE0F;'>
+    <input type='button' onclick='sendCmd(this.id)' id='mediaPlayback:pause' value='PAUSE&#x23f8;'>
+    <input type='button' onclick='sendCmd(this.id)' id='mediaPlayback:rewind' value='&#x23ea;10s'>
+    <input type='button' onclick='sendCmd(this.id)' id='mediaPlayback:fastForward' value='10s&#x23e9;'>
+  </div><div>
+    <input type='button' onclick='sendCmd(this.id)' id='audioMute:mute' value='MUTE&#x1F507;'>
+    <input type='button' onclick='sendCmd(this.id)' id='audioVolume:volumeDown' value='&#x1F509; VOL -'>
+    <input type='button' onclick='sendCmd(this.id)' id='audioVolume:volumeUp' value='VOL + &#x1F50A;'>
+  </div><div>
+    <input type='button' onclick='sendCmd(this.id)' id='custom.picturemode:setPictureMode:["Dynamic"]' value='Dynamic'>
+    <input type='button' onclick='sendCmd(this.id)' id='custom.picturemode:setPictureMode:["Standard"]' value='Standard'>
+    <input type='button' onclick='sendCmd(this.id)' id='custom.picturemode:setPictureMode:["FILMMAKER MODE"]' value='Film'>
+  </div>  
+  <div id='status'>loading</div>
+  <script>  
+    async function connect() {      
+      var token = document.cookie.match(/token=([^;]+)(;|$)/)?.at(1); 
+      if(!token){
+        token = prompt('token from https://account.smartthings.com/tokens');
+        if(token) document.cookie = 'token='+token+'; max-age=31536000';
+        // TODO renew token on 40? unauthorized
+      }
+      window.fetchApi = async (url, cmd) => {
+        const response = await fetch( 'https://api.smartthings.com/v1/'+url, {
+          method: cmd ? 'post' : 'get',
+          headers: { 'authorization': 'Bearer '+token },
+          body: JSON.stringify(cmd),
+        });
+        return response.json();
+      }
+      window.setStatus = (status) => document.getElementById('status').innerHTML = status;
+      window.getDevices = async _=> (await fetchApi('devices')).items;
+      setStatus('Connecting');
+      window.defaultTv = (await getDevices()).pop().deviceId;
+      setStatus('Connected '+defaultTv);
+
+      window.sendCmd = (cmd, args) => fetchApi('devices/'+defaultTv+'/commands',  [{'capability': cmd.split(':')[0], 'command': cmd.split(':')[1], 'arguments': args || JSON.parse(cmd.split(':')[2]||'[]')}] );
+      window.openLink  = link => sendCmd('custom.tvsearch:search', ['',link]);
+      var pressed = new Object();
+      window.clickKey  = (key,cmd)=> (sendCmd('samsungvd.remoteControl:send',[key, cmd||'PRESS_AND_RELEASED']),console.log(key),pressed[key]=null);
+      window.pressKey  = (key)    => pressed[key] || (clickKey(key,'PRESSED'),pressed[key]=1);
+      window.releaseKey= (key)    => (clickKey(key,'RELEASED'),pressed[key]=null);
+
+      // sendCmd('audioVolume:volumeDown');
+      // sendCmd('audioVolume:setVolume:[9]');
+      // sendCmd('samsungvd.remoteControl:send:["HOME"]');
+      // sendCmd('custom.soundmode:setSoundMode:["Amplify"]');
+      // sendCmd('custom.soundmode:setSoundMode:["Standard"]');
+      // sendCmd('execute:execute:[command<string>, [args<JsonObject>]]');
+      
+      console.log(await getDevices());
+      console.log(await fetchApi('devices/'+defaultTv+'/status'));
+    }
+    connect();
+    
+    // touch move
+    var startTouch;
+    document.body.addEventListener('touchstart', e => startTouch = e);
+    document.body.addEventListener('touchend', e => {
+      if(e.target!=document.body && startTouch.target!=document.body) return;
+      var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
+      var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
+      var touchMoved = (dx!=0||dy!=0);
+      if(!touchMoved)
+        clickKey('OK');
+      if(touchMoved)
+        clickKey(Math.abs(dx)>Math.abs(dy) ? (dx>0?'RIGHT':'LEFT') : (dy>0?'DOWN':'UP'));
+    });
+    
+    // keypress forward
+    const keyMap = new Map([
+      //['m','MUTE'], ['+','VOLUP'], ['-','VOLDOWN'],
+      ['Enter','OK'],['Backspace','BACK'],['Escape','BACK'],
+      ['ArrowUp','UP'],['ArrowDown','DOWN'],['ArrowLeft','LEFT'],['ArrowRight','RIGHT'],
+      ['Home','HOME'],['h','HOME'],
+      //[' ','PLAY_BACK'],['p','PAUSE'],['PageUp','REWIND'],['r','REWIND'],['PageDown','FF'],['f','FF'],
+      ['o','MENU']      
+    ]);
+    document.addEventListener('keydown', e => e.target.id!='link' && keyMap.has(e.key) ? pressKey(  keyMap.get(e.key)) : null );
+    document.addEventListener('keyup',   e => e.target.id!='link' && keyMap.has(e.key) ? releaseKey(keyMap.get(e.key)) : null );
+
+    // back button hook
+    history.replaceState(null, document.title, location.pathname+"#!");
+    history.pushState(   null, document.title, location.pathname);
+    window.addEventListener('popstate', e=> {
+      if(location.hash == '#!') {
+        clickKey('BACK');
+        setTimeout(_=> history.pushState(null, document.title, window.location.href.split('#')[0]));
+      }
+    });    
+  </script>
+</body>
+</html>
