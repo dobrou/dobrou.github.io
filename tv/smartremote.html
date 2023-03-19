@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta name="description" content="Remote control for Samsung TV using SmartThings API.">
+  <meta name="description" content="Remote control for Samsung TV using Cloud SmartThings API.">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-  <title>Samsung TV Web Remote Control</title>  
+  <title>Samsung TV Cloud Web Remote Control</title>  
   <style>
     html,body {overflow:hidden;display:block;height:100%} 
     * {font-size:large;padding:0.2em;background-color:#222;color:#DDD}
@@ -12,6 +12,7 @@
   </style>
 </head>
 <body>
+  <div>Cloud Remote <a href='remote'>(switch to Local Remote)</a></div>
   <input type='text' id='link' onchange='openLink(this.value)'>
   <div>
     <input type='button' onclick='sendCmd(this.id)' id='switch:off' value='OFF '>

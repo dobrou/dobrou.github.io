@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta name="description" content="Remote control for Samsung TV using IP WebSocket API. Supports Touch, Mouse, Keyboard and Text input.">
+  <meta name="description" content="Remote control for Samsung TV using local IP WebSocket API. Supports Touch, Mouse, Keyboard and Text input.">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
   <title>Samsung TV Web Remote Control</title>  
   <style>
@@ -12,6 +12,7 @@
   </style>
 </head>
 <body>
+  <div>Local Remote <a href='cloudremote'>(switch to Cloud Remote)</a></div>
   <input type='text' id='text'>
   <div>
     <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='POWER' value='POWER'>
