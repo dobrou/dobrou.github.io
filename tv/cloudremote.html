@@ -43,12 +43,12 @@
   </div>  
   <div id='status'>loading</div>
   <script>  
-    var cookies =()=> document.cookie.split(/; */).map(c=>c.split(/ *= */,2)).reduce((a,c)=>(a[c[0]]=c[1],a),new Object);
+    var cookies =()=> document.cookie.split(/; */).map(c=>c.split(/ *= */,2)).reduce((a,c)=>(a[c[0]]=c[1],a),{});
 
     async function connect() {      
       var token = cookies().apitoken; 
       if(!token){
-        token = prompt('Provide token from https://account.smartthings.com/tokens with Devicess access');
+        token = prompt('Provide token from https://account.smartthings.com/tokens with Devices access');
         if(token) document.cookie = 'apitoken='+token+'; max-age=31536000';
         // TODO renew token on 40? unauthorized
       }
@@ -69,10 +69,11 @@
       console.log(devices);
       window.defaultTv = deviceTv.deviceId;
       var defaultTvStatus = await fetchApi('devices/'+defaultTv+'/status');
+      var defaultTvHealth = await fetchApi('devices/'+defaultTv+'/health');
       console.log(defaultTvStatus);
       console.log(defaultTvStatus?.components?.main?.switch?.switch);
 
-      setStatus('Connected: '+deviceTv?.label+' ('+defaultTvStatus?.components?.main?.switch?.switch?.value+')');
+      setStatus(`Connected: ${deviceTv?.label} (${defaultTvHealth?.state}:${defaultTvStatus?.components?.main?.switch?.switch?.value})`);
 
       window.sendCmd = (cmd, args) => fetchApi('devices/'+defaultTv+'/commands',  [{'capability': cmd.split(':')[0], 'command': cmd.split(':')[1], 'arguments': args || JSON.parse(cmd.split(':')[2]||'[]')}] );
       window.openLink  = link => sendCmd('custom.tvsearch:search', ['',link]);
