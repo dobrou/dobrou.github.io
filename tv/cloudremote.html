@@ -43,10 +43,12 @@
   </div>  
   <div id='status'>loading</div>
   <script>  
+    var cookies =()=> document.cookie.split(/; */).map(c=>c.split(/ *= */,2)).reduce((a,c)=>(a[c[0]]=c[1],a),new Object);
+
     async function connect() {      
-      var token = document.cookie.match(/apitoken=([^;]+)(;|$)/)?.at(1); 
+      var token = cookies().apitoken; 
       if(!token){
-        token = prompt('token from https://account.smartthings.com/tokens');
+        token = prompt('Provide token from https://account.smartthings.com/tokens with Devicess access');
         if(token) document.cookie = 'apitoken='+token+'; max-age=31536000';
         // TODO renew token on 40? unauthorized
       }
