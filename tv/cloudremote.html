@@ -60,9 +60,17 @@
       }
       window.setStatus = (status) => document.getElementById('status').innerHTML = status;
       window.getDevices = async _=> (await fetchApi('devices')).items;
+      
       setStatus('Connecting');
-      window.defaultTv = (await getDevices()).pop().deviceId;
-      setStatus('Connected '+defaultTv);
+      var devices = await getDevices(); 
+      var deviceTv = devices[0];
+      console.log(devices);
+      window.defaultTv = deviceTv.deviceId;
+      var defaultTvStatus = await fetchApi('devices/'+defaultTv+'/status');
+      console.log(defaultTvStatus);
+      console.log(defaultTvStatus?.components?.main?.switch?.switch);
+
+      setStatus('Connected: '+deviceTv?.label+' ('+defaultTvStatus?.components?.main?.switch?.switch?.value+')');
 
       window.sendCmd = (cmd, args) => fetchApi('devices/'+defaultTv+'/commands',  [{'capability': cmd.split(':')[0], 'command': cmd.split(':')[1], 'arguments': args || JSON.parse(cmd.split(':')[2]||'[]')}] );
       window.openLink  = link => sendCmd('custom.tvsearch:search', ['',link]);
@@ -77,9 +85,6 @@
       // sendCmd('custom.soundmode:setSoundMode:["Amplify"]');
       // sendCmd('custom.soundmode:setSoundMode:["Standard"]');
       // sendCmd('execute:execute:[command<string>, [args<JsonObject>]]');
-      
-      console.log(await getDevices());
-      console.log(await fetchApi('devices/'+defaultTv+'/status'));
     }
     connect();
     
