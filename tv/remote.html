@@ -44,17 +44,16 @@
   </div>  
   <div id='status'>loading</div>
   <script>  
-    const remoteId = document.cookie.match(/remoteId=([^;]+)(;|$)/)?.at(1) || Math.floor(Math.random() * 100);
-    document.cookie = 'remoteId='+remoteId+'; max-age=31536000';
-    const host = document.cookie.match(/host=([^;]+)(;|$)/)?.at(1) || 'samsung';
+    var cookies =()=> document.cookie.split(/; */).map(c=>c.split(/ *= */,2)).reduce((a,c)=>(a[c[0]]=c[1],a),new Object);
+    
+    const host = cookies().host || 'samsung';
     const touchMoveScale = 3;
     const touchQuickMs = () => window.isTouch ? 100 : 300;
     const touchLongMs = 1000;
     
     function connect() {      
-      const token = document.cookie.match(/token=([^;]+)(;|$)/)?.at(1) || '';    
-      const name = 'WebRemote #'+remoteId;
-      var socket = new WebSocket('wss://'+host+':8002/api/v2/channels/samsung.remote.control?name='+btoa(name)+'&token='+token);
+      const token = cookies().token || '';
+      var socket = new WebSocket('wss://'+host+':8002/api/v2/channels/samsung.remote.control?name=V2ViUmVtb3Rl&token='+token);
       
       window.setStatus = (status) => document.getElementById('status').innerHTML = status;
       window.clickKey  = (key,cmd)=> console.log(key)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(cmd||'Click')+'","Option":"false","TypeOfRemote":"SendRemoteKey","DataOfCmd":"KEY_'+key+'"}}');
