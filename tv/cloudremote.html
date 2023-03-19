@@ -9,6 +9,7 @@
     * {font-size:large;padding:0.2em;background-color:#222;color:#DDD}
     #link {width: 99%}
     #status {user-select:none}
+    .light {font-weight:bold} 
   </style>
 </head>
 <body>
@@ -68,19 +69,27 @@
       var deviceTv = devices[0];
       console.log(devices);
       window.defaultTv = deviceTv.deviceId;
-      var defaultTvStatus = await fetchApi('devices/'+defaultTv+'/status');
-      var defaultTvHealth = await fetchApi('devices/'+defaultTv+'/health');
-      console.log(defaultTvStatus);
-      console.log(defaultTvStatus?.components?.main?.switch?.switch);
-
-      setStatus(`Connected: ${deviceTv?.label} (${defaultTvHealth?.state}:${defaultTvStatus?.components?.main?.switch?.switch?.value})`);
-
+      
       window.sendCmd = (cmd, args) => fetchApi('devices/'+defaultTv+'/commands',  [{'capability': cmd.split(':')[0], 'command': cmd.split(':')[1], 'arguments': args || JSON.parse(cmd.split(':')[2]||'[]')}] );
       window.openLink  = link => sendCmd('custom.tvsearch:search', ['',link]);
       var pressed = new Object();
       window.clickKey  = (key,cmd)=> (sendCmd('samsungvd.remoteControl:send',[key, cmd||'PRESS_AND_RELEASED']),console.log(key),pressed[key]=null);
       window.pressKey  = (key)    => pressed[key] || (clickKey(key,'PRESSED'),pressed[key]=1);
       window.releaseKey= (key)    => (clickKey(key,'RELEASED'),pressed[key]=null);
+      window.getStatus = async ()=> {
+        // await sendCmd('refresh:refresh');
+        var status = await fetchApi('devices/'+defaultTv+'/status');
+        var health = await fetchApi('devices/'+defaultTv+'/health');
+        setStatus(`Connected: ${deviceTv?.label} (${health?.state}:${status?.components?.main?.switch?.switch?.value})`);
+        document.getElementById('switch:on') .classList.toggle('light', status?.components?.main?.switch?.switch?.value == 'on'  );
+        document.getElementById('switch:off').classList.toggle('light', status?.components?.main?.switch?.switch?.value == 'off' );
+        document.getElementById('custom.picturemode:setPictureMode:["Dynamic"]')       .classList.toggle('light', status?.components?.main['custom.picturemode']?.pictureMode?.value == 'Dynamic' );
+        document.getElementById('custom.picturemode:setPictureMode:["Standard"]')      .classList.toggle('light', status?.components?.main['custom.picturemode']?.pictureMode?.value == 'Standard' );
+        document.getElementById('custom.picturemode:setPictureMode:["FILMMAKER MODE"]').classList.toggle('light', status?.components?.main['custom.picturemode']?.pictureMode?.value == 'FILMMAKER MODE' );
+        return status;
+      };
+      console.log(await getStatus());
+      setInterval(getStatus, 10000);
 
       // sendCmd('audioVolume:volumeDown');
       // sendCmd('audioVolume:setVolume:[9]');
