@@ -5,9 +5,9 @@
     <style>body{margin:0} .vjs-control-bar{font-size:300%}</style>
   </head>
   <body>
-    <video id='my-video' class='video-js vjs-fill' controls preload='auto' data-setup='{}' />
+    <video id='my-video' class='video-js vjs-fill' controls preload='auto' data-setup='{"controlBar":{"pictureInPictureToggle":false}}' />
     <script>
-      // TODO hidepip button, restore last play position from cookie
+      // TODO restore last play position from cookie
       var video = document.getElementById('my-video');      
       video.src = 
         decodeURIComponent(document.location.hash.substring(1))
