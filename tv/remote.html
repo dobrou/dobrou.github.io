@@ -65,11 +65,8 @@
       window.clickMouse= (isRight)=> console.log(isRight)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(isRight?'Right':'Left')+'Click","TypeOfRemote":"ProcessMouseDevice"}}');
       
       setStatus('Connecting: <a href=\'https://'+host+':8002/api/v2/\'>https://'+host+':8002/api/v2/</a>');
-      socket.addEventListener('open' , e => setStatus(token==''?'Waiting: Turn TV On and ALLOW new remote':('OK '+token+':'+cookies().token)));
-      socket.addEventListener('error', e => {
-        setStatus('Connection FAILED, check here <a href=\'https://'+host+':8002/api/v2/\'>https://'+host+':8002/api/v2/</a>, allow untrusted certificate if needed');
-        socket.close();
-      });
+      socket.addEventListener('open' , e => setStatus(token==''?'Waiting: Turn TV On and ALLOW new remote':('OK '+socket.url)));
+      socket.addEventListener('error', e => (socket.close(), setStatus('Connection FAILED, check <a href=\'https://'+host+':8002/api/v2/\'>https://'+host+':8002/api/v2/</a>, and allow untrusted certificate if needed')));
       socket.addEventListener('close', e => setTimeout(connect,2000));
       socket.addEventListener('message', e => {
           var data = JSON.parse(e.data);
