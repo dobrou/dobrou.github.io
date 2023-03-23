@@ -15,18 +15,18 @@
       async function init() {
         // hide cursor
         var lastTimerId = setTimeout(() => video.style.cursor='none', 5000);
-        video.addEventListener('mousemove', () => {
+        video.addEventListener('mousemove', e=>{
           clearTimeout(lastTimerId);
-          video.style.cursor='';
-          lastTimerId = setTimeout(() => video.style.cursor='none', 2000);
+          e.target.style.cursor='';
+          lastTimerId = setTimeout(() => e.target.style.cursor='none', 2000);
         });
 
         // remember last position
         var cookies =()=> document.cookie.split(/; */).map(c=>c.split(/ *= */,2)).reduce((a,c)=>(a[c[0]]=c[1],a),{});
         var hash = async str=> Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str)))).map(b=>b.toString(16).padStart(2,'0')).join('');
-        var posCookie = 'video.pos.'+await hash(document.location.hash);
-        video.addEventListener('loadedmetadata',_=>video.currentTime=cookies()[posCookie]||0);
-        video.addEventListener('timeupdate',_=>document.cookie=`${posCookie}=${video.currentTime}; max-age=2592000`);
+        var posCookie = 'video.pos.'+await hash(video.src);
+        video.addEventListener('loadedmetadata',e=>e.target.currentTime=cookies()[posCookie]||0);
+        video.addEventListener('timeupdate',e=>document.cookie=`${posCookie}=${e.target.currentTime}; max-age=2592000`);
       }
       init();
     </script>
