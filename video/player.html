@@ -5,21 +5,30 @@
     <style>body{margin:0} .vjs-control-bar{font-size:300%}</style>
   </head>
   <body>
-    <video id='my-video' class='video-js vjs-fill' controls preload='auto' data-setup='{"controlBar":{"pictureInPictureToggle":false}}' />
+    <video id='my-video' class='video-js vjs-fill' controls preload='auto' data-setup='{"controlBar": {"pictureInPictureToggle": false}}' />
     <script>
-      // TODO restore last play position from cookie
       var video = document.getElementById('my-video');      
       video.src = 
         decodeURIComponent(document.location.hash.substring(1))
         || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-      
-      // hide cursor
-      var lastTimerId = setTimeout(() => video.style.cursor='none', 5000);
-      video.addEventListener('mousemove', () => {
-        clearTimeout(lastTimerId);
-        video.style.cursor='';
-        lastTimerId = setTimeout(() => video.style.cursor='none', 2000);
-      });
+
+      async function init() {
+        // hide cursor
+        var lastTimerId = setTimeout(() => video.style.cursor='none', 5000);
+        video.addEventListener('mousemove', () => {
+          clearTimeout(lastTimerId);
+          video.style.cursor='';
+          lastTimerId = setTimeout(() => video.style.cursor='none', 2000);
+        });
+
+        // remember last position
+        var cookies =()=> document.cookie.split(/; */).map(c=>c.split(/ *= */,2)).reduce((a,c)=>(a[c[0]]=c[1],a),{});
+        var hash = async str=> Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str)))).map(b=>b.toString(16).padStart(2,'0')).join('');
+        var posCookie = 'video.pos.'+await hash(document.location.hash);
+        video.addEventListener('loadedmetadata',_=>video.currentTime=cookies()[posCookie]||0);
+        video.addEventListener('timeupdate',_=>document.cookie=`${posCookie}=${video.currentTime}; max-age=2592000`);
+      }
+      init();
     </script>
     <script src='https://vjs.zencdn.net/8.0.4/video.min.js'></script>
   </body>
