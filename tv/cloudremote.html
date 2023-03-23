@@ -80,16 +80,19 @@
       window.pressKey  = (key)    => pressed[key] || (clickKey(key,'PRESSED'),pressed[key]=1);
       window.releaseKey= (key)    => (clickKey(key,'RELEASED'),pressed[key]=null);
       window.getStatus = async ()=> {
-        // await sendCmd('refresh:refresh');
+        await sendCmd('refresh:refresh');
         var status = await fetchApi('devices/'+defaultTv+'/status');
         var health = await fetchApi('devices/'+defaultTv+'/health');
         var main = status?.components?.main;
         setStatus(`Connected: ${deviceTv?.label} (${health?.state}:${main?.switch?.switch?.value}) ${main?.tvChannel?.tvChannelName?.value} ${main?.tvChannel?.tvChannel?.value}`);
         document.getElementById('switch:on') .classList.toggle('light', main?.switch?.switch?.value == 'on'  );
         document.getElementById('switch:off').classList.toggle('light', main?.switch?.switch?.value == 'off' );
-        document.getElementById('custom.picturemode:setPictureMode:["Dynamic"]')       .classList.toggle('light', main['custom.picturemode']?.pictureMode?.value == 'Dynamic' );
-        document.getElementById('custom.picturemode:setPictureMode:["Standard"]')      .classList.toggle('light', main['custom.picturemode']?.pictureMode?.value == 'Standard' );
-        document.getElementById('custom.picturemode:setPictureMode:["FILMMAKER MODE"]').classList.toggle('light', main['custom.picturemode']?.pictureMode?.value == 'FILMMAKER MODE' );
+        document.getElementById('custom.picturemode:setPictureMode:["Dynamic"]')          .classList.toggle('light', main['custom.picturemode']?.pictureMode?.value == 'Dynamic' );
+        document.getElementById('custom.picturemode:setPictureMode:["Standard"]')         .classList.toggle('light', main['custom.picturemode']?.pictureMode?.value == 'Standard' );
+        document.getElementById('custom.picturemode:setPictureMode:["FILMMAKER MODE"]')   .classList.toggle('light', main['custom.picturemode']?.pictureMode?.value == 'FILMMAKER MODE' );
+        document.getElementById('HOME')                                                   .classList.toggle('light', main?.tvChannel?.tvChannelName?.value == 'com.samsung.tv.csfs');
+        document.getElementById('custom.launchapp:launchApp:["org.tizen.browser"]')       .classList.toggle('light', main?.tvChannel?.tvChannelName?.value == 'org.tizen.browser');
+        document.getElementById('custom.launchapp:launchApp:["j7L028mExx.ivysilaniTest"]').classList.toggle('light', main?.tvChannel?.tvChannelName?.value == 'j7L028mExx.ivysilaniTest');
         return status;
       };
       console.log(await getStatus());
