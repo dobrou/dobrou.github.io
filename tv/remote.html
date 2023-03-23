@@ -65,7 +65,7 @@
       window.clickMouse= (isRight)=> console.log(isRight)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(isRight?'Right':'Left')+'Click","TypeOfRemote":"ProcessMouseDevice"}}');
       
       setStatus('Connecting: <a href=\'https://'+host+':8002/api/v2/\'>https://'+host+':8002/api/v2/</a>');
-      socket.addEventListener('open' , e => setStatus(token==''?'Waiting: Turn TV On and ALLOW new remote':'OK'));
+      socket.addEventListener('open' , e => setStatus(token==''?'Waiting: Turn TV On and ALLOW new remote':('OK '+token+':'+cookies().token)));
       socket.addEventListener('error', e => {
         setStatus('Connection FAILED, check here <a href=\'https://'+host+':8002/api/v2/\'>https://'+host+':8002/api/v2/</a>, allow untrusted certificate if needed');
         socket.close();
@@ -75,9 +75,7 @@
           var data = JSON.parse(e.data);
           console.log(data);
           
-          setStatus('OK: Connected '+token+':'+data.data?.token);
-        
-
+          setStatus('OK: Connected');
 
           // store token with new auth
           // {"data":{"clients":[{"attributes":{"name":"V2ViUmVtb3Rl"},"connectTime":1678283059081,"deviceName":"V2ViUmVtb3Rl","id":"1651562-156e-4515-111c-2165156156b8","isHost":false}],"id":"1231232-123e-1361-123c-1231231328b8","token":"56468986"},"event":"ms.channel.connect"}

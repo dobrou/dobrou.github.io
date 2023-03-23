@@ -46,6 +46,7 @@
   </div><div>
   <div id='status'>loading</div>
   <script>  
+    // TODO black screen via accessibility button
     var cookies =()=> document.cookie.split(/; */).map(c=>c.split(/ *= */,2)).reduce((a,c)=>(a[c[0]]=c[1],a),{});
 
     async function connect() {      
