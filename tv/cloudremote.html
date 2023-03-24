@@ -46,7 +46,6 @@
   </div><div>
   <div id='status'>loading</div>
   <script>  
-    // TODO black screen via accessibility button
     var cookies =()=> document.cookie.split(/; */).map(c=>c.split(/ *= */,2)).reduce((a,c)=>(a[c[0]]=c[1],a),{});
 
     async function connect() {      
@@ -54,7 +53,6 @@
       if(!token){
         token = prompt('Provide token from https://account.smartthings.com/tokens with Devices access');
         if(token) document.cookie = 'apitoken='+token+'; max-age=31536000';
-        // TODO renew token on 40? unauthorized
       }
       window.fetchApi = async (url, cmd) => {
         const response = await fetch( 'https://api.smartthings.com/v1/'+url, {
@@ -76,7 +74,7 @@
       window.sendCmd = (cmd, args) => fetchApi('devices/'+defaultTv+'/commands',  [{'capability': cmd.split(':')[0], 'command': cmd.split(':')[1], 'arguments': args || JSON.parse(cmd.split(':')[2]||'[]')}] );
       window.openLink  = link => sendCmd('custom.tvsearch:search', ['',link]);
       var pressed = new Object();
-      window.clickKey  = (key,cmd)=> (sendCmd('samsungvd.remoteControl:send',[key, cmd||'PRESS_AND_RELEASED']),console.log(key),pressed[key]=null,getStatus());
+      window.clickKey  = (key,cmd)=> (sendCmd('samsungvd.remoteControl:send',[key, cmd||'PRESS_AND_RELEASED']),console.log(key),pressed[key]=null);
       window.pressKey  = (key)    => pressed[key] || (clickKey(key,'PRESSED'),pressed[key]=1);
       window.releaseKey= (key)    => (clickKey(key,'RELEASED'),pressed[key]=null);
       window.getStatus = async ()=> {
@@ -87,16 +85,10 @@
         setStatus(`Connected: ${deviceTv?.label} (${health?.state}:${main?.switch?.switch?.value}) ${main?.tvChannel?.tvChannelName?.value} ${main?.tvChannel?.tvChannel?.value}`);
         document.getElementById('switch:on') .classList.toggle('light', main?.switch?.switch?.value == 'on'  );
         document.getElementById('switch:off').classList.toggle('light', main?.switch?.switch?.value == 'off' );
-        document.getElementById('custom.picturemode:setPictureMode:["Dynamic"]')          .classList.toggle('light', main['custom.picturemode']?.pictureMode?.value == 'Dynamic' );
-        document.getElementById('custom.picturemode:setPictureMode:["Standard"]')         .classList.toggle('light', main['custom.picturemode']?.pictureMode?.value == 'Standard' );
-        document.getElementById('custom.picturemode:setPictureMode:["FILMMAKER MODE"]')   .classList.toggle('light', main['custom.picturemode']?.pictureMode?.value == 'FILMMAKER MODE' );
-        document.getElementById('HOME')                                                   .classList.toggle('light', main?.tvChannel?.tvChannelName?.value == 'com.samsung.tv.csfs');
-        document.getElementById('custom.launchapp:launchApp:["org.tizen.browser"]')       .classList.toggle('light', main?.tvChannel?.tvChannelName?.value == 'org.tizen.browser');
-        document.getElementById('custom.launchapp:launchApp:["j7L028mExx.ivysilaniTest"]').classList.toggle('light', main?.tvChannel?.tvChannelName?.value == 'j7L028mExx.ivysilaniTest');
         return status;
       };
       console.log(await getStatus());
-      setInterval(getStatus, 10000);
+      setInterval(getStatus, 30000);
 
       // sendCmd('audioVolume:volumeDown');
       // sendCmd('audioVolume:setVolume:[9]');
