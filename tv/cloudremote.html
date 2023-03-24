@@ -67,9 +67,10 @@
       
       setStatus('Connecting');
       var devices = await getDevices(); 
-      var deviceTv = devices[0];
+      var defaultTvDevice = devices.find(d=>d.deviceId===cookies().defaultTv) || devices[0];
+      window.defaultTv = defaultTvDevice.deviceId;
+      document.cookie = 'defaultTv='+defaultTv+'; max-age=31536000';
       console.log(devices);
-      window.defaultTv = deviceTv.deviceId;
       
       window.sendCmd = (cmd, args) => fetchApi('devices/'+defaultTv+'/commands',  [{'capability': cmd.split(':')[0], 'command': cmd.split(':')[1], 'arguments': args || JSON.parse(cmd.split(':')[2]||'[]')}] );
       window.openLink  = link => sendCmd('custom.tvsearch:search', ['',link]);
@@ -82,7 +83,7 @@
         var status = await fetchApi('devices/'+defaultTv+'/status');
         var health = await fetchApi('devices/'+defaultTv+'/health');
         var main = status?.components?.main;
-        setStatus(`Connected: ${deviceTv?.label} (${health?.state}:${main?.switch?.switch?.value}) ${main?.tvChannel?.tvChannelName?.value} ${main?.tvChannel?.tvChannel?.value}`);
+        setStatus(`Connected: ${defaultTvDevice?.label} (${health?.state}:${main?.switch?.switch?.value}) ${main?.tvChannel?.tvChannelName?.value} ${main?.tvChannel?.tvChannel?.value}`);
         document.getElementById('switch:on') .classList.toggle('light', main?.switch?.switch?.value == 'on'  );
         document.getElementById('switch:off').classList.toggle('light', main?.switch?.switch?.value == 'off' );
         return status;
