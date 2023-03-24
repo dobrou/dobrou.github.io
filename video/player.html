@@ -12,23 +12,21 @@
         decodeURIComponent(document.location.hash.substring(1))
         || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
 
-      async function init() {
-        // hide cursor
-        var lastTimerId = setTimeout(() => video.style.cursor='none', 5000);
-        video.addEventListener('mousemove', e=>{
-          clearTimeout(lastTimerId);
-          e.target.style.cursor='';
-          lastTimerId = setTimeout(() => e.target.style.cursor='none', 2000);
-        });
+      // hide cursor
+      var lastTimerId = setTimeout(() => video.style.cursor='none', 5000);
+      video.addEventListener('mousemove', e=>{
+        clearTimeout(lastTimerId);
+        e.target.style.cursor='';
+        lastTimerId = setTimeout(() => e.target.style.cursor='none', 2000);
+      });
 
-        // remember last position
-        var cookies =()=> document.cookie.split(/; */).map(c=>c.split(/ *= */,2)).reduce((a,c)=>(a[c[0]]=c[1],a),{});
-        var hash = async str=> Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str)))).map(b=>b.toString(16).padStart(2,'0')).join('');
-        var posCookie = 'video.pos.'+await hash(video.src);
-        video.addEventListener('loadedmetadata',e=>e.target.currentTime=cookies()[posCookie]||0);
-        video.addEventListener('timeupdate',e=>document.cookie=`${posCookie}=${e.target.currentTime}; max-age=2592000`);
-      }
-      init();
+      // remember last position
+      var cookies =()=> document.cookie.split(/; */).map(c=>c.split(/ *= */,2)).reduce((a,c)=>(a[c[0]]=c[1],a),{});
+      video.addEventListener('loadedmetadata', e=>{
+        var posCookie = 'video.pos.'+video.duration;
+        e.target.currentTime=cookies()[posCookie]||0;
+        video.addEventListener('timeupdate',e=>document.cookie=`${posCookie}=${e.target.currentTime}; max-age=864000`);
+      });
     </script>
     <script src='https://vjs.zencdn.net/8.0.4/video.min.js'></script>
   </body>
