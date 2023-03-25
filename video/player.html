@@ -13,6 +13,9 @@
         decodeURIComponent(document.location.hash.substring(1))
         || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
 
+      // scroll time shift
+      video.addEventListener('wheel',e=>e.target.currentTime+=e.wheelDelta/4);
+
       // hide cursor
       var lastTimerId = setTimeout(() => video.style.cursor='none', 5000);
       video.addEventListener('mousemove', e=>{
