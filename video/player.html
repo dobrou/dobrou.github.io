@@ -15,7 +15,7 @@
 
       // TODO s key prompt for srt subttitles link?
       // time shift
-      video.addEventListener('keypress',e=>e.key.match(/[0-9]/)&&(e.target.currentTime=e.target.duration/10*e.key));
+      window.addEventListener('keypress',e=>e.key.match(/[0-9]/)&&(video.currentTime=video.duration/10*e.key));
       video.addEventListener('wheel',e=>e.target.currentTime+=e.wheelDelta/4);
 
       // hide cursor
