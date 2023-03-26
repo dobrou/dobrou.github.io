@@ -72,7 +72,7 @@
       window.defaultTv = deviceTv.deviceId;
       
       window.sendCmd = (cmd, args) => fetchApi('devices/'+defaultTv+'/commands',  [{'capability': cmd.split(':')[0], 'command': cmd.split(':')[1], 'arguments': args || JSON.parse(cmd.split(':')[2]||'[]')}] );
-      window.openLink  = link => sendCmd('custom.tvsearch:search', ['',link]);
+      window.openLink  = link => sendCmd('custom.tvsearch:search', [link,'']);
       var pressed = new Object();
       window.clickKey  = (key,cmd)=> (sendCmd('samsungvd.remoteControl:send',[key, cmd||'PRESS_AND_RELEASED']),console.log(key),pressed[key]=null);
       window.pressKey  = (key)    => pressed[key] || (clickKey(key,'PRESSED'),pressed[key]=1);
