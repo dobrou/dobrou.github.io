@@ -7,8 +7,7 @@
   <style>
     html,body {overflow:hidden;display:block;height:100%} 
     * {font-size:large;padding:0;background-color:#222;color:#DDD}
-    * {height: 100%; width:100%;margin:0;position:absolute}
-    #status {user-select:none}
+    * {height:100%;width:100%;margin:0;position:absolute}
   </style>
 </head>
 <body>
@@ -62,13 +61,6 @@
           // store token with new auth
           if(data.event=='ms.channel.connect' && data.data?.token) 
             document.cookie = 'token='+data.data.token+'; max-age=31536000';
-            
-          // {"event":"ms.remote.touchEnable"}
-          if(data.event == 'ms.remote.touchEnable')
-            window.isTouch = true;
-          // {"event":"ms.remote.touchDisable"}
-          if(data.event == 'ms.remote.touchDisable')
-            window.isTouch = false;        
       });
     }
     connect();
