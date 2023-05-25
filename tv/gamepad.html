@@ -36,8 +36,6 @@
     
     const host = cookies().host || 'samsung';
     const touchMoveScale = 3;
-    const touchQuickMs = () => window.isTouch ? 0*100 : 300;
-    const touchLongMs = 1000;
     
     function connect() {      
       const token = cookies().token || '';
@@ -81,7 +79,6 @@
     document.body.addEventListener('touchstart', e => startTouch = lastTouch = e);
     document.body.addEventListener('touchmove', e => {
       if(e.target!=document.body) return;
-      if(e.timeStamp-startTouch.timeStamp < touchQuickMs()) return;
       var dx = e.changedTouches[0].pageX-lastTouch.changedTouches[0].pageX;
       var dy = e.changedTouches[0].pageY-lastTouch.changedTouches[0].pageY;
       moveMouse(touchMoveScale*dx,touchMoveScale*dy);
@@ -89,15 +86,10 @@
     });
     document.body.addEventListener('touchend', e => {
       if(e.target!=document.body && startTouch.target!=document.body) return;
-      var touchQuick = e.timeStamp-startTouch.timeStamp < touchQuickMs();
-      var touchLong  = e.timeStamp-startTouch.timeStamp > touchLongMs;
       var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
       var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
       var touchMoved = (dx!=0||dy!=0);
-      if(!touchMoved)
-        window.isTouch && !touchLong ? clickMouse() : clickKey('ENTER');
-      if(touchMoved && touchQuick)
-        clickKey(Math.abs(dx)>Math.abs(dy) ? (dx>0?'RIGHT':'LEFT') : (dy>0?'DOWN':'UP'));
+      if(!touchMoved) clickMouse();
     });
     
     // back button hook
