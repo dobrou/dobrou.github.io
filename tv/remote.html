@@ -12,7 +12,7 @@
   </style>
 </head>
 <body>
-  <div>Local Remote <a href='cloudremote'>(switch to Cloud Remote)</a></div>
+  <div>Local Remote <a href='cloudremote'>(switch to Cloud Remote)</a><a href='gamepad'>(switch to GamePad)</a></div>
   <input type='text' id='text' placeholder='Here enter text input and send it to TV'>
   <div>
     <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='POWER' value='POWER'>
@@ -56,7 +56,7 @@
       var socket = new WebSocket('wss://'+host+':8002/api/v2/channels/samsung.remote.control?name=V2ViUmVtb3Rl&token='+token);
       
       window.setStatus = (status) => document.getElementById('status').innerHTML = status;
-      window.clickKey  = (key,cmd)=> console.log(key)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(cmd||'Click')+'","Option":"false","TypeOfRemote":"SendRemoteKey","DataOfCmd":"KEY_'+key+'"}}');
+      window.clickKey  = (key,cmd)=> console.log(key)+navigator.vibrate(100)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(cmd||'Click')+'","Option":"false","TypeOfRemote":"SendRemoteKey","DataOfCmd":"KEY_'+key+'"}}');
       window.pressKey  = (key)    => clickKey(key,'Press');
       window.releaseKey= (key)    => clickKey(key,'Release');
       window.setText   = (txt)    => console.log(txt)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+btoa(txt)+'","Option":"false","TypeOfRemote":"SendInputString","DataOfCmd":"base64"}}');

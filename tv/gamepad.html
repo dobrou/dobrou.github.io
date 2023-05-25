@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="description" content="GamePad for Samsung TV">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+  <title>GamePad for Samsung TV</title>  
+  <style>
+    html,body {overflow:hidden;display:block;height:100%} 
+    * {font-size:large;padding:0;background-color:#222;color:#DDD}
+    * {height: 100%; width:100%;margin:0;position:absolute}
+    #status {user-select:none}
+  </style>
+</head>
+<body>
+  <div style='top:25%; height:75%;'>
+    <span style='left:00.00%; width:33.33%;'>
+      <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='LEFT' value='&#x21E6;'>
+    </span>
+    <span style='left:33.33%; width:33.33%;'>
+      <span style='height:33.33%;'>
+        <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='ENTER' value='&#x23CE;'>
+      </span>
+      <span style='height:33.33%; top:33.33%;'>
+        <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='UP' value='&#x21E7;'>
+      </span>
+      <span style='height:33.33%; top:66.66%;'>
+        <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='DOWN' value='&#x21E9;'>
+      </span>
+    </span>
+    <span style='left:66.66%; width:33.33%;'>
+      <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='RIGHT' value='&#x21E8;'>
+    </span>
+  </div>
+  <script>  
+    var cookies =()=> document.cookie.split(/; */).map(c=>c.split(/ *= */,2)).reduce((a,c)=>(a[c[0]]=c[1],a),{});
+    
+    const host = cookies().host || 'samsung';
+    const touchMoveScale = 3;
+    const touchQuickMs = () => window.isTouch ? 0*100 : 300;
+    const touchLongMs = 1000;
+    
+    function connect() {      
+      const token = cookies().token || '';
+      var socket = new WebSocket('wss://'+host+':8002/api/v2/channels/samsung.remote.control?name=V2ViUmVtb3Rl&token='+token);
+      
+      window.setStatus = (status) => document.title = status;
+      window.clickKey  = (key,cmd)=> console.log(key)+navigator.vibrate(100)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(cmd||'Click')+'","Option":"false","TypeOfRemote":"SendRemoteKey","DataOfCmd":"KEY_'+key+'"}}');
+      window.pressKey  = (key)    => clickKey(key,'Press');
+      window.releaseKey= (key)    => clickKey(key,'Release');
+      window.moveMouse = (dx,dy)  => socket.send('{"method":"ms.remote.control","params":{"Cmd":"Move","Position":{"x":'+dx+',"y":'+dy+',"Time":"'+Date.now()+'"},"TypeOfRemote":"ProcessMouseDevice"}}');
+      window.clickMouse= (isRight)=> console.log(isRight)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(isRight?'Right':'Left')+'Click","TypeOfRemote":"ProcessMouseDevice"}}');
+      
+      setStatus('Connecting: <a href=\'https://'+host+':8002/api/v2/\'>https://'+host+':8002/api/v2/</a>');
+      socket.addEventListener('open' , e => setStatus(token==''?'Waiting: Turn TV On and ALLOW new remote':('OK '+socket.url)));
+      socket.addEventListener('error', e => (socket.close(), setStatus('Connection FAILED, check <a href=\'https://'+host+':8002/api/v2/\'>https://'+host+':8002/api/v2/</a>, and allow untrusted certificate if needed')));
+      socket.addEventListener('close', e => setTimeout(connect,2000));
+      socket.addEventListener('message', e => {
+          var data = JSON.parse(e.data);
+          console.log(data);
+          
+          setStatus('OK: Connected');
+          setTimeout(_=>setStatus('GamePad for Samsung TV'),3000);
+
+          // store token with new auth
+          if(data.event=='ms.channel.connect' && data.data?.token) 
+            document.cookie = 'token='+data.data.token+'; max-age=31536000';
+            
+          // {"event":"ms.remote.touchEnable"}
+          if(data.event == 'ms.remote.touchEnable')
+            window.isTouch = true;
+          // {"event":"ms.remote.touchDisable"}
+          if(data.event == 'ms.remote.touchDisable')
+            window.isTouch = false;        
+      });
+    }
+    connect();
+   
+    // touch move cursor
+    var lastTouch;
+    var startTouch;
+    document.body.addEventListener('touchstart', e => startTouch = lastTouch = e);
+    document.body.addEventListener('touchmove', e => {
+      if(e.target!=document.body) return;
+      if(e.timeStamp-startTouch.timeStamp < touchQuickMs()) return;
+      var dx = e.changedTouches[0].pageX-lastTouch.changedTouches[0].pageX;
+      var dy = e.changedTouches[0].pageY-lastTouch.changedTouches[0].pageY;
+      moveMouse(touchMoveScale*dx,touchMoveScale*dy);
+      lastTouch = e;
+    });
+    document.body.addEventListener('touchend', e => {
+      if(e.target!=document.body && startTouch.target!=document.body) return;
+      var touchQuick = e.timeStamp-startTouch.timeStamp < touchQuickMs();
+      var touchLong  = e.timeStamp-startTouch.timeStamp > touchLongMs;
+      var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
+      var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
+      var touchMoved = (dx!=0||dy!=0);
+      if(!touchMoved)
+        window.isTouch && !touchLong ? clickMouse() : clickKey('ENTER');
+      if(touchMoved && touchQuick)
+        clickKey(Math.abs(dx)>Math.abs(dy) ? (dx>0?'RIGHT':'LEFT') : (dy>0?'DOWN':'UP'));
+    });
+    
+    // back button hook
+    history.replaceState(null, document.title, location.pathname+"#!");
+    history.pushState(   null, document.title, location.pathname);
+    window.addEventListener('popstate', e=> {
+      if(location.hash == '#!') {
+        clickKey('RETURN');
+        setTimeout(_=> history.pushState(null, document.title, window.location.href.split('#')[0]));
+      }
+    });    
+  </script>
+</body>
+</html>
