@@ -41,11 +41,11 @@
       var socket = new WebSocket('wss://'+host+':8002/api/v2/channels/samsung.remote.control?name=V2ViUmVtb3Rl&token='+token);
       
       window.setStatus = (status) => document.title = status;
-      window.clickKey  = (key,cmd)=> console.log(key)+navigator.vibrate(100)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(cmd||'Click')+'","Option":"false","TypeOfRemote":"SendRemoteKey","DataOfCmd":"KEY_'+key+'"}}');
-      window.pressKey  = (key)    => clickKey(key,'Press');
-      window.releaseKey= (key)    => clickKey(key,'Release');
+      window.clickKey  = (key,cmd)=> console.log(key)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(cmd||'Click')+'","Option":"false","TypeOfRemote":"SendRemoteKey","DataOfCmd":"KEY_'+key+'"}}');
+      window.pressKey  = (key)    => clickKey(key,'Press')  +navigator.vibrate(80);
+      window.releaseKey= (key)    => clickKey(key,'Release')+navigator.vibrate(20);
       window.moveMouse = (dx,dy)  => socket.send('{"method":"ms.remote.control","params":{"Cmd":"Move","Position":{"x":'+dx+',"y":'+dy+',"Time":"'+Date.now()+'"},"TypeOfRemote":"ProcessMouseDevice"}}');
-      window.clickMouse= (isRight)=> console.log(isRight)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(isRight?'Right':'Left')+'Click","TypeOfRemote":"ProcessMouseDevice"}}');
+      window.clickMouse= (isRight)=> console.log(isRight)+navigator.vibrate(40)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(isRight?'Right':'Left')+'Click","TypeOfRemote":"ProcessMouseDevice"}}');
       
       setStatus('Connecting: <a href=\'https://'+host+':8002/api/v2/\'>https://'+host+':8002/api/v2/</a>');
       socket.addEventListener('open' , e => setStatus(token==''?'Waiting: Turn TV On and ALLOW new remote':('OK '+socket.url)));
@@ -55,6 +55,7 @@
           var data = JSON.parse(e.data);
           console.log(data);
           
+          navigator.vibrate(100);
           setStatus('OK: Connected');
           setTimeout(_=>setStatus('GamePad for Samsung TV'),3000);
 
