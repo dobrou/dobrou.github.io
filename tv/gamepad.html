@@ -13,11 +13,16 @@
 <body>
   <div style='top:25%; height:75%;'>
     <span style='left:00.00%; width:33.33%;'>
-      <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='LEFT' value='&#x21E6;'>
+      <span style='height:33.33%;'>
+        <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='ENTER' value='&#x23CE;'>
+      </span>
+      <span style='height:66.66%; top:33.33%;'>
+        <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='LEFT' value='&#x21E6;'>
+      </span>
     </span>
     <span style='left:33.33%; width:33.33%;'>
       <span style='height:33.33%;'>
-        <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='ENTER' value='&#x23CE;'>
+        <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='LEFT' value='&#x21E6;'>
       </span>
       <span style='height:33.33%; top:33.33%;'>
         <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='UP' value='&#x21E7;'>
@@ -55,7 +60,6 @@
           var data = JSON.parse(e.data);
           console.log(data);
           
-          navigator.vibrate(100);
           setStatus('OK: Connected');
           setTimeout(_=>setStatus('GamePad for Samsung TV'),3000);
 

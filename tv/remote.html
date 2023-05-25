@@ -56,8 +56,8 @@
       var socket = new WebSocket('wss://'+host+':8002/api/v2/channels/samsung.remote.control?name=V2ViUmVtb3Rl&token='+token);
       
       window.setStatus = (status) => document.getElementById('status').innerHTML = status;
-      window.clickKey  = (key,cmd)=> console.log(key)+navigator.vibrate(100)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(cmd||'Click')+'","Option":"false","TypeOfRemote":"SendRemoteKey","DataOfCmd":"KEY_'+key+'"}}');
-      window.pressKey  = (key)    => clickKey(key,'Press');
+      window.clickKey  = (key,cmd)=> navigator.vibrate(20)+console.log(key)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(cmd||'Click')+'","Option":"false","TypeOfRemote":"SendRemoteKey","DataOfCmd":"KEY_'+key+'"}}');
+      window.pressKey  = (key)    => navigator.vibrate(60)+clickKey(key,'Press');
       window.releaseKey= (key)    => clickKey(key,'Release');
       window.setText   = (txt)    => console.log(txt)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+btoa(txt)+'","Option":"false","TypeOfRemote":"SendInputString","DataOfCmd":"base64"}}');
       window.setTextEnd= ()       => socket.send('{"method":"ms.remote.control","params":{"TypeOfRemote":"SendInputEnd"}}');
@@ -73,6 +73,7 @@
           console.log(data);
           
           setStatus('OK: Connected');
+          setTimeout(_=>setStatus(''),5000);
 
           // store token with new auth
           // {"data":{"clients":[{"attributes":{"name":"V2ViUmVtb3Rl"},"connectTime":1678283059081,"deviceName":"V2ViUmVtb3Rl","id":"1651562-156e-4515-111c-2165156156b8","isHost":false}],"id":"1231232-123e-1361-123c-1231231328b8","token":"56468986"},"event":"ms.channel.connect"}
