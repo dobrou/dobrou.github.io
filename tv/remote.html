@@ -53,6 +53,7 @@
     
     function connect() {      
       const token = cookies().token || '';
+      if(token!=='') document.cookie = 'token='+token+'; max-age=31536000';
       var socket = new WebSocket('wss://'+host+':8002/api/v2/channels/samsung.remote.control?name=V2ViUmVtb3Rl&token='+token);
       
       window.setStatus = (status) => document.getElementById('status').innerHTML = status;

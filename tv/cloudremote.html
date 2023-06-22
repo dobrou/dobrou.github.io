@@ -51,10 +51,9 @@
 
     async function connect() {      
       var token = cookies().apitoken; 
-      if(!token){
-        token = prompt('Provide token from https://account.smartthings.com/tokens with Devices access');
-        if(token) document.cookie = 'apitoken='+token+'; max-age=31536000';
-      }
+      if(!token) token = prompt('Provide token from https://account.smartthings.com/tokens with Devices access');
+      if(token) document.cookie = 'apitoken='+token+'; max-age=31536000';
+
       window.fetchApi = async (url, cmd) => {
         const response = await fetch( 'https://api.smartthings.com/v1/'+url, {
           method: cmd ? 'post' : 'get',
