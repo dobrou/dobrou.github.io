@@ -60,6 +60,8 @@
           headers: { 'authorization': 'Bearer '+token },
           body: JSON.stringify(cmd),
         });
+        if(!response.ok) setStatus(response.status + ':' + await response.text());
+        if(response.status === 401) document.cookie = 'apitoken=; max-age=0';
         return response.json();
       }
       window.setStatus = (status) => document.getElementById('status').innerHTML = status;
