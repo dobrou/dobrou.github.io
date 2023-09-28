@@ -28,7 +28,7 @@
       // remember last position & autoplay
       var cookies =()=> document.cookie.split(/; */).map(c=>c.split(/ *= */,2)).reduce((a,c)=>(a[c[0]]=c[1],a),{});
       video.addEventListener('loadedmetadata', e=>{
-        var posCookie = 'video.pos.'+video.duration;
+        var posCookie = 'video.pos.'+escape(video.src);
         e.target.currentTime=cookies()[posCookie]||0;
         video.addEventListener('timeupdate',e=>document.cookie=`${posCookie}=${e.target.currentTime}; max-age=864000`);
         video.play().catch(console.log);
