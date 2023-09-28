@@ -76,9 +76,9 @@
       window.sendCmd = (cmd, args) => fetchApi('devices/'+defaultTv+'/commands',  [{'capability': cmd.split(':')[0], 'command': cmd.split(':')[1], 'arguments': args || JSON.parse(cmd.split(':')[2]||'[]')}] );
       window.openLink  = link => sendCmd('custom.tvsearch:search', [link,'']);
       var pressed = new Object();
-      window.clickKey  = (key,cmd)=> (sendCmd('samsungvd.remoteControl:send',[key, cmd||'PRESS_AND_RELEASED']),console.log(key),pressed[key]=null);
+      window.clickKey  = (key,cmd)=> (navigator.vibrate(20),sendCmd('samsungvd.remoteControl:send',[key, cmd||'PRESS_AND_RELEASED']),console.log(key),pressed[key]=null);
       window.pressKey  = (key)    => pressed[key] || (clickKey(key,'PRESSED'),pressed[key]=1);
-      window.releaseKey= (key)    => (clickKey(key,'RELEASED'),pressed[key]=null);
+      window.releaseKey= (key)    => (navigator.vibrate(60),clickKey(key,'RELEASED'),pressed[key]=null);
       window.getStatus = async ()=> {
         await sendCmd('refresh:refresh');
         var status = await fetchApi('devices/'+defaultTv+'/status');
