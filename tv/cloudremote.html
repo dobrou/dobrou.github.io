@@ -27,7 +27,7 @@
     <input type='button' onclick='sendCmd(this.id)'  id='custom.picturemode:setPictureMode:["Dynamic"]' value='Dynamic'>
     <input type='button' onclick='sendCmd(this.id)'  id='custom.picturemode:setPictureMode:["Standard"]' value='Standard'>
     <input type='button' onclick='sendCmd(this.id)'  id='custom.picturemode:setPictureMode:["FILMMAKER MODE"]' value='Film'>
-  </div>  
+  </div><div>
     <input type='button' onclick='clickKey(this.id)' id='BACK' value='BACK'>
     <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='UP' value='    &#x21E7;    '>
     <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='OK' value='ENTER&#x23CE;'>
@@ -44,7 +44,7 @@
     <input type='button' onclick='sendCmd(this.id)' id='audioMute:mute' value='MUTE&#x1F507;'>
     <input type='button' onclick='sendCmd(this.id)' id='audioVolume:volumeDown' value='&#x1F509; VOL -'>
     <input type='button' onclick='sendCmd(this.id)' id='audioVolume:volumeUp' value='VOL + &#x1F50A;'>
-  </div><div>
+  </div>
   <div id='status'>loading</div>
   <script>  
     var cookies =()=> document.cookie.split(/; */).map(c=>c.split(/ *= */,2)).reduce((a,c)=>(a[c[0]]=c[1],a),{});
@@ -69,7 +69,7 @@
       
       setStatus('Connecting');
       var devices = await getDevices(); 
-      var deviceTv = devices[0];
+      var deviceTv = devices.filter(de=>de.components.some(co=>co.id=='main'&&co.capabilities.some(ca=>ca.id=='samsungvd.remoteControl')))[0] ?? devices[0];
       console.log(devices);
       window.defaultTv = deviceTv.deviceId;
       
