@@ -6,11 +6,12 @@
   <body>
     <script>
       const device = await navigator.bluetooth.requestDevice({
-        optionalServices: ["battery_service", "device_information"], //TODO
+        optionalServices: ['generic_access', 'generic_attribute', 'immediate_alert', 'link_loss', 'tx_power', 'current_time', 'reference_time_update', 'next_dst_change', 'glucose', 'health_thermometer', 'device_information', 'heart_rate', 'phone_alert_status', 'battery_service', 'blood_pressure', 'alert_notification', 'human_interface_device', 'scan_parameters', 'running_speed_and_cadence', 'automation_io', 'cycling_speed_and_cadence', 'cycling_power', 'location_and_navigation', 'environmental_sensing', 'body_composition', 'user_data', 'weight_scale', 'bond_management', 'continuous_glucose_monitoring', 'internet_protocol_support', 'indoor_positioning', 'pulse_oximeter', 'http_proxy', 'transport_discovery', 'object_transfer', 'fitness_machine', 'mesh_provisioning', 'mesh_proxy', 'reconnection_configuration'], // https://gist.github.com/sam016/4abe921b5a9ee27f67b3686910293026
         acceptAllDevices: true,
       });
       const con = await device.gatt.connect();
       const services = await con.getPrimaryServices();
+      console.log(services);
     </script>
   </body>
 </html>
