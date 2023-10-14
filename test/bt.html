@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Bluetooth client</title>
+  </head>
+  <body>
+    <script>
+      const device = await navigator.bluetooth.requestDevice({
+        optionalServices: ["battery_service", "device_information"], //TODO
+        acceptAllDevices: true,
+      });
+      const con = await device.gatt.connect();
+      const services = await con.getPrimaryServices();
+    </script>
+  </body>
+</html>
