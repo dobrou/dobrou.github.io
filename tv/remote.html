@@ -32,6 +32,7 @@
     <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='DOWN' value='    &#x21E9;    '>
     <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='RIGHT' value='   &#x21E8;    '>
     <input type='button' onclick='clickMouse(true)'  id='CLICKRIGHT' value='CLICKR'>
+    <input type='button' id='mouseLock' title='Lock mouse and move cursor on TV' value='&#128433;'>
   </div><div>
     <input type='button' onclick='clickKey(this.id)' id='PLAY' value='PLAY&#x25b6;&#xFE0F;'>
     <input type='button' onclick='clickKey(this.id)' id='PAUSE' value='PAUSE&#x23f8;'>
@@ -41,7 +42,7 @@
     <input type='button' onclick='clickKey(this.id)' id='MUTE' value='MUTE&#x1F507;'>
     <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='VOLDOWN' value='&#x1F509; VOL -'>
     <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='VOLUP' value='VOL + &#x1F50A;'>
-  </div>  
+  </div>   
   <div id='status'>loading</div>
   <script>  
     var cookies =()=> document.cookie.split(/; */).map(c=>c.split(/ *= */,2)).reduce((a,c)=>(a[c[0]]=c[1],a),{});
@@ -103,11 +104,16 @@
       });
     }
     connect();
-   
+
+    // mouse lock move cursor
+    var mouseLocked = false;
+    document.getElementById('mouseLock').addEventListener("click", e => mouseLocked || e.target.requestPointerLock() );
+    document.addEventListener("pointerlockchange", e => mouseLocked=!mouseLocked );
+    
     // shift+mouse move cursor
-    document.addEventListener("mousemove",   e => e.shiftKey ? moveMouse(e.movementX, e.movementY) : null);
-    document.addEventListener("click",       e => e.shiftKey ? (clickMouse(false),e.preventDefault()) : null);
-    document.addEventListener("contextmenu", e => e.shiftKey ? (clickMouse(true), e.preventDefault()) : null);
+    document.addEventListener("mousemove",   e => e.shiftKey|mouseLocked && moveMouse(e.movementX, e.movementY) );
+    document.addEventListener("click",       e => e.shiftKey|mouseLocked && clickMouse(e.button>0) );
+    document.addEventListener("contextmenu", e => e.shiftKey|mouseLocked && (clickMouse(true), e.preventDefault()) );
     
     // touch move cursor
     var lastTouch;
@@ -148,8 +154,8 @@
       ['o','MENU'],['s','MORE'],
       ['0','0'],['1','1'],['2','2'],['3','3'],['4','4'],['5','5'],['6','6'],['7','7'],['8','8'],['9','9'],
     ]);
-    document.addEventListener('keydown', e => e.target.id!='text' && keyMap.has(e.key) ? pressKey(  keyMap.get(e.key)) : null );
-    document.addEventListener('keyup',   e => e.target.id!='text' && keyMap.has(e.key) ? releaseKey(keyMap.get(e.key)) : null );
+    document.addEventListener('keydown', e => e.target.id!='text' && keyMap.has(e.key) && pressKey(  keyMap.get(e.key)) );
+    document.addEventListener('keyup',   e => e.target.id!='text' && keyMap.has(e.key) && releaseKey(keyMap.get(e.key)) );
 
     // back button hook
     history.replaceState(null, document.title, location.pathname+"#!");
