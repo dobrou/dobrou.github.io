@@ -107,9 +107,10 @@
 
     // mouse lock move cursor
     var mouseLocked = false;
-    document.addEventListener("dblclick", e => e.target==document.body && (mouseLocked || e.target.requestPointerLock()) );
-    document.getElementById('mouseLock').addEventListener("click", e => mouseLocked || e.target.requestPointerLock() );
-    document.addEventListener("pointerlockchange", e => mouseLocked=!mouseLocked );
+    document.getElementById('mouseLock').addEventListener("click", e => !mouseLocked && e.target.requestPointerLock() );
+    document.addEventListener("dblclick", e => e.target==document.body && !mouseLocked && e.target.requestPointerLock() ); // enter lock on dblclick
+    document.addEventListener("click", e => e.button==1 && mouseLocked && document.exitPointerLock() ); // exit lock on middle click
+    document.addEventListener("pointerlockchange", e => document.getElementById('mouseLock').disabled=mouseLocked=!mouseLocked );
     
     // shift+mouse move cursor
     document.addEventListener("mousemove",   e => e.shiftKey|mouseLocked && moveMouse(e.movementX, e.movementY) );
@@ -117,8 +118,8 @@
     document.addEventListener("contextmenu", e => e.shiftKey|mouseLocked && (clickMouse(true), e.preventDefault()) );
 
     // wheel scroll in browser
-    document.addEventListener("wheel",   e => e.deltaY>0 && pressKey('CHDOWN') || setTimeout(releaseKey,200,'CHDOWN') );
-    document.addEventListener("wheel",   e => e.deltaY<0 && pressKey('CHUP'  ) || setTimeout(releaseKey,200,'CHUP'  ) );
+    document.addEventListener("wheel",   e => e.deltaY>0 && pressKey('CHDOWN') || setTimeout(releaseKey,400,'CHDOWN') );
+    document.addEventListener("wheel",   e => e.deltaY<0 && pressKey('CHUP'  ) || setTimeout(releaseKey,400,'CHUP'  ) );
     
     // touch move cursor
     var lastTouch;
