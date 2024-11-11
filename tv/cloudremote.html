@@ -18,6 +18,7 @@
   <div>
     <input type='button' onclick='sendCmd(this.id)'  id='switch:off' value='OFF '>
     <input type='button' onclick='sendCmd(this.id)'  id='switch:on'  value=' ON '>
+    <input type='button' onclick='sendCmd(this.id)'  id='ocf:postOcfCommand:["/oic/route/ed30e841-f3f1-b46d-79ba-afc3126570f7/sec/tv/launchnativeapp",{"x.com.samsung.tv.targetAppId":"org.tizen.art-app"}]' value='ART'>
     <input type='button' onclick='clickKey(this.id)' id='HOME' value='H&#x2302;ME'>
     <input type='button' onclick='sendCmd(this.id)'  id='custom.launchapp:launchApp:["org.tizen.browser"]' value='W&#x1F310;W'>
     <input type='button' onclick='sendCmd(this.id)'  id='custom.launchapp:launchApp:["j7L028mExx.ivysilaniTest"]' value='ČT'>
@@ -73,7 +74,7 @@
       console.log(devices);
       window.defaultTv = deviceTv.deviceId;
       
-      window.sendCmd = (cmd, args) => fetchApi('devices/'+defaultTv+'/commands',  [{'capability': cmd.split(':')[0], 'command': cmd.split(':')[1], 'arguments': args || JSON.parse(cmd.split(':')[2]||'[]')}] );
+      window.sendCmd = (cmd, args) => fetchApi('devices/'+defaultTv+'/commands',  [{'capability': cmd.split(':')[0], 'command': cmd.split(':')[1], 'arguments': args || JSON.parse(cmd.replace(/([^:]+(:|$)){2}/,'')||'[]')}] );
       window.openLink  = link => sendCmd('custom.tvsearch:search', [link,'']);
       var pressed = new Object();
       window.clickKey  = (key,cmd)=> (navigator.vibrate(20),sendCmd('samsungvd.remoteControl:send',[key, cmd||'PRESS_AND_RELEASED']),console.log(key),pressed[key]=null);
