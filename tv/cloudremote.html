@@ -18,11 +18,20 @@
   <div>
     <input type='button' onclick='sendCmd(this.id)'  id='switch:off' value='OFF '>
     <input type='button' onclick='sendCmd(this.id)'  id='switch:on'  value=' ON '>
-    <input type='button' onclick='sendOcf("/sec/tv/launchnativeapp", {"x.com.samsung.tv.targetAppId":"org.tizen.art-app"});' id='art' value='ART'>
+    <input type='button' onclick='sendOcf("/sec/tv/launchnativeapp", {"x.com.samsung.tv.targetAppId":"org.tizen.art-app"})' id='art' value='ART'>
     <input type='button' onclick='clickKey(this.id)' id='HOME' value='H&#x2302;ME'>
     <input type='button' onclick='sendCmd(this.id)'  id='custom.launchapp:launchApp:["org.tizen.browser"]' value='W&#x1F310;W'>
     <input type='button' onclick='sendCmd(this.id)'  id='custom.launchapp:launchApp:["j7L028mExx.ivysilaniTest"]' value='ČT' hidden='hidden'>
     <input type='button' onclick='sendCmd(this.id)'  id='custom.launchapp:launchApp:["w0wZu3xkQq.GeForceNOW"]' value='GF'>
+  </div><div>
+    <input type='button' onclick='sendOcf("/sec/tv/showmenu", {"x.com.samsung.tv.targetMenuName":"Brightness", "x.com.samsung.tv.targetMenuParam":"-" })' id='brm' value='br-'>
+    <input type='button' onclick='sendOcf("/sec/tv/showmenu", {"x.com.samsung.tv.targetMenuName":"Brightness", "x.com.samsung.tv.targetMenuParam":"0" })' id='br0' value='br0'>
+    <input type='button' onclick='sendOcf("/sec/tv/showmenu", {"x.com.samsung.tv.targetMenuName":"Brightness", "x.com.samsung.tv.targetMenuParam":"10" })' id='br1' value='br1'>
+    <input type='button' onclick='sendOcf("/sec/tv/showmenu", {"x.com.samsung.tv.targetMenuName":"Brightness", "x.com.samsung.tv.targetMenuParam":"20" })' id='br2' value='br2'>
+    <input type='button' onclick='sendOcf("/sec/tv/showmenu", {"x.com.samsung.tv.targetMenuName":"Brightness", "x.com.samsung.tv.targetMenuParam":"30" })' id='br3' value='br3'>
+    <input type='button' onclick='sendOcf("/sec/tv/showmenu", {"x.com.samsung.tv.targetMenuName":"Brightness", "x.com.samsung.tv.targetMenuParam":"40" })' id='br4' value='br4'>
+    <input type='button' onclick='sendOcf("/sec/tv/showmenu", {"x.com.samsung.tv.targetMenuName":"Brightness", "x.com.samsung.tv.targetMenuParam":"50" })' id='br5' value='br5'>
+    <input type='button' onclick='sendOcf("/sec/tv/showmenu", {"x.com.samsung.tv.targetMenuName":"Brightness", "x.com.samsung.tv.targetMenuParam":"+" })' id='brp' value='br+'>
   </div><div>
     <input type='button' onclick='clickKey(this.id)' id='MENU' value='MENU&#x2630;'>
     <input type='button' onclick='sendCmd(this.id)'  id='custom.picturemode:setPictureMode:["Dynamic"]' value='Dynamic'>
