@@ -91,8 +91,8 @@
       window.pressKey  = (key)    => pressed[key] || (navigator.vibrate(60),clickKey(key,'PRESSED'),pressed[key]=1);
       window.releaseKey= (key)    => (clickKey(key,'RELEASED'),pressed[key]=null);
       window.clickKeyX  = (key,cmd)=> (navigator.vibrate(20),sendOcf('/sec/tv/remotecontrol', {'x.com.samsung.tv.keyvalue':'KEY_'+key, 'x.com.samsung.tv.keystatus':cmd||'pressAndRelease'}),console.log(key),pressed[key]=null);
-      window.pressKeyX  = (key)    => pressed[key] || (navigator.vibrate(60),clickKey(key,'press'),pressed[key]=1);
-      window.releaseKeyX= (key)    => (clickKey(key,'release'),pressed[key]=null);
+      window.pressKeyX  = (key)    => pressed[key] || (navigator.vibrate(60),clickKeyX(key,'press'),pressed[key]=1);
+      window.releaseKeyX= (key)    => (clickKeyX(key,'release'),pressed[key]=null);
       
       window.getStatus = async ()=> {
         await sendCmd('refresh:refresh');
