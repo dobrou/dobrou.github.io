@@ -78,9 +78,13 @@
       window.sendOcf = (cmd, args) => sendCmd('ocf:postOcfCommand', ['/oic/route/'+defaultTv+cmd, args]);
       window.openLink  = link => sendCmd('custom.tvsearch:search', [link,'']);
       var pressed = new Object();
-      window.clickKey  = (key,cmd)=> (navigator.vibrate(20),sendCmd('samsungvd.remoteControl:send',[key, cmd||'PRESS_AND_RELEASED']),console.log(key),pressed[key]=null);
-      window.pressKey  = (key)    => pressed[key] || (navigator.vibrate(60),clickKey(key,'PRESSED'),pressed[key]=1);
-      window.releaseKey= (key)    => (clickKey(key,'RELEASED'),pressed[key]=null);
+      //window.clickKey  = (key,cmd)=> (navigator.vibrate(20),sendCmd('samsungvd.remoteControl:send',[key, cmd||'PRESS_AND_RELEASED']),console.log(key),pressed[key]=null);
+      //window.pressKey  = (key)    => pressed[key] || (navigator.vibrate(60),clickKey(key,'PRESSED'),pressed[key]=1);
+      //window.releaseKey= (key)    => (clickKey(key,'RELEASED'),pressed[key]=null);
+      window.clickKey  = (key,cmd)=> (navigator.vibrate(20),sendOcf('/sec/tv/remotecontrol', {'x.com.samsung.tv.keyvalue':'KEY_'+key, 'x.com.samsung.tv.keystatus':cmd||'pressAndRelease'}),console.log(key),pressed[key]=null);
+      window.pressKey  = (key)    => pressed[key] || (navigator.vibrate(60),clickKey(key,'press'),pressed[key]=1);
+      window.releaseKey= (key)    => (clickKey(key,'release'),pressed[key]=null);
+      
       window.getStatus = async ()=> {
         await sendCmd('refresh:refresh');
         var status = await fetchApi('devices/'+defaultTv+'/status');
@@ -119,6 +123,7 @@
     });
     
     // keypress forward
+    /* cloud api
     const keyMap = new Map([
       //['m','MUTE'], ['+','VOLUP'], ['-','VOLDOWN'],
       ['Enter','OK'],['Backspace','BACK'],['Escape','BACK'],
@@ -126,6 +131,15 @@
       ['Home','HOME'],['h','HOME'],
       //[' ','PLAY_BACK'],['p','PAUSE'],['PageUp','REWIND'],['r','REWIND'],['PageDown','FF'],['f','FF'],
       ['o','MENU']      
+    ]);*/
+    const keyMap = new Map([
+      ['m','MUTE'], ['+','VOLUP'], ['-','VOLDOWN'],
+      ['Enter','OK'],['Backspace','RETURN'],['Escape','RETURN'],
+      ['ArrowUp','UP'],['ArrowDown','DOWN'],['ArrowLeft','LEFT'],['ArrowRight','RIGHT'],
+      ['Home','HOME'],['h','HOME'],
+      [' ','PLAY_BACK'],['p','PAUSE'],['PageUp','CHUP'],['r','REWIND'],['PageDown','CHDOWN'],['f','FF'],
+      ['o','MENU'],['s','MORE'],
+      ['0','0'],['1','1'],['2','2'],['3','3'],['4','4'],['5','5'],['6','6'],['7','7'],['8','8'],['9','9'],
     ]);
     document.addEventListener('keydown', e => e.target.id!='link' && keyMap.has(e.key) ? pressKey(  keyMap.get(e.key)) : null );
     document.addEventListener('keyup',   e => e.target.id!='link' && keyMap.has(e.key) ? releaseKey(keyMap.get(e.key)) : null );
