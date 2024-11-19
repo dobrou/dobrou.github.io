@@ -19,7 +19,7 @@
     <input type='button' onclick='sendCmd(this.id)'  id='switch:off' value='OFF '>
     <input type='button' onclick='sendCmd(this.id)'  id='switch:on'  value=' ON '>
     <input type='button' onclick='launchApp(this.id)'id='org.tizen.art-app' value='ART'>
-    <input type='button' onclick='clickKey(this.id)' id='HOME' value='H&#x2302;ME'>
+    <input type='button' onclick='launchApp(this.id)' id='com.samsung.tv.csfs' value='H&#x2302;ME'>
     <input type='button' onclick='sendCmd(this.id)'  id='custom.launchapp:launchApp:["org.tizen.browser"]' value='W&#x1F310;W'>
     <input type='button' onclick='sendCmd(this.id)'  id='custom.launchapp:launchApp:["j7L028mExx.ivysilaniTest"]' value='ČT' hidden='hidden'>
     <input type='button' onclick='sendCmd(this.id)'  id='custom.launchapp:launchApp:["w0wZu3xkQq.GeForceNOW"]' value='GF'>
@@ -88,13 +88,13 @@
       window.launchApp = (appId) => sendOcf("/sec/tv/launchnativeapp", {"x.com.samsung.tv.targetAppId":appId});
       window.showmenu = (cmd) => sendOcf("/sec/tv/showmenu", {"x.com.samsung.tv.targetMenuName":cmd.split(':')[0], "x.com.samsung.tv.targetMenuParam":cmd.split(':')[1] })
       window.openLink  = link => sendCmd('custom.tvsearch:search', [link,'']);
-      var pressed = new Object();
-      // window.clickKey  = (key,cmd)=> (navigator.vibrate(20),sendCmd('samsungvd.remoteControl:send',[key.replace(/^RETURN$/,"BACK"), cmd||'PRESS_AND_RELEASED']),console.log(key),pressed[key]=null);
-      // window.pressKey  = (key)    => pressed[key] || (navigator.vibrate(60),clickKey(key,'PRESSED'),pressed[key]=1);
-      // window.releaseKey= (key)    => (clickKey(key,'RELEASED'),pressed[key]=null);
-      window.clickKey  = (key,cmd)=> (navigator.vibrate(20),sendOcf('/sec/tv/remotecontrol', {'x.com.samsung.tv.keyvalue':'KEY_'+key.replace(/^BACK$/,"RETURN"), 'x.com.samsung.tv.keystatus':cmd||'pressAndRelease'}),console.log(key),pressed[key]=null);
-      window.pressKey  = (key)    => pressed[key] || (navigator.vibrate(60),clickKey(key,'press'),pressed[key]=1);
-      window.releaseKey= (key)    => (clickKey(key,'release'),pressed[key]=null);
+
+      // window.clickKey  = (key,cmd)=> (navigator.vibrate(20),sendCmd('samsungvd.remoteControl:send',[key.replace(/^RETURN$/,"BACK"), cmd||'PRESS_AND_RELEASED']),console.log(key));
+      // window.pressKey  = (key)    => (navigator.vibrate(60),clickKey(key,'PRESSED'));
+      // window.releaseKey= (key)    => (clickKey(key,'RELEASED'));
+      window.clickKey  = (key,cmd)=> (navigator.vibrate(20),sendOcf('/sec/tv/remotecontrol', {'x.com.samsung.tv.keyvalue':'KEY_'+key.replace(/^BACK$/,"RETURN"), 'x.com.samsung.tv.keystatus':cmd||'pressAndRelease'}),console.log(key));
+      window.pressKey  = (key)    => (navigator.vibrate(60),clickKey(key,'press'));
+      window.releaseKey= (key)    => (navigator.vibrate(20),clickKey(key,'release'));
       
       window.getStatus = async ()=> {
         await sendCmd('refresh:refresh');
@@ -118,6 +118,10 @@
       // sendCmd('execute:execute:[command<string>, [args<JsonObject>]]');
     }
     connect();
+
+    // wheel volume
+    document.addEventListener("wheel", e => e.deltaY>0 && clickKey('VOLDOWN'));
+    document.addEventListener("wheel", e => e.deltaY<0 && clickKey('VOLUP'  ));
     
     // touch move
     var startTouch;
@@ -134,15 +138,6 @@
     });
     
     // keypress forward
-    /* cloud api
-    const keyMap = new Map([
-      //['m','MUTE'], ['+','VOLUP'], ['-','VOLDOWN'],
-      ['Enter','OK'],['Backspace','BACK'],['Escape','BACK'],
-      ['ArrowUp','UP'],['ArrowDown','DOWN'],['ArrowLeft','LEFT'],['ArrowRight','RIGHT'],
-      ['Home','HOME'],['h','HOME'],
-      //[' ','PLAY_BACK'],['p','PAUSE'],['PageUp','REWIND'],['r','REWIND'],['PageDown','FF'],['f','FF'],
-      ['o','MENU']      
-    ]);*/
     const keyMap = new Map([
       ['m','MUTE'], ['+','VOLUP'], ['-','VOLDOWN'],
       ['Enter','OK'],['Backspace','RETURN'],['Escape','RETURN'],
@@ -152,8 +147,8 @@
       ['o','MENU'],['s','MORE'],
       ['0','0'],['1','1'],['2','2'],['3','3'],['4','4'],['5','5'],['6','6'],['7','7'],['8','8'],['9','9'],
     ]);
-    document.addEventListener('keydown', e => e.target.id!='link' && keyMap.has(e.key) ? pressKey(  keyMap.get(e.key)) : null );
-    document.addEventListener('keyup',   e => e.target.id!='link' && keyMap.has(e.key) ? releaseKey(keyMap.get(e.key)) : null );
+    document.addEventListener('keydown', e => !e.repeat && e.target.id!='link' && keyMap.has(e.key) && pressKey(  keyMap.get(e.key)) );
+    document.addEventListener('keyup',   e =>              e.target.id!='link' && keyMap.has(e.key) && releaseKey(keyMap.get(e.key)) );
 
     // back button hook
     history.replaceState(null, document.title, location.pathname+"#!");

@@ -160,8 +160,8 @@
       ['o','MENU'],['s','MORE'],
       ['0','0'],['1','1'],['2','2'],['3','3'],['4','4'],['5','5'],['6','6'],['7','7'],['8','8'],['9','9'],
     ]);
-    document.addEventListener('keydown', e => e.target.id!='text' && keyMap.has(e.key) && pressKey(  keyMap.get(e.key)) );
-    document.addEventListener('keyup',   e => e.target.id!='text' && keyMap.has(e.key) && releaseKey(keyMap.get(e.key)) );
+    document.addEventListener('keydown', e => !e.repeat && e.target.id!='text' && keyMap.has(e.key) && pressKey(  keyMap.get(e.key)) );
+    document.addEventListener('keyup',   e =>              e.target.id!='text' && keyMap.has(e.key) && releaseKey(keyMap.get(e.key)) );
 
     // back button hook
     history.replaceState(null, document.title, location.pathname+"#!");
