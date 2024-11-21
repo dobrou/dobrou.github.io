@@ -15,33 +15,33 @@
   <div>Local Remote <a href='cloudremote'>(switch to Cloud Remote)</a><a href='gamepad'>(switch to GamePad)</a></div>
   <input type='text' id='text' placeholder='Here enter text input and send it to TV'>
   <div>
-    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='POWER' value='POWER'>
-    <input type='button' onclick='clickKey(this.id)' id='HOME' value='HOME &#x2302;'>
-    <input type='button' onclick='clickKey(this.id)' id='CONVERGENCE' value='WWW &#x1F310;'>
+    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='POWER' value='POWER'>
+    <input type='button' onclick='clickKey(id)' id='HOME' value='HOME &#x2302;'>
+    <input type='button' onclick='clickKey(id)' id='CONVERGENCE' value='WWW &#x1F310;'>
   </div><div>
-    <input type='button' onclick='clickKey(this.id)' id='MENU' value='MENU&#x2630;'>
-    <input type='button' onclick='clickKey(this.id)' id='MORE' value='MORE'>
-    <input type='button' onclick='clickKey(this.id)' id='PMODE' value='PICTURE&#x26ED;'>
+    <input type='button' onclick='clickKey(id)' id='MENU' value='MENU&#x2630;'>
+    <input type='button' onclick='clickKey(id)' id='MORE' value='MORE'>
+    <input type='button' onclick='clickKey(id)' id='PMODE' value='PICTURE&#x26ED;'>
   </div><div>
-    <input type='button' onclick='clickKey(this.id)' id='RETURN' value='BACK'>
-    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='UP' value='    &#x21E7;    '>
-    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='ENTER' value='ENTER&#x23CE;'>
+    <input type='button' onclick='clickKey(id)' id='RETURN' value='BACK'>
+    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='UP' value='    &#x21E7;    '>
+    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='ENTER' value='ENTER&#x23CE;'>
     <input type='button' onclick='clickMouse()'      id='CLICKLEFT' value='CLICKL'>
   </div><div>
-    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='LEFT' value='    &#x21E6;   '>
-    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='DOWN' value='    &#x21E9;    '>
-    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='RIGHT' value='   &#x21E8;    '>
+    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='LEFT' value='    &#x21E6;   '>
+    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='DOWN' value='    &#x21E9;    '>
+    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='RIGHT' value='   &#x21E8;    '>
     <input type='button' onclick='clickMouse(true)'  id='CLICKRIGHT' value='CLICKR'>
     <input type='button' id='mouseLock' title='Lock mouse and move cursor on TV' value='&#128433;'>
   </div><div>
-    <input type='button' onclick='clickKey(this.id)' id='PLAY' value='PLAY&#x25b6;&#xFE0F;'>
-    <input type='button' onclick='clickKey(this.id)' id='PAUSE' value='PAUSE&#x23f8;'>
-    <input type='button' onclick='clickKey(this.id)' id='REWIND' value='&#x23ea;10s'>
-    <input type='button' onclick='clickKey(this.id)' id='FF' value='10s&#x23e9;'>
+    <input type='button' onclick='clickKey(id)' id='PLAY' value='PLAY&#x25b6;&#xFE0F;'>
+    <input type='button' onclick='clickKey(id)' id='PAUSE' value='PAUSE&#x23f8;'>
+    <input type='button' onclick='clickKey(id)' id='REWIND' value='&#x23ea;10s'>
+    <input type='button' onclick='clickKey(id)' id='FF' value='10s&#x23e9;'>
   </div><div>
-    <input type='button' onclick='clickKey(this.id)' id='MUTE' value='MUTE&#x1F507;'>
-    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='VOLDOWN' value='&#x1F509; VOL -'>
-    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='VOLUP' value='VOL + &#x1F50A;'>
+    <input type='button' onclick='clickKey(id)' id='MUTE' value='MUTE&#x1F507;'>
+    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='VOLDOWN' value='&#x1F509; VOL -'>
+    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='VOLUP' value='VOL + &#x1F50A;'>
   </div>   
   <div id='status'>loading</div>
   <script>  

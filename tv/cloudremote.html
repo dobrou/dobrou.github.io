@@ -16,44 +16,44 @@
   <div>Cloud Remote <a href='remote'>(switch to Local Remote)</a></div>
   <input type='text' id='link' onchange='openLink(this.value)' placeholder='Here enter URL and send it to TV web browser'>
   <div>
-    <input type='button' onclick='sendCmd(this.id)'  id='switch:off' value='OFF '>
-    <input type='button' onclick='sendCmd(this.id)'  id='switch:on'  value=' ON '>
-    <input type='button' onclick='launchApp(this.id)'id='org.tizen.art-app' value='ART'>
-    <input type='button' onclick='launchApp(this.id)' id='com.samsung.tv.csfs' value='H&#x2302;ME'>
-    <input type='button' onclick='sendCmd(this.id)'  id='custom.launchapp:launchApp:["org.tizen.browser"]' value='W&#x1F310;W'>
-    <input type='button' onclick='sendCmd(this.id)'  id='custom.launchapp:launchApp:["j7L028mExx.ivysilaniTest"]' value='ČT' hidden='hidden'>
-    <input type='button' onclick='sendCmd(this.id)'  id='custom.launchapp:launchApp:["w0wZu3xkQq.GeForceNOW"]' value='GF'>
+    <input type='button' onclick='sendCmd(id)'  id='switch:off' value='OFF '>
+    <input type='button' onclick='sendCmd(id)'  id='switch:on'  value=' ON '>
+    <input type='button' onclick='launchApp(id)'id='org.tizen.art-app' value='ART'>
+    <input type='button' onclick='launchApp(id)'id='com.samsung.tv.csfs' value='H&#x2302;ME'>
+    <input type='button' onclick='sendCmd(id)'  id='custom.launchapp:launchApp:["org.tizen.browser"]' value='W&#x1F310;W'>
+    <input type='button' onclick='sendCmd(id)'  id='custom.launchapp:launchApp:["j7L028mExx.ivysilaniTest"]' value='ČT' hidden='hidden'>
+    <input type='button' onclick='sendCmd(id)'  id='custom.launchapp:launchApp:["w0wZu3xkQq.GeForceNOW"]' value='GF'>
   </div><div>
-    <input type='button' onclick='showmenu(this.id)' id='Brightness:-' value='br-'>
-    <input type='button' onclick='showmenu(this.id)' id='Brightness:0' value='br0'>
-    <input type='button' onclick='showmenu(this.id)' id='Brightness:10' value='br1'>
-    <input type='button' onclick='showmenu(this.id)' id='Brightness:20' value='br2'>
-    <input type='button' onclick='showmenu(this.id)' id='Brightness:30' value='br3'>
-    <input type='button' onclick='showmenu(this.id)' id='Brightness:40' value='br4'>
-    <input type='button' onclick='showmenu(this.id)' id='Brightness:50' value='br5'>
-    <input type='button' onclick='showmenu(this.id)' id='Brightness:+' value='br+'>
+    <input type='button' onclick='showmenu(id)' id='Brightness:-' value='br-'>
+    <input type='button' onclick='showmenu(id)' id='Brightness:0' value='br0'>
+    <input type='button' onclick='showmenu(id)' id='Brightness:10' value='br1'>
+    <input type='button' onclick='showmenu(id)' id='Brightness:20' value='br2'>
+    <input type='button' onclick='showmenu(id)' id='Brightness:30' value='br3'>
+    <input type='button' onclick='showmenu(id)' id='Brightness:40' value='br4'>
+    <input type='button' onclick='showmenu(id)' id='Brightness:50' value='br5'>
+    <input type='button' onclick='showmenu(id)' id='Brightness:+' value='br+'>
   </div><div>
-    <input type='button' onclick='clickKey(this.id)' id='MENU' value='MENU&#x2630;'>
-    <input type='button' onclick='sendCmd(this.id)'  id='custom.picturemode:setPictureMode:["Dynamic"]' value='Dynamic'>
-    <input type='button' onclick='sendCmd(this.id)'  id='custom.picturemode:setPictureMode:["Standard"]' value='Standard'>
-    <input type='button' onclick='sendCmd(this.id)'  id='custom.picturemode:setPictureMode:["FILMMAKER MODE"]' value='Film'>
+    <input type='button' onclick='clickKey(id)' id='MENU' value='MENU&#x2630;'>
+    <input type='button' onclick='sendCmd(id)'  id='custom.picturemode:setPictureMode:["Dynamic"]' value='Dynamic'>
+    <input type='button' onclick='sendCmd(id)'  id='custom.picturemode:setPictureMode:["Standard"]' value='Standard'>
+    <input type='button' onclick='sendCmd(id)'  id='custom.picturemode:setPictureMode:["FILMMAKER MODE"]' value='Film'>
   </div><div>
-    <input type='button' onclick='clickKey(this.id)' id='BACK' value='BACK'>
-    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='UP' value='    &#x21E7;    '>
-    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='OK' value='ENTER&#x23CE;'>
+    <input type='button' onclick='clickKey(id)' id='BACK' value='BACK'>
+    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='UP' value='    &#x21E7;    '>
+    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='OK' value='ENTER&#x23CE;'>
   </div><div>
-    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='LEFT' value='    &#x21E6;   '>
-    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='DOWN' value='    &#x21E9;    '>
-    <input type='button' onpointerdown='pressKey(this.id)' onpointerup='releaseKey(this.id)' onpointerout='releaseKey(this.id)' id='RIGHT' value='   &#x21E8;    '>
+    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='LEFT' value='    &#x21E6;   '>
+    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='DOWN' value='    &#x21E9;    '>
+    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='RIGHT' value='   &#x21E8;    '>
   </div><div>
-    <input type='button' onclick='sendCmd(this.id)' id='mediaPlayback:play'  value='PLAY&#x25b6;&#xFE0F;'>
-    <input type='button' onclick='sendCmd(this.id)' id='mediaPlayback:pause' value='PAUSE&#x23f8;'>
-    <input type='button' onclick='sendCmd(this.id)' id='mediaPlayback:rewind' value='&#x23ea;10s'>
-    <input type='button' onclick='sendCmd(this.id)' id='mediaPlayback:fastForward' value='10s&#x23e9;'>
+    <input type='button' onclick='sendCmd(id)' id='mediaPlayback:play'  value='PLAY&#x25b6;&#xFE0F;'>
+    <input type='button' onclick='sendCmd(id)' id='mediaPlayback:pause' value='PAUSE&#x23f8;'>
+    <input type='button' onclick='sendCmd(id)' id='mediaPlayback:rewind' value='&#x23ea;10s'>
+    <input type='button' onclick='sendCmd(id)' id='mediaPlayback:fastForward' value='10s&#x23e9;'>
   </div><div>
-    <input type='button' onclick='sendCmd(this.id)' id='audioMute:mute' value='MUTE&#x1F507;'>
-    <input type='button' onclick='sendCmd(this.id)' id='audioVolume:volumeDown' value='&#x1F509; VOL -'>
-    <input type='button' onclick='sendCmd(this.id)' id='audioVolume:volumeUp' value='VOL + &#x1F50A;'>
+    <input type='button' onclick='sendCmd(id)' id='audioMute:mute' value='MUTE&#x1F507;'>
+    <input type='button' onclick='sendCmd(id)' id='audioVolume:volumeDown' value='&#x1F509; VOL -'>
+    <input type='button' onclick='sendCmd(id)' id='audioVolume:volumeUp' value='VOL + &#x1F50A;'>
   </div>
   <div id='status'>loading</div>
   <script>  
@@ -101,14 +101,24 @@
         var status = await fetchApi('devices/'+defaultTv+'/status');
         var health = await fetchApi('devices/'+defaultTv+'/health');
         var main = status?.components?.main;
-        setStatus(`Connected: ${deviceTv?.label} (${health?.state}:${main?.switch?.switch?.value}) ${main?.tvChannel?.tvChannelName?.value} ${main?.tvChannel?.tvChannel?.value}`);
+        setStatus(`
+          Connected: ${deviceTv?.label} (${health?.state}:${main?.switch?.switch?.value}) ${main?.tvChannel?.tvChannelName?.value} ${main?.tvChannel?.tvChannel?.value}
+          <br>
+          :${main["custom.picturemode"]?.pictureMode?.value??''}          
+          :${main?.audioVolume?.volume?.value??''}
+          :${main?.audioMute?.mute?.value??''}
+          :${main?.mediaPlayback?.playbackStatus?.value??''}
+          :${main?.execute?.data?.value??''}
+          :${main?.mediaInputSource?.inputSource?.value??''}
+          :${main["custom.error"]?.error?.value??''}
+        `);
         document.getElementById('switch:on') .classList.toggle('light', main?.switch?.switch?.value == 'on'  );
         document.getElementById('switch:off').classList.toggle('light', main?.switch?.switch?.value == 'off' );
         document.getElementById('org.tizen.art-app').classList.toggle('light', main?.tvChannel?.tvChannelName?.value == 'art' );
         return status;
       };
       console.log(await getStatus());
-      setInterval(getStatus, 5000);
+      setInterval(getStatus, 10000);
 
       // sendCmd('audioVolume:volumeDown');
       // sendCmd('audioVolume:setVolume:[9]');
