@@ -98,9 +98,10 @@
       // window.clickKey  = (key,cmd)=> (navigator.vibrate(20),sendCmd('samsungvd.remoteControl:send',[key.replace(/^RETURN$/,"BACK"), cmd||'PRESS_AND_RELEASED']),console.log(key));
       // window.pressKey  = (key)    => (navigator.vibrate(60),clickKey(key,'PRESSED'));
       // window.releaseKey= (key)    => (clickKey(key,'RELEASED'));
-      window.clickKey  = (key,cmd)=> (navigator.vibrate(20),sendOcf('/sec/tv/remotecontrol', {'x.com.samsung.tv.keyvalue':'KEY_'+key.replace(/^BACK$/,"RETURN"), 'x.com.samsung.tv.keystatus':cmd||'pressAndRelease'}),console.log(key));
-      window.pressKey  = (key)    => (navigator.vibrate(60),clickKey(key,'press'));
-      window.releaseKey= (key)    => (navigator.vibrate(20),clickKey(key,'release'));
+      window.keysDown = {};
+      window.clickKey  = (key,cmd)=>                  (navigator.vibrate(20),keysDown[key]=0,sendOcf('/sec/tv/remotecontrol', {'x.com.samsung.tv.keyvalue':'KEY_'+key.replace(/^BACK$/,"RETURN"), 'x.com.samsung.tv.keystatus':cmd||'pressAndRelease'}),console.log(key,cmd));
+      window.pressKey  = (key)    => keysDown[key] || (navigator.vibrate(60),clickKey(key,'press')  ,keysDown[key]=1);
+      window.releaseKey= (key)    => keysDown[key] && (navigator.vibrate(20),clickKey(key,'release'),keysDown[key]=0);
       
       window.getStatus = async ()=> {
         await sendCmd('refresh:refresh');
@@ -153,15 +154,21 @@
       // touch move
       var startTouch;
       document.body.addEventListener('touchstart', e => startTouch = e);
-      document.body.addEventListener('touchend', e => {
-        if(e.target!=document.body && startTouch.target!=document.body) return;
+      document.body.addEventListener('touchmove', e => {
+        if(e.target!=document.body) return;
         var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
         var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
-        var touchMoved = (dx!=0||dy!=0);
-        if(!touchMoved)
-          clickKey('OK');
-        if(touchMoved)
-          clickKey(Math.abs(dx)>Math.abs(dy) ? (dx>0?'RIGHT':'LEFT') : (dy>0?'DOWN':'UP'));
+        
+        if(dx> 30) pressKey('RIGHT') && releaseKey('LEFT');
+        if(dx<-30) pressKey('LEFT') && releaseKey('RIGHT');
+        if(dy> 30) pressKey('DOWN') && releaseKey('UP');
+        if(dy<-30) pressKey('UP') && releaseKey('DOWN');
+      });      
+      document.body.addEventListener('touchend', e => {
+        releaseKey('RIGHT');
+        releaseKey('LEFT');
+        releaseKey('UP');
+        releaseKey('DOWN');
       });
       
       // keypress forward
@@ -174,8 +181,9 @@
         ['o','MENU'],['s','MORE'],
         ['0','0'],['1','1'],['2','2'],['3','3'],['4','4'],['5','5'],['6','6'],['7','7'],['8','8'],['9','9'],
       ]);
-      document.addEventListener('keydown', e => !e.repeat && e.target.id!='link' && keyMap.has(e.key) && pressKey(  keyMap.get(e.key)) );
-      document.addEventListener('keyup',   e =>              e.target.id!='link' && keyMap.has(e.key) && releaseKey(keyMap.get(e.key)) );
+      document.addEventListener('keydown', e => e.repeat || e.target.id!='link' && keyMap.has(e.key) && clickKey(  keyMap.get(e.key)) );
+      document.addEventListener('keydown', e => e.repeat && e.target.id!='link' && keyMap.has(e.key) && pressKey(  keyMap.get(e.key)) );
+      document.addEventListener('keyup',   e =>             e.target.id!='link' && keyMap.has(e.key) && releaseKey(keyMap.get(e.key)) );
 
       // back button hook
       history.replaceState(null, document.title, location.pathname+"#!");
