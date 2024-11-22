@@ -11,8 +11,8 @@
        }
     },
     "icons": [
-      { "sizes": "192x192", "src": "https://github.com/google/material-design-icons/blob/master/src/hardware/tv/materialiconsround/24px.svg", "type": "image/svg+xml" },
-      { "sizes": "512x512", "src": "https://github.com/google/material-design-icons/blob/master/src/hardware/tv/materialiconsround/24px.svg", "type": "image/svg+xml", "purpose": "any" }
+      { "sizes": "192x192", "src": "https://raw.githubusercontent.com/google/material-design-icons/refs/heads/master/src/hardware/tv/materialiconsround/24px.svg", "type": "image/svg+xml" },
+      { "sizes": "512x512", "src": "https://raw.githubusercontent.com/google/material-design-icons/refs/heads/master/src/hardware/tv/materialiconsround/24px.svg", "type": "image/svg+xml", "purpose": "any" }
     ],
     "display": "standalone"
   }
