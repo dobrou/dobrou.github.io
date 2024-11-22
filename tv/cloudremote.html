@@ -3,6 +3,7 @@
 <head>
   <meta name="description" content="Remote control for Samsung TV using Cloud SmartThings API.">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+  <link rel="manifest" href="/cloudremote.manifest.json">
   <title>Samsung TV Cloud Web Remote Control</title>  
   <style>
     html,body {overflow:hidden;display:block;height:100%} 
@@ -56,6 +57,11 @@
     <input type='button' onclick='sendCmd(id)' id='audioVolume:volumeUp' value='VOL + &#x1F50A;'>
   </div>
   <div id='status'>loading</div>
+  <script>
+    navigator?.serviceWorker?.register('/cloudremote.sw.js')
+      ?.then(reg => console.log("Service worker registered:", reg))
+      ?.catch(err => alert("Service worker failed: " + err));
+  </script>
   <script>  
     var cookies =()=> document.cookie.split(/; */).map(c=>c.split(/ *= */,2)).reduce((a,c)=>(a[c[0]]=c[1],a),{});
 
@@ -126,49 +132,57 @@
       // sendCmd('custom.soundmode:setSoundMode:["Amplify"]');
       // sendCmd('custom.soundmode:setSoundMode:["Standard"]');
       // sendCmd('execute:execute:[command<string>, [args<JsonObject>]]');
-    }
-    connect();
 
-    // wheel volume
-    document.addEventListener("wheel", e => e.deltaY>0 && clickKey('VOLDOWN'));
-    document.addEventListener("wheel", e => e.deltaY<0 && clickKey('VOLUP'  ));
-    
-    // touch move
-    var startTouch;
-    document.body.addEventListener('touchstart', e => startTouch = e);
-    document.body.addEventListener('touchend', e => {
-      if(e.target!=document.body && startTouch.target!=document.body) return;
-      var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
-      var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
-      var touchMoved = (dx!=0||dy!=0);
-      if(!touchMoved)
-        clickKey('OK');
-      if(touchMoved)
-        clickKey(Math.abs(dx)>Math.abs(dy) ? (dx>0?'RIGHT':'LEFT') : (dy>0?'DOWN':'UP'));
-    });
-    
-    // keypress forward
-    const keyMap = new Map([
-      ['m','MUTE'], ['+','VOLUP'], ['-','VOLDOWN'],
-      ['Enter','OK'],['Backspace','RETURN'],['Escape','RETURN'],
-      ['ArrowUp','UP'],['ArrowDown','DOWN'],['ArrowLeft','LEFT'],['ArrowRight','RIGHT'],
-      ['Home','HOME'],['h','HOME'],
-      [' ','PLAY_BACK'],['p','PAUSE'],['PageUp','CHUP'],['r','REWIND'],['PageDown','CHDOWN'],['f','FF'],
-      ['o','MENU'],['s','MORE'],
-      ['0','0'],['1','1'],['2','2'],['3','3'],['4','4'],['5','5'],['6','6'],['7','7'],['8','8'],['9','9'],
-    ]);
-    document.addEventListener('keydown', e => !e.repeat && e.target.id!='link' && keyMap.has(e.key) && pressKey(  keyMap.get(e.key)) );
-    document.addEventListener('keyup',   e =>              e.target.id!='link' && keyMap.has(e.key) && releaseKey(keyMap.get(e.key)) );
-
-    // back button hook
-    history.replaceState(null, document.title, location.pathname+"#!");
-    history.pushState(   null, document.title, location.pathname);
-    window.addEventListener('popstate', e=> {
-      if(location.hash == '#!') {
-        clickKey('BACK');
-        setTimeout(_=> history.pushState(null, document.title, window.location.href.split('#')[0]));
+      // open share link in PWA
+      {
+        var isPwa = window.matchMedia('(display-mode: standalone)').matches;
+        var params = new URL(window.location).searchParams;
+        var url = [params.get('url'), params.get('text'), params.get('title')].filter(x=>x.startsWith('http'))[0] ?? params.get('url');
+        if( isPwa && url ) window.openLink(url);
       }
-    });    
+
+      // wheel volume
+      document.addEventListener("wheel", e => e.deltaY>0 && clickKey('VOLDOWN'));
+      document.addEventListener("wheel", e => e.deltaY<0 && clickKey('VOLUP'  ));
+      
+      // touch move
+      var startTouch;
+      document.body.addEventListener('touchstart', e => startTouch = e);
+      document.body.addEventListener('touchend', e => {
+        if(e.target!=document.body && startTouch.target!=document.body) return;
+        var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
+        var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
+        var touchMoved = (dx!=0||dy!=0);
+        if(!touchMoved)
+          clickKey('OK');
+        if(touchMoved)
+          clickKey(Math.abs(dx)>Math.abs(dy) ? (dx>0?'RIGHT':'LEFT') : (dy>0?'DOWN':'UP'));
+      });
+      
+      // keypress forward
+      const keyMap = new Map([
+        ['m','MUTE'], ['+','VOLUP'], ['-','VOLDOWN'],
+        ['Enter','OK'],['Backspace','RETURN'],['Escape','RETURN'],
+        ['ArrowUp','UP'],['ArrowDown','DOWN'],['ArrowLeft','LEFT'],['ArrowRight','RIGHT'],
+        ['Home','HOME'],['h','HOME'],
+        [' ','PLAY_BACK'],['p','PAUSE'],['PageUp','CHUP'],['r','REWIND'],['PageDown','CHDOWN'],['f','FF'],
+        ['o','MENU'],['s','MORE'],
+        ['0','0'],['1','1'],['2','2'],['3','3'],['4','4'],['5','5'],['6','6'],['7','7'],['8','8'],['9','9'],
+      ]);
+      document.addEventListener('keydown', e => !e.repeat && e.target.id!='link' && keyMap.has(e.key) && pressKey(  keyMap.get(e.key)) );
+      document.addEventListener('keyup',   e =>              e.target.id!='link' && keyMap.has(e.key) && releaseKey(keyMap.get(e.key)) );
+
+      // back button hook
+      history.replaceState(null, document.title, location.pathname+"#!");
+      history.pushState(   null, document.title, location.pathname);
+      window.addEventListener('popstate', e=> {
+        if(location.hash == '#!') {
+          clickKey('BACK');
+          setTimeout(_=> history.pushState(null, document.title, window.location.href.split('#')[0]));
+        }
+      });      
+    }
+    connect();    
   </script>
 </body>
 </html>
