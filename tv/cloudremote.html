@@ -137,8 +137,11 @@
       {
         var isPwa = window.matchMedia('(display-mode: standalone)').matches;
         var params = new URL(window.location).searchParams;
-        var url = [params.get('url'), params.get('text'), params.get('title')].filter(x=>x.startsWith('http'))[0] ?? params.get('url');
-        if( isPwa && url ) window.openLink(url);
+        var url = [params.get('url'), params.get('text'), params.get('title')].filter(x=>x?.startsWith('http'))[0] ?? params.get('url');
+        if( isPwa && url ){ 
+          alert(window.location);
+          window.openLink(url);
+        }
       }
 
       // wheel volume
