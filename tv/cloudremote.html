@@ -142,6 +142,7 @@
           var isOff = 'off' == (await fetchApi('devices/'+defaultTv+'/status'))?.components?.main?.switch?.switch?.value;
           if(isOff) await sendCmd('switch:on');          
           openLink(url);
+          setStatus(['openLink',isOff,url]);
         }
       }
 
