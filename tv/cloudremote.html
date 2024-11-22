@@ -3,7 +3,7 @@
 <head>
   <meta name="description" content="Remote control for Samsung TV using Cloud SmartThings API.">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-  <link rel="manifest" href="/cloudremote.manifest.json">
+  <link rel="manifest" href="cloudremote.manifest.json">
   <title>Samsung TV Cloud Web Remote Control</title>  
   <style>
     html,body {overflow:hidden;display:block;height:100%} 
@@ -58,7 +58,7 @@
   </div>
   <div id='status'>loading</div>
   <script>
-    navigator?.serviceWorker?.register('/cloudremote.sw.js')
+    navigator?.serviceWorker?.register('cloudremote.sw.js')
       ?.then(reg => console.log("Service worker registered:", reg))
       ?.catch(err => alert("Service worker failed: " + err));
   </script>

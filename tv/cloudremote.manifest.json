@@ -1,8 +1,8 @@
 {
     "short_name": "Samsung TV Remote",
-    "start_url": "/cloudremote",
+    "start_url": "cloudremote",
     "share_target": {
-      "action": "/cloudremote",
+      "action": "cloudremote",
       "method": "GET",
       "params": { 
         "title": "title",
