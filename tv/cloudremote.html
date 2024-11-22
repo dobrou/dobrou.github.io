@@ -158,11 +158,18 @@
         if(e.target!=document.body) return;
         var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
         var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
-        
-        if(dx*dx>dy*dy && dx> 30) pressKey('RIGHT') && releaseKey('LEFT');
-        if(dx*dx>dy*dy && dx<-30) pressKey('LEFT') && releaseKey('RIGHT');
-        if(dy*dy>dx*dx && dy> 30) pressKey('DOWN') && releaseKey('UP');
-        if(dy*dy>dx*dx && dy<-30) pressKey('UP') && releaseKey('DOWN');
+
+        if(e.touches.length == 1){
+          if(dx*dx>dy*dy && dx> 30) pressKey('RIGHT') && releaseKey('LEFT');
+          if(dx*dx>dy*dy && dx<-30) pressKey('LEFT')  && releaseKey('RIGHT');
+          if(dy*dy>dx*dx && dy> 30) pressKey('DOWN')  && releaseKey('UP');
+          if(dy*dy>dx*dx && dy<-30) pressKey('UP')    && releaseKey('DOWN');
+        }else{
+          if(dx*dx>dy*dy && dx> 30) pressKey('VOLUP')   && releaseKey('VOLDOWN');
+          if(dx*dx>dy*dy && dx<-30) pressKey('VOLDOWN') && releaseKey('VOLUP');
+          if(dy*dy>dx*dx && dy> 30) pressKey('CHDOWN')  && releaseKey('CHUP');
+          if(dy*dy>dx*dx && dy<-30) pressKey('CHUP')    && releaseKey('CHDOWN');          
+        }
       });      
       document.body.addEventListener('touchend', e => {
         if(e.target!=document.body && startTouch.target!=document.body) return;
