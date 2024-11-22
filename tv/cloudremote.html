@@ -138,8 +138,9 @@
         var isPwa = window.matchMedia('(display-mode: standalone)').matches;
         var params = new URL(window.location).searchParams;
         var targetUrl = [params.get('url'), params.get('text'), params.get('title')].filter(x=>x?.match(/^http|^www/))[0] ?? params.get('url') ?? params.get('text') ?? params.get('title');
-        setStatus('pwa: '+[isPwa,targetUrl,window.location]); // tmp
+        
         if( isPwa && url ){ 
+          alert('pwa: '+[isPwa,targetUrl,window.location]); // tmp
           var isOff = 'off' == (await fetchApi('devices/'+defaultTv+'/status'))?.components?.main?.switch?.switch?.value;
           if(isOff) await sendCmd('switch:on');          
           openLink(url);
