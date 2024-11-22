@@ -159,12 +159,17 @@
         var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
         var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
         
-        if(dx> 30) pressKey('RIGHT') && releaseKey('LEFT');
-        if(dx<-30) pressKey('LEFT') && releaseKey('RIGHT');
-        if(dy> 30) pressKey('DOWN') && releaseKey('UP');
-        if(dy<-30) pressKey('UP') && releaseKey('DOWN');
+        if(dx*dx>dy*dy && dx> 30) pressKey('RIGHT') && releaseKey('LEFT');
+        if(dx*dx>dy*dy && dx<-30) pressKey('LEFT') && releaseKey('RIGHT');
+        if(dy*dy>dx*dx && dy> 30) pressKey('DOWN') && releaseKey('UP');
+        if(dy*dy>dx*dx && dy<-30) pressKey('UP') && releaseKey('DOWN');
       });      
       document.body.addEventListener('touchend', e => {
+        if(e.target!=document.body && startTouch.target!=document.body) return;
+        var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
+        var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
+        
+        if(dx==0&&dy==0) clickKey('OK');        
         releaseKey('RIGHT');
         releaseKey('LEFT');
         releaseKey('UP');
