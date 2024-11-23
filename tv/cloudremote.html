@@ -25,14 +25,14 @@
     <input type='button' onclick='sendCmd(id)'  id='custom.launchapp:launchApp:["j7L028mExx.ivysilaniTest"]' value='ČT' hidden='hidden'>
     <input type='button' onclick='sendCmd(id)'  id='custom.launchapp:launchApp:["w0wZu3xkQq.GeForceNOW"]' value='GF'>
   </div><div>
-    <input type='button' onclick='showmenu(id)' id='Brightness:-' value='br-'>
-    <input type='button' onclick='showmenu(id)' id='Brightness:0' value='br0'>
-    <input type='button' onclick='showmenu(id)' id='Brightness:10' value='br1'>
-    <input type='button' onclick='showmenu(id)' id='Brightness:20' value='br2'>
-    <input type='button' onclick='showmenu(id)' id='Brightness:30' value='br3'>
-    <input type='button' onclick='showmenu(id)' id='Brightness:40' value='br4'>
-    <input type='button' onclick='showmenu(id)' id='Brightness:50' value='br5'>
-    <input type='button' onclick='showmenu(id)' id='Brightness:+' value='br+'>
+    <input type='button' onclick='showmenu(id)' id='backlight:-' value='br-'>
+    <input type='button' onclick='showmenu(id)' id='backlight:0' value='br0'>
+    <input type='button' onclick='showmenu(id)' id='backlight:10' value='br1'>
+    <input type='button' onclick='showmenu(id)' id='backlight:20' value='br2'>
+    <input type='button' onclick='showmenu(id)' id='backlight:30' value='br3'>
+    <input type='button' onclick='showmenu(id)' id='backlight:40' value='br4'>
+    <input type='button' onclick='showmenu(id)' id='backlight:50' value='br5'>
+    <input type='button' onclick='showmenu(id)' id='backlight:+' value='br+'>
   </div><div>
     <input type='button' onclick='clickKey(id)' id='MENU' value='MENU&#x2630;'>
     <input type='button' onclick='sendCmd(id)'  id='custom.picturemode:setPictureMode:["Dynamic"]' value='Dynamic'>
@@ -92,7 +92,7 @@
       window.sendCmd = (cmd, args) => fetchApi('devices/'+defaultTv+'/commands',  [{'capability': cmd.split(':')[0], 'command': cmd.split(':')[1], 'arguments': args || JSON.parse(cmd.replace(/([^:]+(:|$)){2}/,'') || '[]')}] );
       window.sendOcf = (cmd, args) => sendCmd('execute:execute', [cmd, args]);
       window.launchApp = (appId) => sendOcf("/sec/tv/launchnativeapp", {"x.com.samsung.tv.targetAppId":appId});
-      window.showmenu = (cmd) => sendOcf("/sec/tv/showmenu", {"x.com.samsung.tv.targetMenuName":cmd.split(':')[0], "x.com.samsung.tv.targetMenuParam":cmd.split(':')[1] })
+      window.showmenu = (cmd) => sendOcf("/sec/tv/showmenu", {"x.com.samsung.tv.targetMenuId":cmd.split(':')[0], "x.com.samsung.tv.targetMenuParam":cmd.split(':')[1] })
       window.openLink  = link => sendCmd('custom.tvsearch:search', [link,'']);
 
       // window.clickKey  = (key,cmd)=> (navigator.vibrate(20),sendCmd('samsungvd.remoteControl:send',[key.replace(/^RETURN$/,"BACK"), cmd||'PRESS_AND_RELEASED']),console.log(key));
