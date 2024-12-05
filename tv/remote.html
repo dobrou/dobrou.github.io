@@ -47,7 +47,7 @@
   <script>  
     var cookies =()=> document.cookie.split(/; */).map(c=>c.split(/ *= */,2)).reduce((a,c)=>(a[c[0]]=c[1],a),{});
     
-    const host = cookies().host || 'samsung';
+    const host = cookies().host || 'samsung.';
     const touchMoveScale = 3;
     const touchQuickMs = () => window.isTouch ? 0*100 : 300;
     const touchLongMs = 1000;
