@@ -161,10 +161,10 @@
         var url = params.get('url') ?? params.get('text') ?? params.get('title');
         if( isPwa && url )
         {
-          var isOff = 'off' == (await fetchApi('devices/'+defaultTv+'/status'))?.components?.main?.switch?.switch?.value;
-          if(isOff) await sendCmd('switch:on');          
           document.getElementById("link").value = url;
           document.getElementById("openLink").show();
+          var isOff = 'off' == (await fetchApi('devices/'+defaultTv+'/status'))?.components?.main?.switch?.switch?.value;
+          if(isOff) await sendCmd('switch:on');          
           setStatus(['openLink',isOff,url]);
         }
       }
