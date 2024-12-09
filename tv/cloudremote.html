@@ -15,7 +15,6 @@
 </head>
 <body>
   <div>Cloud Remote <a href='remote'>(switch to Local Remote)</a></div>
-  <input type='text' id='link' onchange='openLink(this.value)' placeholder='Here enter URL and send it to TV web browser'>
   <div>
     <input type='button' onclick='sendCmd(id)'  id='switch:off' value='OFF '>
     <input type='button' onclick='sendCmd(id)'  id='switch:on'  value=' ON '>
@@ -23,7 +22,20 @@
     <input type='button' onclick='launchApp(id)'id='com.samsung.tv.csfs' value='H&#x2302;ME'>
     <input type='button' onclick='sendCmd(id)'  id='custom.launchapp:launchApp:["org.tizen.browser"]' value='W&#x1F310;W'>
     <input type='button' onclick='sendCmd(id)'  id='custom.launchapp:launchApp:["j7L028mExx.ivysilaniTest"]' value='ČT' hidden='hidden'>
-    <input type='button' onclick='launchApp(id)'id='com.samsung.tv.quickpanel' value='&#x1f3ae;'>
+    <input type='button' onclick='launchApp(id)'id='com.samsung.tv.quickpanel' value='&#x1f3ae;' title='Open quick game menu'>
+    <input type='button' onclick='document.getElementById("openLink").show()' value='&#x1F517;' title='Open web link on TV'>
+    <dialog id='openLink' onclose='launchApp(event.target.returnValue, document.getElementById("link").value)'>
+      <div>Open link:</div>
+      <form method='dialog'>
+        <div><input type='text' id='link' placeholder='https://...' /></div>
+        <div>
+          <button value='org.tizen.browser'>Browser</button>
+          <button value='com.samsung.tv.knox-browser'>Knox</button>
+          <button value='org.tizen.video-player-tv'>Video</button>
+          <button>&#x2716;</button>
+        </div>
+      </form>
+    </dialog>
   </div><div>
     <input type='button' onclick='showmenu(id)' id='pictureOff:on' value='poff'>
     <input type='button' onclick='showmenu(id)' id='backlight:-'  value='br-'>
@@ -98,8 +110,10 @@
       
       window.sendCmd = (cmd, args) => fetchApi('devices/'+defaultTv+'/commands',  [{'capability': cmd.split(':')[0], 'command': cmd.split(':')[1], 'arguments': args || JSON.parse(cmd.replace(/([^:]+(:|$)){2}/,'') || '[]')}] );
       window.sendOcf = (cmd, args) => sendCmd('execute:execute', [cmd, args]);
-      window.launchApp = (appId) => sendOcf("/sec/tv/launchnativeapp", {"x.com.samsung.tv.targetAppId":appId});
-      window.showmenu = (cmd) => sendOcf("/sec/tv/showmenu", {"x.com.samsung.tv.targetMenuId":cmd.split(':')[0], "x.com.samsung.tv.targetMenuParam":cmd.split(':')[1] })
+      window.launchApp = (appId, link) => link 
+        ? sendOcf('/sec/tv/appdata/ub', {'x.com.samsung.tv.mobiletotv': JSON.stringify({module:'LaunchHelper',func:'native', params:{appId:appId,bundle:{__APP_SVC_URI__:link}}}) })
+        : sendOcf("/sec/tv/launchnativeapp", {"x.com.samsung.tv.targetAppId":appId});
+      window.showmenu  = cmd  => sendOcf("/sec/tv/showmenu", {"x.com.samsung.tv.targetMenuId":cmd.split(':')[0], "x.com.samsung.tv.targetMenuParam":cmd.split(':')[1] })
       window.openLink  = link => sendCmd('custom.tvsearch:search', [link,'']);
 
       // window.clickKey  = (key,cmd)=> (navigator.vibrate(20),sendCmd('samsungvd.remoteControl:send',[key.replace(/^RETURN$/,"BACK"), cmd||'PRESS_AND_RELEASED']),console.log(key));
@@ -139,18 +153,18 @@
       // sendCmd('samsungvd.remoteControl:send:["HOME"]');
       // sendCmd('custom.soundmode:setSoundMode:["Amplify"]');
       // sendCmd('custom.soundmode:setSoundMode:["Standard"]');
-      // sendCmd('execute:execute:[command<string>, [args<JsonObject>]]');
 
       // open share link in PWA
       {
         var isPwa = window.matchMedia('(display-mode: standalone)').matches;
         var params = new URL(window.location).searchParams;
         var url = params.get('url') ?? params.get('text') ?? params.get('title');
-        if( isPwa && url && confirm('Open link on '+deviceTv.name+'?\n'+url))
+        if( isPwa && url )
         {
           var isOff = 'off' == (await fetchApi('devices/'+defaultTv+'/status'))?.components?.main?.switch?.switch?.value;
           if(isOff) await sendCmd('switch:on');          
-          openLink(url);
+          document.getElementById("link").value = url;
+          document.getElementById("openLink").show();
           setStatus(['openLink',isOff,url]);
         }
       }
