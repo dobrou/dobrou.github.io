@@ -22,7 +22,6 @@
     <input type='button' onclick='launchApp(id)'id='com.samsung.tv.csfs' value='H&#x2302;ME'>
     <input type='button' onclick='sendCmd(id)'  id='custom.launchapp:launchApp:["org.tizen.browser"]' value='W&#x1F310;W'>
     <input type='button' onclick='sendCmd(id)'  id='custom.launchapp:launchApp:["j7L028mExx.ivysilaniTest"]' value='ČT' hidden='hidden'>
-    <input type='button' onclick='launchApp(id)'id='com.samsung.tv.quickpanel' value='&#x1f3ae;' title='Open quick game menu'>
     <input type='button' onclick='document.getElementById("openLink").show()' value='&#x1F517;' title='Open web link on TV'>
     <dialog id='openLink' onclose='launchApp(event.target.returnValue, document.getElementById("link").value)'>
       <div>Open link:</div>
@@ -37,20 +36,13 @@
       </form>
     </dialog>
   </div><div>
-    <input type='button' onclick='showmenu(id)' id='pictureOff:on' value='poff'>
-    <input type='button' onclick='showmenu(id)' id='backlight:-'  value='br-'>
-    <input type='button' onclick='showmenu(id)' id='backlight:0'  value='00'>
-    <input type='button' onclick='showmenu(id)' id='backlight:10' value='10'>
-    <input type='button' onclick='showmenu(id)' id='backlight:20' value='20'>
-    <input type='button' onclick='showmenu(id)' id='backlight:30' value='30'>
-    <input type='button' onclick='showmenu(id)' id='backlight:40' value='40'>
-    <input type='button' onclick='showmenu(id)' id='backlight:50' value='50'>
-    <input type='button' onclick='showmenu(id)' id='backlight:+'  value='br+'>
-  </div><div>
-    <input type='button' onclick='clickKey(id)' id='MENU' value='MENU&#x2630;'>
-    <input type='button' onclick='sendCmd(id)'  id='custom.picturemode:setPictureMode:["Dynamic"]' value='Dynamic'>
-    <input type='button' onclick='sendCmd(id)'  id='custom.picturemode:setPictureMode:["Standard"]' value='Standard'>
+    <input type='button' onclick='clickKey(id)' id='MENU' value='MENU'>
+    <input type='button' onclick='clickKey(id)' id='MORE' value='MORE'>
+    
+    <input type='button' onclick='sendCmd(id)'  id='custom.picturemode:setPictureMode:["Dynamic"]' value='Dyn'>
+    <input type='button' onclick='sendCmd(id)'  id='custom.picturemode:setPictureMode:["Standard"]' value='Stnd'>
     <input type='button' onclick='sendCmd(id)'  id='custom.picturemode:setPictureMode:["FILMMAKER MODE"]' value='Film'>
+    <input type='button' onclick='launchApp(id)'id='com.samsung.tv.quickpanel' value='&#x1f3ae;' title='Open quick game menu'>
   </div><div>
     <input type='button' onclick='clickKey(id)' id='BACK' value='BACK'>
     <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='UP' value='    &#x21E7;    '>
@@ -65,9 +57,23 @@
     <input type='button' onclick='sendCmd(id)' id='mediaPlayback:rewind' value='&#x23ea;10s'>
     <input type='button' onclick='sendCmd(id)' id='mediaPlayback:fastForward' value='10s&#x23e9;'>
   </div><div>
+    <input type='button' onclick='document.getElementById("brightness").show()' value='&#x1F506;' title='Brightness'>
+    <dialog id='brightness' onclose='showmenu(event.target.returnValue)'>
+      <form method='dialog'>
+        <button value='pictureOff:on' title='Picture off'>&#x239A;</button>
+        <button value='backlight:-' >&#x1F505;</button>
+        <button value='backlight:0' >00</button>
+        <button value='backlight:10'>10</button>
+        <button value='backlight:20'>20</button>
+        <button value='backlight:30'>30</button>
+        <button value='backlight:40'>40</button>
+        <button value='backlight:50'>50</button>
+        <button value='backlight:+' >&#x1F506;</button>
+      </form>
+    </dialog>  
     <input type='button' onclick='sendCmd(id)' id='audioMute:mute' value='MUTE&#x1F507;'>
-    <input type='button' onclick='sendCmd(id)' id='audioVolume:volumeDown' value='&#x1F509; VOL -'>
-    <input type='button' onclick='sendCmd(id)' id='audioVolume:volumeUp' value='VOL + &#x1F50A;'>
+    <input type='button' onclick='sendCmd(id)' id='audioVolume:volumeDown' value='&#x1F509; - &#x1F509;'>
+    <input type='button' onclick='sendCmd(id)' id='audioVolume:volumeUp' value='&#x1F50A;+&#x1F50A;'>
   </div>
   <div id='status'>loading</div>
   <script>
