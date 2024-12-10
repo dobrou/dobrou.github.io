@@ -7,9 +7,8 @@
   <title>Samsung TV Cloud Web Remote Control</title>  
   <style>
     html,body {overflow:hidden;display:block;height:100%} 
-    * {font-size:large;padding:0.2em;background-color:#222;color:#DDD}
-    #link {width: 99%}
-    #status {user-select:none}
+    * {font-size:large;padding:0.2em;background-color:#222;color:#DDD;user-select:none}
+    #link {width: 97%}
     .light {font-weight:bold} 
   </style>
 </head>
@@ -31,7 +30,7 @@
     <dialog id='openLink'>
       <button onclick='this.parentNode.close()' >&#x2716;</button>
       Open link:
-      <div><input type='text' id='link' placeholder='https://...' /></div>
+      <div><textarea id='link' placeholder='https://...' rows='4'></textarea></div>
       <div onclick='launchApp(event.target.id, document.getElementById("link").value)&&this.parentNode.close()'>
         <button id='org.tizen.browser'>Browser</button>
         <button id='com.samsung.tv.knox-browser'>Knox</button>
