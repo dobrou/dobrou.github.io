@@ -16,65 +16,64 @@
 <body>
   <div>Cloud Remote <a href='remote'>(switch to Local Remote)</a></div>
   <div>
-    <input type='button' onclick='sendCmd(id)'  id='switch:off' value='OFF '>
-    <input type='button' onclick='sendCmd(id)'  id='switch:on'  value=' ON '>
-    <input type='button' onclick='launchApp(id)'id='org.tizen.art-app' value='ART'>
-    <input type='button' onclick='launchApp(id)'id='com.samsung.tv.csfs' value='H&#x2302;ME'>
-    <input type='button' onclick='launchApp(id)'id='org.tizen.browser' value='W&#x1F310;W'>
-    <input type='button' onclick='launchApp(id)'id='j7L028mExx.ivysilaniTest' value='ČT' hidden='hidden'>
-    <input type='button' onclick='dialog("openLink")' value='&#x1F517;' title='Open web link on TV'>
-    <dialog id='openLink' onclose='launchApp(event.target.returnValue, document.getElementById("link").value)'>
-      <div>Open link:</div>
-      <form method='dialog'>
-        <div><input type='text' id='link' placeholder='https://...' /></div>
-        <div>
-          <button value='org.tizen.browser'>Browser</button>
-          <button value='com.samsung.tv.knox-browser'>Knox</button>
-          <button value='org.tizen.video-player-tv'>Video</button>
-          <button>&#x2716;</button>
-        </div>
-      </form>
+    <button onclick='sendCmd(id)'  id='switch:off' >OFF</button>
+    <button onclick='sendCmd(id)'  id='switch:on'  >O N</button>
+    <button onclick='launchApp(id)'id='org.tizen.art-app' >ART</button>
+    <button onclick='launchApp(id)'id='com.samsung.tv.csfs' >H&#x2302;ME</button>
+    <button onclick='launchApp(id)'id='org.tizen.browser' >W&#x1F310;W</button>
+    <button onclick='dialog("openLink")' title='Open web link on TV'>&#x1F517;</button>
+    <dialog id='openLink'>
+      <button onclick='this.parentNode.close()' >&#x2716;</button>
+      Open link:
+      <div><input type='text' id='link' placeholder='https://...' /></div>
+      <div onclick='launchApp(event.target.id, document.getElementById("link").value)&&this.parentNode.close()'>
+        <button id='org.tizen.browser'>Browser</button>
+        <button id='com.samsung.tv.knox-browser'>Knox</button>
+        <button id='org.tizen.video-player-tv'>Video</button>
+      </div>
     </dialog>
   </div><div>
-    <input type='button' onclick='clickKey(id)' id='MENU' value='MENU'>
-    <input type='button' onclick='clickKey(id)' id='MORE' value='MORE'>
-    
-    <input type='button' onclick='launchApp(id)'id='com.samsung.tv.quickpanel' value='&#x1f3ae;' title='Open quick game menu'>
+    <button onclick='clickKey(id)' id='MENU'>MENU</button>
+    <button onclick='clickKey(id)' id='MORE'>MORE</button>
+    <button onclick='launchApp(id)'id='j7L028mExx.ivysilaniTest' hidden>ČT</button>
+    <button onclick='launchApp(id)'id='w0wZu3xkQq.GeForceNOW'>GF</button>
+    <button onclick='launchApp(id)'id='com.samsung.tv.quickpanel' title='Open quick game menu'>&#x1f3ae;</button>
   </div><div>
-    <input type='button' onclick='clickKey(id)' id='BACK' value='BACK'>
-    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='UP' value='    &#x21E7;    '>
-    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='OK' value='ENTER&#x23CE;'>
+    <button onclick='sendCmd(id)' id='mediaPlayback:play'        >&#x25b6;&#xFE0F;&#x25b6;&#xFE0F;</button>
+    <button onclick='sendCmd(id)' id='mediaPlayback:pause'       >&#x23f8;&#xFE0F;&#x23f8;&#xFE0F;</button>
+    <button onclick='sendCmd(id)' id='mediaPlayback:rewind'      >&#x23ea;&#x23ea;</button>
+    <button onclick='sendCmd(id)' id='mediaPlayback:fastForward' >&#x23e9;&#x23e9;</button>
   </div><div>
-    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='LEFT' value='    &#x21E6;   '>
-    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='DOWN' value='    &#x21E9;    '>
-    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='RIGHT' value='   &#x21E8;    '>
+    <button onclick='clickKey(id)' id='BACK' >B A C K</button>
+    <button onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='UP'    >&#x21E7;&#x21E7;&#x21E7;&#x21E7;&#x21E7;</button>
+    <button onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='OK'    > ENTER&#x23CE;</button>
   </div><div>
-    <input type='button' onclick='sendCmd(id)' id='mediaPlayback:play'  value='PLAY&#x25b6;&#xFE0F;'>
-    <input type='button' onclick='sendCmd(id)' id='mediaPlayback:pause' value='PAUSE&#x23f8;'>
-    <input type='button' onclick='sendCmd(id)' id='mediaPlayback:rewind' value='&#x23ea;10s'>
-    <input type='button' onclick='sendCmd(id)' id='mediaPlayback:fastForward' value='10s&#x23e9;'>
+    <button onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='LEFT'  >&#x21E6;&#x21E6;&#x21E6;&#x21E6;</button>
+    <button onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='DOWN'  >&#x21E9;&#x21E9;&#x21E9;&#x21E9;&#x21E9;</button>
+    <button onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='RIGHT' >&#x21E8;&#x21E8;&#x21E8;&#x21E8;</button>
   </div><div>
-    <input type='button' onclick='dialog("brightness")' value='&#x1F506;' title='Brightness'>
-    <dialog id='brightness' onclose=''>
-      <div onclick='event.target.id&&sendCmd(event.target.id)'>
-        <button id='custom.picturemode:setPictureMode:["Dynamic"]'       >Dynamic</button>
-        <button id='custom.picturemode:setPictureMode:["Standard"]'      >Standart</button>
-        <button id='custom.picturemode:setPictureMode:["FILMMAKER MODE"]'>Film</button>
-      </div><div onclick='event.target.id&&showmenu(event.target.id)'>
-        <button id='pictureOff:on' title='Picture off'>&#x239A;</button>
-        <button id='backlight:-' >&#x1F505;</button>
-        <button id='backlight:0' >00</button>
-        <button id='backlight:10'>10</button>
-        <button id='backlight:20'>20</button>
-        <button id='backlight:30'>30</button>
-        <button id='backlight:40'>40</button>
-        <button id='backlight:50'>50</button>        
-        <button id='backlight:+' >&#x1F506;</button>
+    <button onclick='dialog("brightness")' title='Brightness'>&#x1F506;</button>
+    <dialog id='brightness'>
+      <button onclick='this.parentNode.close()' >&#x2716;</button>
+      <button onclick='sendCmd(id)' id='custom.picturemode:setPictureMode:["Dynamic"]'        class='picturemode'>Dynamic</button>
+      <button onclick='sendCmd(id)' id='custom.picturemode:setPictureMode:["Standard"]'       class='picturemode'>Standard</button>
+      <button onclick='sendCmd(id)' id='custom.picturemode:setPictureMode:["FILMMAKER MODE"]' class='picturemode'>Film</button>
+      <div>
+        <button onclick='showmenu(id)' id='pictureOff:on' title='Picture off'>&#x239A;</button>
+        <button onclick='showmenu(id)' id='backlight:-' >&#x1F505;</button>
+        <button onclick='showmenu(id)' id='backlight:0' >00</button>
+        <button onclick='showmenu(id)' id='backlight:10'>10</button>
+        <button onclick='showmenu(id)' id='backlight:20'>20</button>
+        <button onclick='showmenu(id)' id='backlight:30'>30</button>
+        <button onclick='showmenu(id)' id='backlight:40'>40</button>
+        <button onclick='showmenu(id)' id='backlight:50'>50</button>        
+        <button onclick='showmenu(id)' id='backlight:+' >&#x1F506;</button>
       </div>
     </dialog>  
-    <input type='button' onclick='sendCmd(id)' id='audioMute:mute' value='MUTE&#x1F507;'>
-    <input type='button' onclick='sendCmd(id)' id='audioVolume:volumeDown' value='&#x1F509; - &#x1F509;'>
-    <input type='button' onclick='sendCmd(id)' id='audioVolume:volumeUp' value='&#x1F50A;+&#x1F50A;'>
+    <button onclick='clickKey(id)' id='MUTE' >MUTE&#x1F507;</button>
+    <button onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='VOLDOWN'>&#x1F509; &#x1F509;</button>
+    <span id='volume'>.</span>
+    <button onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='VOLUP'  >&#x1F50A;&#x1F50A;</button>
   </div>
   <div id='status'>loading</div>
   <script>
@@ -145,20 +144,16 @@
         };
         
         var main = status?.components?.main;
-        setStatus(`
-          Connected: ${deviceTv?.label} (${health?.state}:${main?.switch?.switch?.value}) ${main?.tvChannel?.tvChannelName?.value} ${main?.tvChannel?.tvChannel?.value}
-          <br>
-          :${main["custom.picturemode"]?.pictureMode?.value??''}          
-          :${main?.audioVolume?.volume?.value??''}
-          :${main?.audioMute?.mute?.value??''}
-          :${main?.mediaPlayback?.playbackStatus?.value??''}
-          :${main?.execute?.data?.value??''}
-          :${main?.mediaInputSource?.inputSource?.value??''}
-          :${main["custom.error"]?.error?.value??''}
-        `);
+        setStatus(`Connected: ${deviceTv?.label} (${health?.state}:${main?.switch?.switch?.value})<br/>${main?.tvChannel?.tvChannelName?.value} ${main?.tvChannel?.tvChannel?.value}`);
         document.getElementById('switch:on') .classList.toggle('light', main?.switch?.switch?.value == 'on'  );
         document.getElementById('switch:off').classList.toggle('light', main?.switch?.switch?.value == 'off' );
         document.getElementById('org.tizen.art-app').classList.toggle('light', main?.tvChannel?.tvChannelName?.value == 'art' );
+        document.getElementById('volume').innerText = main?.audioVolume?.volume?.value??'';
+        document.getElementById('MUTE').classList.toggle('light', main?.audioMute?.mute?.value == 'muted');
+        document.querySelectorAll('.picturemode').forEach(b => 
+          b.classList.toggle('light', b.id.includes(main['custom.picturemode']?.pictureMode?.value) )
+        );
+        
         return status;
       };
       console.log(await getStatus());
