@@ -22,7 +22,7 @@
     <input type='button' onclick='launchApp(id)'id='com.samsung.tv.csfs' value='H&#x2302;ME'>
     <input type='button' onclick='sendCmd(id)'  id='custom.launchapp:launchApp:["org.tizen.browser"]' value='W&#x1F310;W'>
     <input type='button' onclick='sendCmd(id)'  id='custom.launchapp:launchApp:["j7L028mExx.ivysilaniTest"]' value='ČT' hidden='hidden'>
-    <input type='button' onclick='document.getElementById("openLink").show()' value='&#x1F517;' title='Open web link on TV'>
+    <input type='button' onclick='dialog("openLink")' value='&#x1F517;' title='Open web link on TV'>
     <dialog id='openLink' onclose='launchApp(event.target.returnValue, document.getElementById("link").value)'>
       <div>Open link:</div>
       <form method='dialog'>
@@ -57,7 +57,7 @@
     <input type='button' onclick='sendCmd(id)' id='mediaPlayback:rewind' value='&#x23ea;10s'>
     <input type='button' onclick='sendCmd(id)' id='mediaPlayback:fastForward' value='10s&#x23e9;'>
   </div><div>
-    <input type='button' onclick='document.getElementById("brightness").show()' value='&#x1F506;' title='Brightness'>
+    <input type='button' onclick='dialog("brightness")' value='&#x1F506;' title='Brightness'>
     <dialog id='brightness' onclose='showmenu(event.target.returnValue)'>
       <form method='dialog'>
         <button value='pictureOff:on' title='Picture off'>&#x239A;</button>
@@ -105,6 +105,7 @@
         }
         return response.json();
       }
+      window.dialog = id => (e=> e.open ? e.close() : e.show() )(document.getElementById(id));
       window.setStatus = (status) => document.getElementById('status').innerHTML = status;
       window.getDevices = async _=> (await fetchApi('devices')).items;
       
