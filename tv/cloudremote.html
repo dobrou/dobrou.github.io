@@ -38,11 +38,12 @@
         <button id='org.tizen.video-player-tv'>Video</button>
       </div>
     </dialog>
-  </div><div>
-    <button onclick='sendCmd(id)' id='mediaPlayback:play'        >&#x25b6;&#xFE0F; &#x25b6;&#xFE0F;</button>
-    <button onclick='sendCmd(id)' id='mediaPlayback:pause'       >&#x23f8;&#xFE0F; &#x23f8;&#xFE0F;</button>
-    <button onclick='sendCmd(id)' id='mediaPlayback:rewind'      >&#x23ea; &#x23ea;</button>
-    <button onclick='sendCmd(id)' id='mediaPlayback:fastForward' >&#x23e9; &#x23e9;</button>
+  </div>
+  <div onclick='sendCmd(event.target.id)'>
+    <button id='mediaPlayback:play'        >&#x25b6;&#xFE0F; &#x25b6;&#xFE0F;</button>
+    <button id='mediaPlayback:pause'       >&#x23f8;&#xFE0F; &#x23f8;&#xFE0F;</button>
+    <button id='mediaPlayback:rewind'      >&#x23ea; &#x23ea;</button>
+    <button id='mediaPlayback:fastForward' >&#x23e9; &#x23e9;</button>
   </div>
   <div class='keys' onpointerdown='pressKey(event.target.id)' onpointerup='releaseKey(event.target.id)' onpointerout='releaseKey(event.target.id)'>
     <button id='BACK' >BACK</button>
