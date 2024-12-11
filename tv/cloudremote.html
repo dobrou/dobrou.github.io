@@ -39,19 +39,19 @@
       </div>
     </dialog>
   </div><div>
-    <button onclick='sendCmd(id)' id='mediaPlayback:play'        >&#x25b6;&#xFE0F;&#x25b6;&#xFE0F;</button>
-    <button onclick='sendCmd(id)' id='mediaPlayback:pause'       >&#x23f8;&#xFE0F;&#x23f8;&#xFE0F;</button>
-    <button onclick='sendCmd(id)' id='mediaPlayback:rewind'      >&#x23ea;&#x23ea;</button>
-    <button onclick='sendCmd(id)' id='mediaPlayback:fastForward' >&#x23e9;&#x23e9;</button>
+    <button onclick='sendCmd(id)' id='mediaPlayback:play'        >&#x25b6;&#xFE0F; &#x25b6;&#xFE0F;</button>
+    <button onclick='sendCmd(id)' id='mediaPlayback:pause'       >&#x23f8;&#xFE0F; &#x23f8;&#xFE0F;</button>
+    <button onclick='sendCmd(id)' id='mediaPlayback:rewind'      >&#x23ea; &#x23ea;</button>
+    <button onclick='sendCmd(id)' id='mediaPlayback:fastForward' >&#x23e9; &#x23e9;</button>
   </div>
   <div class='keys' onpointerdown='pressKey(event.target.id)' onpointerup='releaseKey(event.target.id)' onpointerout='releaseKey(event.target.id)'>
-    <button id='BACK' >&#x1F519;&#x1F519;</button>
-    <button id='UP'   >&#x1f845;</button>
-    <button id='OK'   >OK&#x23CE;</button>
+    <button id='BACK' >BACK</button>
+    <button id='UP'   >&#x2191;</button>
+    <button id='OK'   >OK</button>
     <br>
-    <button id='LEFT' >&#x1f844;</button>
-    <button id='DOWN' >&#x1f847;</button>
-    <button id='RIGHT'>&#x1f846;</button>
+    <button id='LEFT' >&#x2190;</button>
+    <button id='DOWN' >&#x2193;</button>
+    <button id='RIGHT'>&#x2192;</button>
   </div><div>
     <button onclick='dialog("brightness")' title='Brightness'>&#x1F506;</button>
     <dialog id='brightness'>
@@ -59,19 +59,19 @@
       <button onclick='sendCmd(id)' id='custom.picturemode:setPictureMode:["Dynamic"]'        class='picturemode'>Dynamic</button>
       <button onclick='sendCmd(id)' id='custom.picturemode:setPictureMode:["Standard"]'       class='picturemode'>Standard</button>
       <button onclick='sendCmd(id)' id='custom.picturemode:setPictureMode:["FILMMAKER MODE"]' class='picturemode'>Film</button>
-      <div>
-        <button onclick='showmenu(id)' id='pictureOff:on' title='Picture off'>&#x239A;</button>
-        <button onclick='showmenu(id)' id='backlight:-' >&#x1F505;</button>
-        <button onclick='showmenu(id)' id='backlight:0' >00</button>
-        <button onclick='showmenu(id)' id='backlight:10'>10</button>
-        <button onclick='showmenu(id)' id='backlight:20'>20</button>
-        <button onclick='showmenu(id)' id='backlight:30'>30</button>
-        <button onclick='showmenu(id)' id='backlight:40'>40</button>
-        <button onclick='showmenu(id)' id='backlight:50'>50</button>        
-        <button onclick='showmenu(id)' id='backlight:+' >&#x1F506;</button>
+      <div onclick='showmenu(event.target.id)'>
+        <button id='pictureOff:on' title='Picture off'>&#x239A;</button>
+        <button id='backlight:-' >&#x1F505;</button>
+        <button id='backlight:0' >00</button>
+        <button id='backlight:10'>10</button>
+        <button id='backlight:20'>20</button>
+        <button id='backlight:30'>30</button>
+        <button id='backlight:40'>40</button>
+        <button id='backlight:50'>50</button>        
+        <button id='backlight:+' >&#x1F506;</button>
       </div>
     </dialog>  
-    <button onclick='clickKey(id)' id='MUTE' >MUTE&#x1F507;</button>
+    <button onclick='clickKey(id)' id='MUTE'>MUTE&#x1F507;</button>
     <button onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='VOLDOWN'>&#x1F509; &#x1F509;</button>
     <span id='volume'>.</span>
     <button onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='VOLUP'  >&#x1F50A;&#x1F50A;</button>
