@@ -10,6 +10,7 @@
     * {font-size:large;padding:0.2em;background-color:#222;color:#DDD;user-select:none}
     #link {width: 97%}
     .light {font-weight:bold} 
+    .keys button {width: 5em; height: 4em}
   </style>
 </head>
 <body>
@@ -42,14 +43,15 @@
     <button onclick='sendCmd(id)' id='mediaPlayback:pause'       >&#x23f8;&#xFE0F;&#x23f8;&#xFE0F;</button>
     <button onclick='sendCmd(id)' id='mediaPlayback:rewind'      >&#x23ea;&#x23ea;</button>
     <button onclick='sendCmd(id)' id='mediaPlayback:fastForward' >&#x23e9;&#x23e9;</button>
-  </div><div>
-    <button onclick='clickKey(id)' id='BACK' >B A C K</button>
-    <button onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='UP'    >&#x21E7;&#x21E7;&#x21E7;&#x21E7;<br>&#x21E7;&#x21E7;&#x21E7;&#x21E7;&#x21E7;&#x21E7;</button>
-    <button onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='OK'    > ENTER&#x23CE;</button>
-  </div><div>
-    <button onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='LEFT'  >&#x21E6;&#x21E6;&#x21E6;&#x21E6;<br>&#x21E6;&#x21E6;&#x21E6;&#x21E6;</button>
-    <button onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='DOWN'  >&#x21E9;&#x21E9;&#x21E9;&#x21E9;&#x21E9;&#x21E9;<br>&#x21E9;&#x21E9;&#x21E9;&#x21E9;</button>
-    <button onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='RIGHT' >&#x21E8;&#x21E8;&#x21E8;&#x21E8;<br>&#x21E8;&#x21E8;&#x21E8;&#x21E8;</button>
+  </div>
+  <div class='keys' onpointerdown='pressKey(event.target.id)' onpointerup='releaseKey(event.target.id)' onpointerout='releaseKey(event.target.id)'>
+    <button id='BACK' >&#x1F519;&#x1F519;</button>
+    <button id='UP'   >&#x1f845;</button>
+    <button id='OK'   >OK&#x23CE;</button>
+    <br>
+    <button id='LEFT' >&#x1f844;</button>
+    <button id='DOWN' >&#x1f847;</button>
+    <button id='RIGHT'>&#x1f846;</button>
   </div><div>
     <button onclick='dialog("brightness")' title='Brightness'>&#x1F506;</button>
     <dialog id='brightness'>
