@@ -22,11 +22,28 @@
     <button onclick='launchApp(id)'id='com.samsung.tv.csfs' >H&#x2302;ME</button>
     <button onclick='launchApp(id)'id='org.tizen.browser' >W&#x1F310;W</button>
   </div><div>
+    <button onclick='dialog("extra")'>+</button>
+    <dialog id='extra'>
+      <button onclick='this.parentNode.close()' >&#x2716;</button>
+      <button onclick='launchApp(id)'id='j7L028mExx.ivysilaniTest' hidden>ČT</button>      
+      <button onclick='launchApp(id)'id='TtCZ1ixQCm.PPF' hidden>O2</button>  
+      <button onclick='launchApp(id)'id='com.samsung.tv.store'>Store</button>
+      <button onclick='launchApp(id)'id='com.samsung.tv.appinfoviewer'>Apps</button>
+      <div onclick='showmenu(event.target.id)'>
+        Contrast:
+        <button id='contrast:-' >&#x1F505;</button>
+        <button id='contrast:0' >00</button>
+        <button id='contrast:10'>10</button>
+        <button id='contrast:20'>20</button>
+        <button id='contrast:30'>30</button>
+        <button id='contrast:40'>40</button>
+        <button id='contrast:50'>50</button>        
+        <button id='contrast:+' >&#x1F506;</button>
+      </div>
+    </dialog>    
     <button onclick='clickKey(id)' id='MENU'>MENU</button>
     <button onclick='clickKey(id)' id='MORE'>MORE</button>
-    <button onclick='launchApp(id)'id='j7L028mExx.ivysilaniTest' hidden>ČT</button>
     <button onclick='launchApp(id)'id='w0wZu3xkQq.GeForceNOW'>GF</button>
-    <button onclick='launchApp(id)'id='com.samsung.tv.store'>AP</button>
     <button onclick='launchApp(id)'id='com.samsung.tv.quickpanel' title='Open quick game menu'>&#x1f3ae;</button>
     <button onclick='dialog("openLink")' title='Open web link on TV'>&#x1F517;</button>
     <dialog id='openLink'>
