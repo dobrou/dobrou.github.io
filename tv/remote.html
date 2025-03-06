@@ -23,7 +23,7 @@
     <input type='button' onclick='clickKey(id)' id='MORE' value='MORE'>
     <input type='button' onclick='clickKey(id)' id='PMODE' value='PICTURE&#x26ED;'>
   </div><div>
-    <input type='button' onclick='clickKey(id)' id='RETURN' value='BACK'>
+    <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='RETURN' value='BACK'>
     <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='UP' value='    &#x21E7;    '>
     <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='ENTER' value='ENTER&#x23CE;'>
     <input type='button' onclick='clickMouse()'      id='CLICKLEFT' value='CLICKL'>
