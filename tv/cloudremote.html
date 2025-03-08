@@ -85,6 +85,7 @@
         <button id='com.samsung.tv.knox-browser'>Knox</button>
         <button id='org.tizen.video-player-tv'>Video</button>
       </div>
+      <button onclick="document.getElementById('link').value=document.getElementById('link').value.replace(/:\/\/(www.)?youtu(?:.*\/v\/|.*v\=|\.be\/)([A-Za-z0-9_\-]{11}).*/,'://www.youtube.com/embed/$2?autoplay=1&rel=0')">YTembed</button>
     </dialog>
   </div>
   <div onclick='sendCmd(event.target.id)'>
