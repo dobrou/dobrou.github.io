@@ -40,11 +40,13 @@
         <button id='contrast:50'>50</button>        
         <button id='contrast:+' >&#x1F506;</button>
       </div>
-      <button onclick='clickKey(id)' id='EXIT'>EXIT</button>
-      <button onclick='clickKey(id)' id='RED'>&#x1F534;</button>
-      <button onclick='clickKey(id)' id='GREEN'>&#x1F7E2;</button>
-      <button onclick='clickKey(id)' id='YELLOW'>&#x1F7E1;</button>
-      <button onclick='clickKey(id)' id='CYAN'>&#x1F535;</button>
+      <div onclick='clickKey(event.target.id)'>      
+        <button id='EXIT'>EXIT</button>
+        <button id='RED'>&#x1F534;</button>
+        <button id='GREEN'>&#x1F7E2;</button>
+        <button id='YELLOW'>&#x1F7E1;</button>
+        <button id='CYAN'>&#x1F535;</button>
+      </div> 
       <div>
         <select onchange='clickKey(this.selectedOptions[0]?.innerText.replace("KEY_",""))' >
           <optgroup label='Power Keys'><option>KEY_POWEROFF</option><option>KEY_POWERON</option><option>KEY_POWER</option></optgroup>
@@ -88,6 +90,9 @@
       <button onclick="document.getElementById('link').value=document.getElementById('link').value.replace(/:\/\/(www.)?youtu(?:.*\/v\/|.*v\=|\.be\/)([A-Za-z0-9_\-]{11}).*/,'://www.youtube.com/embed/$2?autoplay=1&rel=0')">YTembed</button>
     </dialog>
   </div>
+  <div onclick='clickKey(event.target.innerText)'>      
+    <button>0</button> <button>1</button> <button>2</button> <button>3</button> <button>4</button> <button>5</button> <button>6</button> <button>7</button> <button>8</button> <button>9</button>
+  </div>       
   <div onclick='sendCmd(event.target.id)'>
     <button id='mediaPlayback:play'        >&#x25b6;&#xFE0F; &#x25b6;&#xFE0F;</button>
     <button id='mediaPlayback:pause'       >&#x23f8;&#xFE0F; &#x23f8;&#xFE0F;</button>
