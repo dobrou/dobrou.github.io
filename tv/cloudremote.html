@@ -223,7 +223,7 @@
         var url = params.get('url') ?? params.get('text') ?? params.get('title');
         if( isPwa && url )
         {
-          sendCmd('switch:on');
+          await sendCmd('switch:on');
           launchApp('org.tizen.browser', url.replace(/:\/\/(www.)?youtu(?:.*\/v\/|.*v\=|\.be\/)([A-Za-z0-9_\-]{11}).*/,'://www.youtube.com/embed/$2?autoplay=1&rel=0'));
           document.getElementById('link').value = url;
           document.getElementById('openLink').show();
