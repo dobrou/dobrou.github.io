@@ -145,6 +145,15 @@
       if(touchMoved && touchQuick)
         clickKey(Math.abs(dx)>Math.abs(dy) ? (dx>0?'RIGHT':'LEFT') : (dy>0?'DOWN':'UP'));
     });
+
+    // gyro move cursor
+    let gyroscope = new Gyroscope({ frequency: 100 });
+    gyroscope.addEventListener("reading", e => {
+      var dx = -gyroscope.z*33;
+      var dy = -gyroscope.x*33; 
+      moveMouse(dx, dy);
+    });
+    gyroscope.start();
     
     // text input
     document.getElementById('text').addEventListener('input', e => setText(e.target.value));
