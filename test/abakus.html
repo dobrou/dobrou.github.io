@@ -16,13 +16,13 @@
     <title>Abakus calculator</title>  
   </head>
   <body>
-    <input type='text' id='numbers1' placeholder='123412'>
+    <input type='number' id='numbers1' placeholder='123412'>
     <div id='score1'></div>
-    <input type='text' id='numbers2' placeholder='221'>
+    <input type='number' id='numbers2' placeholder='221'>
     <div id='score2'></div>
-    <input type='text' id='numbers3' placeholder='331'>
+    <input type='number' id='numbers3' placeholder='331'>
     <div id='score3'></div>
-    <input type='text' id='numbers4' placeholder='441'>
+    <input type='number' id='numbers4' placeholder='441'>
     <div id='score4'></div>
     <script>
 document.getElementById('numbers1').addEventListener('input', e => update(e.target.value,'score1'));      
@@ -35,8 +35,8 @@ function update(numbers,scoreid){
   var ab = abakus(numbers);
   console.log(ab);
   document.getElementById(scoreid).innerText = 
-    numbers.replace(/[0-9](?=[0-9])/g,x=>x+' ')+'\n'+
-    ab.map(x=>x.eq+' ('+x.sum+')\n').join('')
+    numbers.replace(/[0-9](?=[0-9])/g,x=>x+' ')+' : '+ab.reduce((s,x)=>x.sum+s,0)+'\n'+
+    ab.map(x=>x.eq+' : '+x.sum+'\n').join('')
     ;
 }
 
@@ -63,6 +63,7 @@ function abakus(str) {
     .flatMap(s=>
       ops
         .filter(o=> o.f(+s.a,+s.b)===+s.c )
+        .slice(0,1)
         .map(o=> ({...s,
           op: o,
           eq: ([...Array(s.before)].map(x=>'.').join('') + s.a+o.o+s.b+'='+s.c +[...Array(s.after)].map(x=>'.').join('')).replace(/[0-9.](?=[0-9.])/g,x=>x+' '),
