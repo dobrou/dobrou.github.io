@@ -3,3 +3,4 @@
 - [TV Samsung Remote Control (Local API)](tv/remote.html)
 - [Web Video Player](video/player.html)
 - [D3.js force](d3/d3.force.html)
+- [Abakus calculator](test/abakus.html)

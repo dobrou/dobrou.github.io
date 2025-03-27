@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      @media (prefers-color-scheme: dark) {
+        body {
+          background-color: #222;
+          color: white;
+        }
+      }
+      body {
+        font-family: monospace;
+        font-size: xx-large;
+      }
+    </style>
+    <title>Abakus calculator</title>  
+  </head>
+  <body>
+    <input type='text' id='numbers1' placeholder='123412'>
+    <div id='score1'></div>
+    <input type='text' id='numbers2' placeholder='221'>
+    <div id='score2'></div>
+    <input type='text' id='numbers3' placeholder='331'>
+    <div id='score3'></div>
+    <input type='text' id='numbers4' placeholder='441'>
+    <div id='score4'></div>
+    <script>
+document.getElementById('numbers1').addEventListener('input', e => update(e.target.value,'score1'));      
+document.getElementById('numbers2').addEventListener('input', e => update(e.target.value,'score2'));      
+document.getElementById('numbers3').addEventListener('input', e => update(e.target.value,'score3'));      
+document.getElementById('numbers4').addEventListener('input', e => update(e.target.value,'score4'));      
+
+      
+function update(numbers,scoreid){  
+  var ab = abakus(numbers);
+  console.log(ab);
+  document.getElementById(scoreid).innerText = 
+    numbers.replace(/[0-9](?=[0-9])/g,x=>x+' ')+'\n'+
+    ab.map(x=>x.eq+' ('+x.sum+')\n').join('')
+    ;
+}
+
+function abakus(str) {
+  var ops = [
+    {o:'+',f:(a,b)=>a+b},
+    {o:'-',f:(a,b)=>a-b},
+    {o:'*',f:(a,b)=>a*b},
+    {o:':',f:(a,b)=>a/b},
+  ];
+  return [{str:str}]
+    .flatMap(s=>
+      [...Array(s.str.length-1)].map((_,x)=>({...s, before:x, str:s.str.slice(x)}))
+    )
+    .flatMap(s=>
+      [...Array(s.str.length-1)].map((_,x)=>({...s, after:s.str.length-x-1-1, str:s.str.slice(0,x+1+1)}))
+    )
+    .flatMap(s=>
+      [...Array(s.str.length-1)].map((_,x)=>({...s, a:s.str.slice(0,x+1), b:s.str.slice(x+1)}))
+    )
+    .flatMap(s=>
+      [...Array(s.b.length-1)].map((_,x)=>({...s, b:s.b.slice(0,x+1), c:s.b.slice(x+1)}))
+    )
+    .flatMap(s=>
+      ops
+        .filter(o=> o.f(+s.a,+s.b)===+s.c )
+        .map(o=> ({...s,
+          op: o,
+          eq: ([...Array(s.before)].map(x=>'.').join('') + s.a+o.o+s.b+'='+s.c +[...Array(s.after)].map(x=>'.').join('')).replace(/[0-9.](?=[0-9.])/g,x=>x+' '),
+          sum: (s.a+s.b+s.c).split('').reduce((s,x)=>+x+s,0)
+        }) )
+    )
+  ;
+}  
+update('123412','score1');
+    </script>
+  </body>
+</html>
