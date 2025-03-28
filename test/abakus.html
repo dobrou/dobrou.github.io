@@ -54,23 +54,31 @@ function abakus(str) {
     {o:'\u00D7',f:(a,b)=>a*b},
     {o:'\u00F7',f:(a,b)=>a/b},
   ];
-  return [{str:str}]
+  var a = [{str:str}]
+    // all substrings begin
     .flatMap(s=>
       [...Array(s.str.length-1)].map((_,x)=>({...s, before:x, str:s.str.slice(x)}))
     )
+    // all substrings end
     .flatMap(s=>
       [...Array(s.str.length-1)].map((_,x)=>({...s, after:s.str.length-x-1-1, str:s.str.slice(0,x+1+1)}))
     )
+    // all splits a|bb
     .flatMap(s=>
       [...Array(s.str.length-1)].map((_,x)=>({...s, a:s.str.slice(0,x+1), b:s.str.slice(x+1)}))
     )
+    // all splits a|b|c
     .flatMap(s=>
       [...Array(s.b.length-1)].map((_,x)=>({...s, b:s.b.slice(0,x+1), c:s.b.slice(x+1)}))
     )
+    // remove '0' or leading '0...'
+    .filter(s=> [s.a,s.b,s.c].every(x=>!x.startsWith('0')) )    
+    // apply operators
     .flatMap(s=>
       ops
+        // only valid op results
         .filter(o=> o.f(+s.a,+s.b)===+s.c )
-        .slice(0,1)
+        //.slice(0,1) // only valid first op
         .map(o=> ({...s,
           op: o,
           eq: ([...Array(s.before)].map(x=>'.').join('') + s.a+o.o+s.b+'='+s.c +[...Array(s.after)].map(x=>'.').join('')).replace(/[0-9.](?=[0-9.])/g,x=>x+' '),
@@ -78,6 +86,10 @@ function abakus(str) {
         }) )
     )
   ;
+  // one substring counts only once, filter out additional valid equations on same substrings
+  var aa = Object.values(a.reduce((d,x)=>(d[x.before+'_'+x.after]||=x,d),{}));
+  //var aa = [...(new Map(a.map(x => [x.before+'.'+x.after, x]))).values()];
+  return aa;
 }  
 update('123412','score1');
     </script>
