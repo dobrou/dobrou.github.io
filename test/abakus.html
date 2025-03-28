@@ -32,20 +32,26 @@
     <input type='number' id='numbers4' placeholder='441'>
     <div id='score4'></div>
     <script>
-document.getElementById('numbers1').addEventListener('input', e => update(e.target.value,'score1'));      
-document.getElementById('numbers2').addEventListener('input', e => update(e.target.value,'score2'));      
-document.getElementById('numbers3').addEventListener('input', e => update(e.target.value,'score3'));      
-document.getElementById('numbers4').addEventListener('input', e => update(e.target.value,'score4'));      
+document.getElementById('numbers1').addEventListener('input', e => update(e.target.value,'score1'));
+document.getElementById('numbers2').addEventListener('input', e => update(e.target.value,'score2'));
+document.getElementById('numbers3').addEventListener('input', e => update(e.target.value,'score3'));
+document.getElementById('numbers4').addEventListener('input', e => updateTop(e.target.value,'score4'));
 
-      
 function update(numbers,scoreid){  
   var ab = abakus(numbers);
   console.log(ab);
-  document.getElementById(scoreid).innerText = 
-    numbers.replace(/[0-9](?=[0-9])/g,x=>x+' ')+' : '+ab.reduce((s,x)=>x.sum+s,0)+'\n'+
-    ab.map(x=>x.eq+' : '+x.sum+'\n').join('')
-    ;
+  console.log(abakusInfo(ab));
+  document.getElementById(scoreid).innerText = abakusInfo(ab);
 }
+
+function updateTop(numbers,scoreid,topX){  
+  var ab = abakus(numbers);
+  var abTop = abakusTop(numbers).slice(0,topX||10).map((a,i)=>'vs. #'+(i+1)+'\n'+abakusInfo(a)).join('');
+  console.log(ab);
+  console.log(abakusInfo(ab));
+  console.log(abTop);
+  document.getElementById(scoreid).innerText = abakusInfo(ab) + abTop;
+}      
 
 function abakus(str) {
   var ops = [
@@ -59,7 +65,7 @@ function abakus(str) {
     {c:1,o:'\u221A',f:(a)=>Math.sqrt(a)},
     {c:1,o:'\u221B',f:(a)=>Math.cbrt(a)},    
   ];
-  var a = [{str:str}]
+  var a = [{str:str||'0'}]
     // all substrings begin
     .flatMap(s=>
       [...Array(s.str.length-1)].map((_,x)=>({...s, before:x, str:s.str.slice(x)}))
@@ -97,8 +103,20 @@ function abakus(str) {
   // one substring counts only once, filter out additional valid equations on same substrings
   var aa = Object.values(a.reduce((d,x)=>(d[x.before+'_'+x.after]||=x,d),{}));
   //var aa = [...(new Map(a.map(x => [x.before+'.'+x.after, x]))).values()];
-  return aa;
+  return {
+    numbers: str, 
+    eqs: aa,
+    sum: aa.reduce((s,x)=>x.sum+s,0),
+  };
 }  
+
+const permute = (str) => str.length ? str.split('').flatMap((char, i) => permute(str.slice(0, i) + str.slice(i + 1)).map(perm => char + perm)) : [''];
+const abakusTop = (str) => [...new Set(permute(str))].map(abakus).sort((a,b)=>a.sum>b.sum?-1:1);
+const abakusInfo = (ab) => !ab?'':
+  ab.numbers.replace(/[0-9](?=[0-9])/g,x=>x+' ')+' \u2211'+ab.sum+'\n'+
+  ab.eqs.map(x=>x.eq+' \u2211'+x.sum+'\n').join('')
+  ;
+
 update('123412','score1');
     </script>
   </body>
