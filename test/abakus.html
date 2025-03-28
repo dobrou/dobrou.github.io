@@ -46,7 +46,7 @@ function update(numbers,scoreid){
 
 function updateTop(numbers,scoreid,topX){  
   var ab = abakus(numbers);
-  var abTop = abakusTop(numbers).slice(0,topX||10).map((a,i)=>'vs. #'+(i+1)+'\n'+abakusInfo(a)).join('');
+  var abTop = abakusTop(numbers).slice(0,topX||10).map((a,i)=>'#'+(i+1)+'\n'+abakusInfo(a)).join('');
   console.log(ab);
   console.log(abakusInfo(ab));
   console.log(abTop);
