@@ -45,8 +45,8 @@ function abakus(str) {
   var ops = [
     {o:'+',f:(a,b)=>a+b},
     {o:'-',f:(a,b)=>a-b},
-    {o:'*',f:(a,b)=>a*b},
-    {o:':',f:(a,b)=>a/b},
+    {o:'\u00D7',f:(a,b)=>a*b},
+    {o:'\u00F7',f:(a,b)=>a/b},
   ];
   return [{str:str}]
     .flatMap(s=>
