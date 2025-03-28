@@ -49,10 +49,15 @@ function update(numbers,scoreid){
 
 function abakus(str) {
   var ops = [
-    {o:'+',f:(a,b)=>a+b},
-    {o:'-',f:(a,b)=>a-b},
-    {o:'\u00D7',f:(a,b)=>a*b},
-    {o:'\u00F7',f:(a,b)=>a/b},
+    {c:2,o:'+',     f:(a,b)=>a+b},
+    {c:2,o:'-',     f:(a,b)=>a-b},
+    {c:2,o:'\u00D7',f:(a,b)=>a*b},
+    {c:2,o:'\u00F7',f:(a,b)=>a/b},
+
+    {c:1,o:'\u00B2',f:(a)=>a*a},
+    {c:1,o:'\u00B3',f:(a)=>a*a*a},
+    {c:1,o:'\u221A',f:(a)=>Math.sqrt(a)},
+    {c:1,o:'\u221B',f:(a)=>Math.cbrt(a)},    
   ];
   var a = [{str:str}]
     // all substrings begin
@@ -69,13 +74,16 @@ function abakus(str) {
     )
     // all splits a|b|c
     .flatMap(s=>
-      [...Array(s.b.length-1)].map((_,x)=>({...s, b:s.b.slice(0,x+1), c:s.b.slice(x+1)}))
+      [...Array(s.b.length)].map((_,x)=>({...s, b:s.b.slice(0,x), c:s.b.slice(x)}))
     )
     // remove '0' or leading '0...'
     .filter(s=> [s.a,s.b,s.c].every(x=>!x.startsWith('0')) )    
     // apply operators
     .flatMap(s=>
       ops
+        // only valid op params count
+        .filter(o=> o.c == [s.a,s.b].filter(x=>x).length )
+        .filter(o => o.c == 2)
         // only valid op results
         .filter(o=> o.f(+s.a,+s.b)===+s.c )
         //.slice(0,1) // only valid first op
