@@ -1,16 +1,22 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <style>
       body {
         font-family: monospace;
         font-size: xx-large;
       }
-      input {font-family: inherit; font-size: inherit; background-color: inherit; color: inherit;}
+      input {
+        font-family: inherit; font-size: inherit; background-color: inherit; color: inherit;
+        width: 99%;
+      }
       @media (prefers-color-scheme: dark) {
         body {
           background-color: #222;
           color: white;
+          white-space: nowrap;
+          overflow-x: auto;
         }
       }
     </style>
