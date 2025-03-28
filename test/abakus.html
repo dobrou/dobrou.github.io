@@ -107,13 +107,14 @@ function abakus(str) {
     numbers: str, 
     eqs: aa,
     sum: aa.reduce((s,x)=>x.sum+s,0),
+    isValid: aa.some(x=>x.str.length == str.length)
   };
 }  
 
 const permute = (str) => str.length ? str.split('').flatMap((char, i) => permute(str.slice(0, i) + str.slice(i + 1)).map(perm => char + perm)) : [''];
-const abakusTop = (str) => [...new Set(permute(str))].map(abakus).sort((a,b)=>a.sum>b.sum?-1:1);
+const abakusTop = (str) => [...new Set(permute(str))].map(abakus).filter(a=>a.eqs.length).sort((a,b)=>a.sum>b.sum?-1:1);
 const abakusInfo = (ab) => !ab?'':
-  ab.numbers.replace(/[0-9](?=[0-9])/g,x=>x+' ')+' \u2211'+ab.sum+'\n'+
+  ab.numbers.replace(/[0-9](?=[0-9])/g,x=>x+' ')+' \u2211'+ab.sum+' '+(ab.isValid?'\u2713':'x')+'\n'+
   ab.eqs.map(x=>x.eq+' \u2211'+x.sum+'\n').join('')
   ;
 
