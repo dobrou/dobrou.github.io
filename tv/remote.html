@@ -15,8 +15,14 @@
   <div>
     Local Remote <a href='cloudremote'>(switch to Cloud Remote)</a>
     <a href='gamepad'>(switch to GamePad)</a>
-    <a href='#' onclick="document.cookie = 'host='+(prompt('Set TV IP:')??'')+'; max-age=31536000'; location.reload();">Set TV IP</a>
+    <a href='#' onclick='dialog("setup")'>(Setup)</a>
   </div>
+  <dialog id='setup'>
+    <button onclick='this.parentNode.close()' >&#x2716;</button>
+    <input type='text' id='tvip' list='tvips' placeholder='samsung'>
+    <button onclick="document.cookie = 'host='+(document.getElementById('tvip').value??'')+'; max-age=31536000'; location.reload();">Set</button>
+    <datalist id='tvips'></datalist>
+  </dialog>  
   <input type='text' id='text' placeholder='Here enter text input and send it to TV'>
   <div>
     <input type='button' onpointerdown='pressKey(id)' onpointerup='releaseKey(id)' onpointerout='releaseKey(id)' id='POWER' value='POWER'>
@@ -49,12 +55,23 @@
   </div>   
   <div id='status'>loading</div>
   <script>  
+    window.dialog = id => (e=> e.open ? e.close() : e.show() )(document.getElementById(id));
     var cookies =()=> document.cookie.split(/; */).map(c=>c.split(/ *= */,2)).reduce((a,c)=>(a[c[0]]=c[1],a),{});
     
     const host = cookies().host || 'samsung.';
     const touchMoveScale = 3;
     const touchQuickMs = () => window.isTouch ? 0*100 : 100;
     const touchLongMs = 1000;
+
+    // fill known ips
+    const tvips = Object.keys(cookies()).map(c=>c.split('token.')[1]).filter(x=>x);
+    const list = document.getElementById('tvips');
+    list.innerHTML = '';
+    tvips.forEach(value => {
+      const option = document.createElement("option");
+      option.value = value;
+      list.appendChild(option);
+    });
     
     function connect() {      
       const token = cookies()['token.'+host] || cookies().token || '';
@@ -93,9 +110,9 @@
           if(data.event=='ms.error'){
             setStatus('Error: '+JSON.stringify(data.data));
             
-            if(data.data?.message == 'No Authorized')
-              document.cookie = 'token.'+host+'=; max-age=0';
-          } 
+          // if(data.data?.message == 'No Authorized')
+            // document.cookie = 'token.'+host+'=; max-age=0';
+          }
           
           // text input update from tv
           // {"data":"enable","event":"ms.remote.imeDone"}
