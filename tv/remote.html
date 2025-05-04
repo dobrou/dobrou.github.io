@@ -174,7 +174,7 @@
       var touchLong  = e.timeStamp-startTouch.timeStamp > touchLongMs;
       var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
       var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
-      var touchMoved = (dx!=0||dy!=0);
+      var touchMoved = (Math.abs(dx)+Math.abs(dy)) > 10;
       if(!touchMoved && !touchLong)
         window.isTouch ? clickMouse() : clickKey('ENTER');
       if(touchMoved && touchQuick)
