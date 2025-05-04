@@ -105,10 +105,11 @@
           // {"data":{"clients":[{"attributes":{"name":null,"token":"12345686"},"connectTime":1678282410087,"deviceName":"Smart Device","id":"a156156f-3156-5659-56a-51561561565","isHost":false}],"id":"132123cf-3156-4165-58a-5f156156156"},"event":"ms.channel.connect"}
           if(data.event=='ms.channel.connect' && data.data?.token) 
           {
-            setStatus('TV Paired '+token+','+data.data?.token);            
-            document.cookie = 'token.'+host+'='+data.data.token+'; max-age=31536000';
+            setStatus('TV Paired '+token+','+data.data?.token);    
+            token = data.data?.token;       
+            document.cookie = 'token.'+host+'='+token+'; max-age=31536000';
           }
-          if(data.event=='ms.channel.connect' && data.data?.clients && token)
+          if(data.event=='ms.channel.connect' && data.data?.clients && token?.length>0)
             setStatus('clients: '+token+','+data.data?.token);            
             document.cookie = 'token.'+host+'='+token+'; max-age=31536000';
           if(data.event=='ms.error'){
@@ -141,10 +142,7 @@
     connect();
 
     // mouse lock move cursor
-    var gyroLocked = false;
     var mouseLocked = false;
-    
-    document.getElementById('mouseLock').addEventListener("click", e => gyroLocked = !gyroLocked );
     document.getElementById('mouseLock').addEventListener("click", e => !mouseLocked && e.target.requestPointerLock() );
     document.addEventListener("dblclick", e => e.target==document.body && !mouseLocked && e.target.requestPointerLock() ); // enter lock on dblclick
     document.addEventListener("click", e => e.button==1 && mouseLocked && document.exitPointerLock() ); // exit lock on middle click
@@ -186,12 +184,13 @@
 
     // gyro move cursor
     let gyroscope = new Gyroscope({ frequency: 100 });
+    document.body.addEventListener('touchstart', e => gyroscope.start());
+    document.body.addEventListener('touchend',   e => gyroscope.stop());
     gyroscope.addEventListener("reading", e => {
       var dx = -gyroscope.z*33;
       var dy = -gyroscope.x*33; 
-      if(gyroLocked) moveMouse(dx, dy);
+      moveMouse(dx, dy);
     });
-    gyroscope.start();
     
     // text input
     document.getElementById('text').addEventListener('input', e => setText(e.target.value));
