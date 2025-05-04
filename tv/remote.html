@@ -77,7 +77,7 @@
       var localId = cookies().localId || Math.trunc(Math.random()*10000);
       document.cookie = 'localId='+localId+'; max-age=31536000';
 
-      const token = cookies()['token.'+host] || cookies().token || '';
+      var token = cookies()['token.'+host] || cookies().token || '';
       var socket = new WebSocket('wss://'+host+':8002/api/v2/channels/samsung.remote.control?name='+btoa('DobRemote'+localId)+'&token='+token);
       
       window.setStatus = (status) => document.getElementById('status').innerHTML = status;
@@ -106,7 +106,8 @@
           if(data.event=='ms.channel.connect' && data.data?.token) 
           {
             setStatus('TV Paired');
-            document.cookie = 'token.'+host+'='+data.data.token+'; max-age=31536000';
+            token = data.data.token;
+            document.cookie = 'token.'+host+'='+token+'; max-age=31536000';
           }
           if(data.event=='ms.channel.connect' && data.data?.clients && token?.length>0)
             document.cookie = 'token.'+host+'='+token+'; max-age=31536000';
