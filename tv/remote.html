@@ -182,7 +182,7 @@
     gyroscope.addEventListener("reading", e => {
       var dx = -gyroscope.z*33;
       var dy = -gyroscope.x*33; 
-      moveMouse(dx, dy);
+      if(mouseLocked) moveMouse(dx, dy);
     });
     gyroscope.start();
     
