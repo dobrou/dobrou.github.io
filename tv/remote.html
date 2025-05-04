@@ -175,8 +175,8 @@
       var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
       var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
       var touchMoved = (dx!=0||dy!=0);
-      if(!touchMoved)
-        window.isTouch && !touchLong ? clickMouse() : clickKey('ENTER');
+      if(!touchMoved && !touchLong)
+        window.isTouch ? clickMouse() : clickKey('ENTER');
       if(touchMoved && touchQuick)
         clickKey(Math.abs(dx)>Math.abs(dy) ? (dx>0?'RIGHT':'LEFT') : (dy>0?'DOWN':'UP'));
     });
