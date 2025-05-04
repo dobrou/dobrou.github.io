@@ -80,7 +80,7 @@
       const token = cookies()['token.'+host] || cookies().token || '';
       var socket = new WebSocket('wss://'+host+':8002/api/v2/channels/samsung.remote.control?name='+btoa('DobRemote'+localId)+'&token='+token);
       
-      window.setStatus = (status) => document.getElementById('status').innerHTML = (status+'<br/>'+document.getElementById('status').innerHTML).substr(0,400);
+      window.setStatus = (status) => document.getElementById('status').innerHTML = status;
       window.clickKey  = (key,cmd)=> navigator.vibrate(20)+console.log(key)+socket.send('{"method":"ms.remote.control","params":{"Cmd":"'+(cmd||'Click')+'","Option":"false","TypeOfRemote":"SendRemoteKey","DataOfCmd":"KEY_'+key+'"}}');
       window.pressKey  = (key)    => navigator.vibrate(60)+clickKey(key,'Press');
       window.releaseKey= (key)    => clickKey(key,'Release');
@@ -105,11 +105,10 @@
           // {"data":{"clients":[{"attributes":{"name":null,"token":"12345686"},"connectTime":1678282410087,"deviceName":"Smart Device","id":"a156156f-3156-5659-56a-51561561565","isHost":false}],"id":"132123cf-3156-4165-58a-5f156156156"},"event":"ms.channel.connect"}
           if(data.event=='ms.channel.connect' && data.data?.token) 
           {
-            setStatus('TV Paired '+token+','+data.data?.token);    
+            setStatus('TV Paired');
             document.cookie = 'token.'+host+'='+data.data.token+'; max-age=31536000';
           }
           if(data.event=='ms.channel.connect' && data.data?.clients && token?.length>0)
-            setStatus('clients: '+token+','+data.data?.token);            
             document.cookie = 'token.'+host+'='+token+'; max-age=31536000';
           if(data.event=='ms.error'){
             setStatus('Error: '+JSON.stringify(data.data));
