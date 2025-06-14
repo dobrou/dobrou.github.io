@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartThings Device Lister (Minimal)</title>
+</head>
+<body>
+
+    <!-- Main Content Area -->
+    <div id="mainContent">
+        <!-- Login View -->
+        <div id="loginView">
+            <label for="clientIdInput">SmartThings Client ID:</label><br>
+            <input type="text" id="clientIdInput" placeholder="Enter your Client ID" size="50"><br>
+            <p>
+                <small>
+                    Use this page's URL as the "Redirect URI": 
+                    <code id="redirectUriDisplay"></code>
+                </small>
+            </p>
+            <button id="loginBtn">Login with SmartThings</button>
+        </div>
+
+        <!-- Logged In View -->
+        <div id="loggedInView">
+             <p>You are logged in.</p>
+             <button id="logoutBtn">Logout</button>
+        </div>
+    </div>
+
+    <hr>
+
+    <!-- Message & Loading Area -->
+    <div id="messageArea"></div>
+
+    <!-- Devices Container -->
+    <div id="devicesContainer"></div>
+
+    <script>
+        // --- Configuration & DOM Elements ---
+        const smartThingsAuthUrl = 'https://api.smartthings.com/oauth/authorize';
+        const smartThingsTokenUrl = 'https://api.smartthings.com/oauth/token';
+        const smartThingsApiUrl = 'https://api.smartthings.com/v1/devices';
+        const aplicationScope = 'r:devices:*';
+
+        const loginView = document.getElementById('loginView');
+        const loggedInView = document.getElementById('loggedInView');
+        const clientIdInput = document.getElementById('clientIdInput');
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const messageArea = document.getElementById('messageArea');
+        const devicesContainer = document.getElementById('devicesContainer');
+        const redirectUriDisplay = document.getElementById('redirectUriDisplay');
+        
+        // --- PKCE Helper Functions ---
+
+        /**
+         * Generates a secure random string for the code verifier.
+         * @param {number} length The length of the string.
+         * @returns {string} The random string.
+         */
+        function generateRandomString(length) {
+            const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+            let text = '';
+            for (let i = 0; i < length; i++) {
+                text += possible.charAt(Math.floor(Math.random() * possible.length));
+            }
+            return text;
+        }
+
+        /**
+         * Hashes a string using SHA-256.
+         * @param {string} plain The string to hash.
+         * @returns {Promise<ArrayBuffer>} The hashed string as an ArrayBuffer.
+         */
+        async function sha256(plain) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(plain);
+            return window.crypto.subtle.digest('SHA-256', data);
+        }
+
+        /**
+         * Base64URL encodes an ArrayBuffer.
+         * @param {ArrayBuffer} arrayBuffer The ArrayBuffer to encode.
+         * @returns {string} The Base64URL encoded string.
+         */
+        function base64urlencode(arrayBuffer) {
+            let str = '';
+            const bytes = new Uint8Array(arrayBuffer);
+            bytes.forEach((byte) => {
+                str += String.fromCharCode(byte);
+            });
+            return btoa(str)
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=+$/, '');
+        }
+
+        /**
+         * Generates the code challenge for PKCE.
+         * @param {string} verifier The code verifier.
+         * @returns {Promise<string>} The generated code challenge.
+         */
+        async function generateCodeChallenge(verifier) {
+            const hashed = await sha256(verifier);
+            return base64urlencode(hashed);
+        }
+
+        // --- Core Application Logic ---
+
+        /**
+         * Kicks off the OAuth login process.
+         */
+        async function loginWithSmartThings() {
+            const clientId = clientIdInput.value.trim();
+            if (!clientId) {
+                displayMessage('Please provide a Client ID.');
+                return;
+            }
+            sessionStorage.setItem('st_client_id', clientId);
+
+            const codeVerifier = generateRandomString(128);
+            sessionStorage.setItem('st_code_verifier', codeVerifier);
+
+            const codeChallenge = await generateCodeChallenge(codeVerifier);
+            const state = generateRandomString(32);
+            sessionStorage.setItem('st_state', state);
+
+            const params = new URLSearchParams({
+                response_type: 'code',
+                client_id: clientId,
+                scope: aplicationScope,
+                redirect_uri: window.location.href.split('?')[0],
+                code_challenge: codeChallenge,
+                code_challenge_method: 'S256',
+                state: state
+            });
+
+            window.location.href = `${smartThingsAuthUrl}?${params.toString()}`;
+        }
+
+        /**
+         * Handles the redirect from SmartThings after user authorization.
+         */
+        async function handleOAuthCallback() {
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('code');
+            const state = params.get('state');
+
+            const storedState = sessionStorage.getItem('st_state');
+            const storedVerifier = sessionStorage.getItem('st_code_verifier');
+            const clientId = sessionStorage.getItem('st_client_id');
+
+            if (!code || !state) {
+                return; // Not a callback
+            }
+
+            if (state !== storedState) {
+                displayMessage('Error: Invalid state parameter.');
+                return;
+            }
+
+            displayMessage('Exchanging authorization code for token...');
+            
+            try {
+                const response = await fetch(smartThingsTokenUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        grant_type: 'authorization_code',
+                        code: code,
+                        client_id: clientId,
+                        redirect_uri: window.location.href.split('?')[0],
+                        code_verifier: storedVerifier
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`Token exchange failed: ${errorData.error_description || response.statusText}`);
+                }
+                
+                const tokenData = await response.json();
+                sessionStorage.setItem('st_access_token', tokenData.access_token);
+                
+                // Clean up URL and session storage
+                window.history.replaceState({}, document.title, window.location.pathname);
+                sessionStorage.removeItem('st_state');
+                sessionStorage.removeItem('st_code_verifier');
+
+                updateUI();
+                fetchDevices();
+
+            } catch (error) {
+                console.error('OAuth Callback Error:', error);
+                displayMessage(`Error: ${error.message}`);
+                logout(); // Reset state on failure
+            }
+        }
+        
+        /**
+         * Fetches devices from the SmartThings API using the stored access token.
+         */
+        async function fetchDevices() {
+            const accessToken = sessionStorage.getItem('st_access_token');
+            if (!accessToken) return;
+            
+            displayMessage('Fetching your devices...');
+            devicesContainer.innerHTML = '';
+
+            try {
+                const response = await fetch(smartThingsApiUrl, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+
+                if (!response.ok) {
+                   if (response.status === 401) throw new Error('Access token is invalid or expired. Please log in again.');
+                   throw new Error(`API Error: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                messageArea.innerHTML = ''; // Clear loading message
+
+                if (data.items && data.items.length > 0) {
+                    displayDevices(data.items);
+                } else {
+                    displayMessage('No devices found for this account.');
+                }
+            } catch (error) {
+                console.error('Fetch Devices Error:', error);
+                displayMessage(`Error: ${error.message}`);
+                if (error.message.includes('expired')) {
+                    logout(); // Force logout if token is bad
+                }
+            }
+        }
+        
+        /**
+         * Logs the user out by clearing session storage and resetting the UI.
+         */
+        function logout() {
+            sessionStorage.removeItem('st_access_token');
+            sessionStorage.removeItem('st_client_id');
+            devicesContainer.innerHTML = '';
+            messageArea.innerHTML = '';
+            updateUI();
+        }
+
+        // --- UI & Utility Functions ---
+        
+        /**
+         * Updates the entire UI based on the current authentication state.
+         */
+        function updateUI() {
+            const accessToken = sessionStorage.getItem('st_access_token');
+            const clientId = sessionStorage.getItem('st_client_id');
+
+            if (accessToken && clientId) {
+                loginView.style.display = 'none';
+                loggedInView.style.display = 'block';
+            } else {
+                loginView.style.display = 'block';
+                loggedInView.style.display = 'none';
+                if (clientId) {
+                    clientIdInput.value = clientId;
+                }
+            }
+        }
+
+        function displayMessage(text) {
+            messageArea.textContent = text;
+        }
+
+        function displayDevices(devices) {
+            const list = document.createElement('ul');
+            devices.forEach(device => {
+                 const listItem = document.createElement('li');
+                 listItem.innerHTML = `
+                    <strong>${device.label || 'Unnamed Device'}</strong> 
+                    (${device.deviceTypeName || 'Unknown Type'})
+                 `;
+                 list.appendChild(listItem);
+            });
+            devicesContainer.innerHTML = ''; // Clear previous
+            devicesContainer.appendChild(list);
+        }
+        
+        // --- App Initialization ---
+        
+        function initialize() {
+            // Display the Redirect URI for the user to copy
+            redirectUriDisplay.textContent = window.location.href.split('?')[0];
+
+            loginBtn.addEventListener('click', loginWithSmartThings);
+            logoutBtn.addEventListener('click', logout);
+            
+            // Check if this is an OAuth callback
+            if (new URLSearchParams(window.location.search).has('code')) {
+                handleOAuthCallback();
+            } else {
+                 // Regular page load, check if already logged in
+                updateUI();
+                if (sessionStorage.getItem('st_access_token')) {
+                    fetchDevices();
+                }
+            }
+        }
+        
+        // Run the app
+        initialize();
+
+    </script>
+</body>
+</html>
