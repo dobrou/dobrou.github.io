@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Equation Visualizer</title>
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -17,6 +17,7 @@
             display: block;
             width: 100vw;
             height: 100vh;
+            touch-action: none; /* Prevents default touch actions like scroll/zoom on the page */
         }
         /* Style for the main control panel */
         #controls-wrapper {
@@ -25,46 +26,41 @@
             left: 50%;
             transform: translateX(-50%);
             background-color: rgba(42, 50, 66, 0.8);
-            padding: 1rem;
+            padding: 0.75rem 1rem; /* Reduced vertical padding */
             border-radius: 0.75rem;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             backdrop-filter: blur(10px);
-            display: flex;
-            align-items: center;
-            gap: 1rem;
             transition: opacity 0.3s ease;
         }
-        /* Style for the button that shows the controls */
-        #show-controls-btn {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
+        /* Style for the pixel value tooltip */
+        #tooltip {
+            pointer-events: none; /* Make sure the tooltip doesn't block mouse events */
         }
     </style>
 </head>
 <body class="font-sans">
 
-    <!-- Button to show the control panel (initially hidden) -->
-    <button id="show-controls-btn" class="hidden bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition">Show Controls</button>
-
     <!-- Control panel for the equation input -->
     <div id="controls-wrapper">
-        <div>
-            <div class="flex items-center gap-4">
-                 <label for="equation" class="text-white font-medium whitespace-nowrap">f(x, y, t) =</label>
-                 <input type="text" id="equation" value="(x ^ y) * t" class="bg-gray-700 text-white w-72 px-3 py-2 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-                 <button id="hide-controls-btn" class="text-gray-400 hover:text-white transition" title="Hide Controls">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                 </button>
-            </div>
-            <!-- Error message container -->
-            <p id="error-message" class="text-red-400 text-sm mt-2 h-5"></p>
+        <div class="flex items-center gap-4">
+             <label for="equation" class="text-white font-medium whitespace-nowrap">f(x, y, t, z) =</label>
+             <input type="text" id="equation" value="(x ^ y) * t / z" class="bg-gray-700 text-white w-72 px-3 py-2 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+             <button id="reset-view-btn" class="text-gray-400 hover:text-white transition" title="Reset View">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"/><path d="M21 22v-6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 8l2.7-2.7A9 9 0 0 1 21 12"/></svg>
+             </button>
+             <button id="hide-controls-btn" class="text-gray-400 hover:text-white transition" title="Hide Controls">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+             </button>
         </div>
+        <!-- Error message container -->
+        <p id="error-message" class="text-red-400 text-sm mt-1"></p>
     </div>
 
     <!-- The canvas where the visualization is drawn -->
     <canvas id="visualizerCanvas"></canvas>
+    
+    <!-- Tooltip for displaying pixel values -->
+    <div id="tooltip" class="hidden absolute bg-gray-900 bg-opacity-80 text-white text-sm rounded-md p-2 font-mono"></div>
 
     <script>
         const canvas = document.getElementById('visualizerCanvas');
@@ -73,10 +69,55 @@
         const errorMessageEl = document.getElementById('error-message');
         const controlsWrapper = document.getElementById('controls-wrapper');
         const hideControlsBtn = document.getElementById('hide-controls-btn');
-        const showControlsBtn = document.getElementById('show-controls-btn');
+        const resetViewBtn = document.getElementById('reset-view-btn');
+        const tooltipEl = document.getElementById('tooltip');
 
-        let t = 0; // Time variable, increments with each frame
-        let intervalId; // To control the animation loop using setInterval
+        // State variables
+        let t = 0; // Time
+        let intervalId;
+        let zoom = 1.0;
+        let offsetX = 0;
+        let offsetY = 0;
+        let isDragging = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        let lastPinchDist = null;
+        let urlUpdateTimeout;
+        let isShiftPressed = false;
+        let lastValidUserFunction = null;
+
+        /**
+         * Updates the URL query string with the current state (debounced).
+         */
+        function updateURLState() {
+            clearTimeout(urlUpdateTimeout);
+            urlUpdateTimeout = setTimeout(() => {
+                const params = new URLSearchParams();
+                params.set('eq', encodeURIComponent(equationInput.value));
+                params.set('zoom', zoom.toFixed(4));
+                params.set('offsetX', offsetX.toFixed(2));
+                params.set('offsetY', offsetY.toFixed(2));
+                const newUrl = `${window.location.pathname}?${params.toString()}`;
+                window.history.replaceState({ path: newUrl }, '', newUrl);
+            }, 250); // Debounce delay of 250ms
+        }
+
+        /**
+         * Loads the state from the URL query string on page load.
+         */
+        function loadStateFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            const eqParam = params.get('eq');
+            if (eqParam) {
+                equationInput.value = decodeURIComponent(eqParam);
+            }
+            const zoomParam = parseFloat(params.get('zoom'));
+            if (!isNaN(zoomParam)) zoom = zoomParam;
+            const offsetXParam = parseFloat(params.get('offsetX'));
+            if (!isNaN(offsetXParam)) offsetX = offsetXParam;
+            const offsetYParam = parseFloat(params.get('offsetY'));
+            if (!isNaN(offsetYParam)) offsetY = offsetYParam;
+        }
 
         /**
          * Resizes the canvas to fill the entire window.
@@ -90,100 +131,193 @@
          * Main drawing function that runs on every interval tick.
          */
         function draw() {
-            // Increment time by a smaller value for a slower effect.
-            t += 1;
-            
-            // If canvas has no size yet, wait for the next frame.
-            if (canvas.width <= 0 || canvas.height <= 0) {
-                return;
-            }
+            // Slower time progression
+            t += 0.05;
+            if (canvas.width <= 0 || canvas.height <= 0) return;
 
             const equation = equationInput.value;
-            
-            // Clear previous error state before validation
             errorMessageEl.textContent = '';
             equationInput.classList.remove('border-red-500', 'focus:ring-red-500');
-            equationInput.classList.add('border-gray-600', 'focus:ring-blue-500');
 
-            // Handle empty input to prevent syntax errors.
             if (!equation.trim()) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear screen
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                lastValidUserFunction = null;
                 return;
             }
 
             let userFunction;
-
-            // Attempt to create a function from the user's input string.
             try {
-                userFunction = new Function('x', 'y', 't', `return ${equation}`);
-                // Test the function with sample values to catch runtime errors as well.
-                userFunction(0, 0, 0); 
+                userFunction = new Function('x', 'y', 't', 'z', `return ${equation}`);
+                userFunction(0, 0, 0, 1);
+                lastValidUserFunction = userFunction; // Store the last valid function
             } catch (e) {
-                // If the equation is invalid, show an error and stop.
                 errorMessageEl.textContent = 'Invalid equation.';
                 equationInput.classList.add('border-red-500', 'focus:ring-red-500');
-                equationInput.classList.remove('border-gray-600', 'focus:ring-blue-500');
+                lastValidUserFunction = null;
                 return;
             }
 
-            // Get the pixel data array for the canvas.
             const imageData = ctx.createImageData(canvas.width, canvas.height);
-            const data = imageData.data; // This is a Uint8ClampedArray
+            const data = imageData.data;
+            const canvasCenterX = canvas.width / 2;
+            const canvasCenterY = canvas.height / 2;
 
-            // Loop through every pixel on the canvas.
             for (let y = 0; y < canvas.height; y++) {
                 for (let x = 0; x < canvas.width; x++) {
-                    const value = userFunction(x, y, t);
+                    const worldX = (x - canvasCenterX) / zoom + offsetX;
+                    const worldY = (y - canvasCenterY) / zoom + offsetY;
+                    
+                    const value = userFunction(worldX, worldY, t, zoom);
+                    const absValue = Math.abs(value);
                     const index = (y * canvas.width + x) * 4;
-                    data[index]     = value % 256;
-                    data[index + 1] = (value * 2) % 256;
-                    data[index + 2] = (value * 3) % 256;
+                    data[index]     = absValue % 256;
+                    data[index + 1] = (absValue * 2) % 256;
+                    data[index + 2] = (absValue * 3) % 256;
                     data[index + 3] = 255;
                 }
             }
-
-            // Put the modified pixel data back onto the canvas.
             ctx.putImageData(imageData, 0, 0);
         }
 
-        /**
-         * Restarts the animation. This is called when the equation or window size changes.
-         */
         function restartAnimation() {
-            t = 0; // Reset time
-            if (intervalId) {
-                clearInterval(intervalId); // Stop the current animation loop
+            t = 0;
+            if (intervalId) clearInterval(intervalId);
+            intervalId = setInterval(draw, 1000 / 60); // Target 60 FPS
+            updateURLState();
+        }
+
+        function resetView() {
+            zoom = 1.0;
+            offsetX = 0;
+            offsetY = 0;
+            updateURLState();
+        }
+        
+        // --- Tooltip Functions ---
+        function showTooltip(e) {
+            if (!isShiftPressed || !lastValidUserFunction) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const worldX = (x - canvas.width / 2) / zoom + offsetX;
+            const worldY = (y - canvas.height / 2) / zoom + offsetY;
+
+            try {
+                const value = lastValidUserFunction(worldX, worldY, t, zoom);
+                const absValue = Math.abs(value);
+                const r = Math.floor(absValue % 256);
+                const g = Math.floor((absValue * 2) % 256);
+                const b = Math.floor((absValue * 3) % 256);
+
+                tooltipEl.innerHTML = `v: ${value.toFixed(2)}<br>rgb: (${r},${g},${b})`;
+                tooltipEl.style.left = `${e.clientX + 15}px`;
+                tooltipEl.style.top = `${e.clientY}px`;
+                tooltipEl.classList.remove('hidden');
+            } catch (err) {
+                hideTooltip(); // Hide if calculation fails for specific point
             }
-            // Start a new loop targeting 100 frames per second.
-            intervalId = setInterval(draw, 1000 / 100);
         }
 
-        /**
-         * Toggles the visibility of the control panel.
-         */
-        function toggleControls() {
-            controlsWrapper.classList.toggle('hidden');
-            showControlsBtn.classList.toggle('hidden');
+        function hideTooltip() {
+            tooltipEl.classList.add('hidden');
         }
-        
+
         // --- Event Listeners ---
-
-        // Restart the animation when the user types a new equation.
         equationInput.addEventListener('input', restartAnimation);
-        
-        // Resize the canvas when the window is resized.
-        window.addEventListener('resize', () => {
-            resizeCanvas();
-            // No need to call restartAnimation here, as draw loop will adapt.
+        window.addEventListener('resize', resizeCanvas);
+
+        // Hide/Show Controls Logic
+        hideControlsBtn.addEventListener('click', () => {
+            controlsWrapper.classList.add('hidden');
         });
 
-        // Add click listeners to hide or show the control panel.
-        hideControlsBtn.addEventListener('click', toggleControls);
-        showControlsBtn.addEventListener('click', toggleControls);
+        canvas.addEventListener('click', () => {
+            if (controlsWrapper.classList.contains('hidden')) {
+                controlsWrapper.classList.remove('hidden');
+            }
+        });
+
+        resetViewBtn.addEventListener('click', resetView);
+
+        // Tooltip listeners
+        window.addEventListener('keydown', (e) => { if (e.key === 'Shift') isShiftPressed = true; });
+        window.addEventListener('keyup', (e) => { if (e.key === 'Shift') { isShiftPressed = false; hideTooltip(); } });
+        canvas.addEventListener('mousemove', showTooltip);
+        canvas.addEventListener('mouseleave', hideTooltip);
+
+        // --- Mouse Pan and Zoom ---
+        canvas.addEventListener('mousedown', (e) => {
+            if (controlsWrapper.contains(e.target)) return;
+            isDragging = true;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        });
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            offsetX -= (e.clientX - lastMouseX) / zoom;
+            offsetY -= (e.clientY - lastMouseY) / zoom;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+            updateURLState();
+        });
+        canvas.addEventListener('mouseup', () => isDragging = false);
+        canvas.addEventListener('mouseleave', () => isDragging = false);
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const oldZoom = zoom;
+            if (e.deltaY < 0) zoom *= 1.1;
+            else zoom /= 1.1;
+            offsetX += (e.clientX - canvas.width / 2) * (1 / oldZoom - 1 / zoom);
+            offsetY += (e.clientY - canvas.height / 2) * (1 / oldZoom - 1 / zoom);
+            updateURLState();
+        }, { passive: false });
+
+        // --- Touch Pan and Zoom ---
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touchOnControls = controlsWrapper.contains(e.touches[0].target);
+            if (touchOnControls) return;
+
+            if (e.touches.length === 1) { 
+                isDragging = true; 
+                lastMouseX = e.touches[0].clientX; 
+                lastMouseY = e.touches[0].clientY; 
+            } else if (e.touches.length === 2) { 
+                isDragging = false; 
+                lastPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); 
+            }
+        }, { passive: false });
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (e.touches.length === 1 && isDragging) {
+                offsetX -= (e.touches[0].clientX - lastMouseX) / zoom;
+                offsetY -= (e.touches[0].clientY - lastMouseY) / zoom;
+                lastMouseX = e.touches[0].clientX;
+                lastMouseY = e.touches[0].clientY;
+            } else if (e.touches.length === 2 && lastPinchDist) {
+                const newPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                const zoomFactor = newPinchDist / lastPinchDist;
+                const oldZoom = zoom;
+                zoom *= zoomFactor;
+                const pinchCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                const pinchCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                offsetX += (pinchCenterX - canvas.width / 2) * (1 / oldZoom - 1 / zoom);
+                offsetY += (pinchCenterY - canvas.height / 2) * (1 / oldZoom - 1 / zoom);
+                lastPinchDist = newPinchDist;
+            }
+            updateURLState();
+        }, { passive: false });
+        canvas.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) lastPinchDist = null;
+            if (e.touches.length < 1) isDragging = false;
+        });
 
         // --- Initial Setup ---
+        loadStateFromURL();
         resizeCanvas();
-        restartAnimation(); // Start the animation loop
+        restartAnimation();
     </script>
 
 </body>
