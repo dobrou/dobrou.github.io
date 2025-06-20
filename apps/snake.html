@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Snake Game</title>
+    <style>
+        /* Basic styling for the page */
+        html, body {
+            width: 100vw; /* Use viewport width */
+            height: 100vh; /* Use viewport height */
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Hide scrollbars */
+            background-color: #121212; /* Dark background color */
+            color: #ffffff; /* White text color */
+            font-family: 'Courier New', Courier, monospace;
+        }
+        
+        /* Styling for the game canvas */
+        #gameCanvas {
+            display: block; /* Make canvas a block element */
+            background-color: #1e1e1e; /* Slightly lighter dark for the play area */
+        }
+
+        /* Common style for overlay screens */
+        .overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex; /* Use flexbox for centering */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.75);
+            padding: 40px;
+            border-radius: 15px;
+            border: 2px solid #333;
+            text-align: center;
+            z-index: 10;
+        }
+
+        .overlay h1 {
+            margin: 0;
+            font-size: 4rem;
+        }
+
+        .overlay p {
+            font-size: 1.5rem;
+            margin: 10px 0 20px 0;
+        }
+        
+        #gameOverScreen h1 {
+             color: #e74c3c; /* Red color for game over text */
+        }
+        
+        #startScreen h1 {
+            color: #3498db; /* Blue color for start screen */
+        }
+
+        /* Button styling */
+        .overlay button {
+            background-color: #2ecc71; /* Green button */
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .overlay button:hover {
+            background-color: #27ae60; /* Darker green on hover */
+        }
+    </style>
+</head>
+<body>
+    <!-- The canvas where the game will be drawn -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Start Screen -->
+    <div id="startScreen" class="overlay">
+        <h1>Snake</h1>
+        <p>Tap to turn. Eat the apples.</p>
+        <button id="startButton">Start Game</button>
+    </div>
+
+    <!-- Game Over screen -->
+    <div id="gameOverScreen" class="overlay" style="display: none;">
+        <h1>Game Over</h1>
+        <p>Your Score: <span id="finalScore">0</span></p>
+        <button id="restartButton">Play Again</button>
+    </div>
+
+    <script>
+        // --- Game Setup ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const startButton = document.getElementById('startButton');
+        const restartButton = document.getElementById('restartButton');
+        const finalScoreElement = document.getElementById('finalScore');
+
+        // Function to set canvas size correctly for mobile browsers
+        function resizeCanvas() {
+            canvas.width = document.documentElement.clientWidth;
+            canvas.height = document.documentElement.clientHeight;
+        }
+        
+        // --- Game Constants and Variables ---
+        const gridSize = 20;
+        let snake = [];
+        let apple = {};
+        let dx = gridSize;
+        let dy = 0;
+        let changingDirection = false;
+        let score = 0;
+        let gameSpeed = 100;
+        let particles = [];
+        let gameActive = false;
+
+        // --- Game Functions ---
+
+        /** Creates explosion particles at a given location. */
+        function createExplosion(x, y) {
+            const particleCount = 15;
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: x + gridSize / 2,
+                    y: y + gridSize / 2,
+                    dx: (Math.random() - 0.5) * 6,
+                    dy: (Math.random() - 0.5) * 6,
+                    life: 20
+                });
+            }
+        }
+
+        /** Updates and draws explosion particles. */
+        function updateAndDrawParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.dx;
+                p.y += p.dy;
+                p.life--;
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                } else {
+                    ctx.globalAlpha = p.life / 20;
+                    ctx.fillStyle = '#f1c40f';
+                    ctx.fillRect(p.x, p.y, 4, 4);
+                    ctx.globalAlpha = 1.0;
+                }
+            }
+        }
+
+        /** Efficiently places an apple on a random grid location that is not occupied by the snake. */
+        function spawnApple() {
+            const snakeCoordinates = new Set(snake.map(segment => `${segment.x},${segment.y}`));
+            const availableSpots = [];
+            const cols = Math.floor(canvas.width / gridSize);
+            const rows = Math.floor(canvas.height / gridSize);
+            for (let x = 0; x < cols; x++) {
+                for (let y = 0; y < rows; y++) {
+                    const gridX = x * gridSize;
+                    const gridY = y * gridSize;
+                    if (!snakeCoordinates.has(`${gridX},${gridY}`)) {
+                        availableSpots.push({ x: gridX, y: gridY });
+                    }
+                }
+            }
+            if (availableSpots.length === 0) {
+                endGame(true); // Player wins
+                return;
+            }
+            const newApplePosition = availableSpots[Math.floor(Math.random() * availableSpots.length)];
+            apple.x = newApplePosition.x;
+            apple.y = newApplePosition.y;
+        }
+        
+        /** The main game loop. */
+        function gameLoop() {
+            if (!gameActive || isGameOver()) {
+                endGame();
+                return;
+            }
+            
+            changingDirection = false;
+            window.gameLoopTimeout = setTimeout(() => {
+                clearCanvas();
+                drawApple();
+                moveSnake();
+                updateAndDrawParticles();
+                drawSnake();
+                gameLoop();
+            }, gameSpeed);
+        }
+        
+        /** Ends the game and shows the game over screen. */
+        function endGame(isWinner = false) {
+            gameActive = false;
+            clearTimeout(window.gameLoopTimeout);
+            gameOverScreen.style.display = 'flex';
+            finalScoreElement.textContent = isWinner ? `WINNER! ${score}` : score;
+        }
+
+        /** Clears the canvas for the next frame. */
+        function clearCanvas() {
+            ctx.fillStyle = '#1e1e1e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        /** Draws the snake on the canvas. */
+        function drawSnake() {
+            if (!gameActive) return;
+            snake.forEach((segment, index) => {
+                ctx.fillStyle = index === 0 ? '#3498db' : '#2980b9';
+                ctx.strokeStyle = '#1e1e1e';
+                ctx.fillRect(segment.x, segment.y, gridSize, gridSize);
+                ctx.strokeRect(segment.x, segment.y, gridSize, gridSize);
+            });
+        }
+
+        /** Draws the apple on the canvas. */
+        function drawApple() {
+            if (!gameActive || (!apple.x && apple.x !== 0)) return;
+            ctx.fillStyle = '#e74c3c';
+            ctx.strokeStyle = '#c0392b';
+            ctx.fillRect(apple.x, apple.y, gridSize, gridSize);
+            ctx.strokeRect(apple.x, apple.y, gridSize, gridSize);
+        }
+
+        /** Updates the snake's position, handles wall bouncing, and checks for apple consumption. */
+        function moveSnake() {
+            const nextHead = { x: snake[0].x + dx, y: snake[0].y + dy };
+            const hitLeftWall = nextHead.x < 0;
+            const hitRightWall = nextHead.x >= canvas.width;
+            const hitTopWall = nextHead.y < 0;
+            const hitBottomWall = nextHead.y >= canvas.height;
+
+            if (hitLeftWall || hitRightWall || hitTopWall || hitBottomWall) {
+                if (snake.length > 1) { snake.pop(); }
+                createExplosion(snake[0].x, snake[0].y);
+                snake.reverse();
+                if (snake.length > 1) {
+                    dx = snake[0].x - snake[1].x;
+                    dy = snake[0].y - snake[1].y;
+                } else {
+                    dx = -dx;
+                    dy = -dy;
+                }
+            }
+            
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+            snake.unshift(head);
+
+            if (snake[0].x === apple.x && snake[0].y === apple.y) {
+                score += 10;
+                spawnApple();
+                if(gameSpeed > 50) gameSpeed -= 2;
+            } else {
+                snake.pop();
+            }
+        }
+
+        /** Checks for game over condition (self-collision only). */
+        function isGameOver() {
+            for (let i = 4; i < snake.length; i++) {
+                if (snake[i].x === snake[0].x && snake[i].y === snake[0].y) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /** Handles keyboard input for absolute direction changes. */
+        function handleKeyDown(event) {
+            if (changingDirection) return;
+            const LEFT_KEY = 37;
+            const RIGHT_KEY = 39;
+            const UP_KEY = 38;
+            const DOWN_KEY = 40;
+            const keyPressed = event.keyCode;
+            const goingUp = dy === -gridSize;
+            const goingDown = dy === gridSize;
+            const goingRight = dx === gridSize;
+            const goingLeft = dx === -gridSize;
+
+            if (keyPressed === LEFT_KEY && !goingRight) { dx = -gridSize; dy = 0; changingDirection = true; }
+            if (keyPressed === UP_KEY && !goingDown) { dx = 0; dy = -gridSize; changingDirection = true; }
+            if (keyPressed === RIGHT_KEY && !goingLeft) { dx = gridSize; dy = 0; changingDirection = true; }
+            if (keyPressed === DOWN_KEY && !goingUp) { dx = 0; dy = gridSize; changingDirection = true; }
+        }
+
+        /** Turns the snake left or right relative to its current direction. */
+        function turn(direction) {
+            if (changingDirection) return;
+            const currentDx = dx;
+            const currentDy = dy;
+            if (direction === 'left') {
+                if (currentDx > 0) { dx = 0; dy = -gridSize; } else if (currentDx < 0) { dx = 0; dy = gridSize; } else if (currentDy > 0) { dx = gridSize; dy = 0; } else if (currentDy < 0) { dx = -gridSize; dy = 0; }
+            } else if (direction === 'right') {
+                if (currentDx > 0) { dx = 0; dy = gridSize; } else if (currentDx < 0) { dx = 0; dy = -gridSize; } else if (currentDy > 0) { dx = -gridSize; dy = 0; } else if (currentDy < 0) { dx = gridSize; dy = 0; }
+            }
+            changingDirection = true;
+        }
+        
+        /** Resets the game to its initial state. */
+        function init() {
+            resizeCanvas(); 
+            snake = [{ x: Math.floor(canvas.width / 2 / gridSize) * gridSize, y: Math.floor(canvas.height / 2 / gridSize) * gridSize }];
+            dx = gridSize;
+            dy = 0;
+            score = 0;
+            gameSpeed = 100;
+            particles = [];
+            gameActive = true;
+            gameOverScreen.style.display = 'none';
+            spawnApple();
+            clearTimeout(window.gameLoopTimeout); 
+            gameLoop();
+        }
+
+        /** Handles window resize events. */
+        function handleResize() {
+            resizeCanvas();
+            if (gameActive) {
+                const head = snake[0];
+                if (head.x >= canvas.width || head.y >= canvas.height) {
+                    endGame();
+                }
+                else if ((apple.x && apple.x >= canvas.width) || (apple.y && apple.y >= canvas.height)) {
+                    spawnApple();
+                }
+            }
+            clearCanvas();
+            updateAndDrawParticles();
+            drawApple();
+            drawSnake();
+        }
+        
+        /** Starts the game and calls init. */
+        function startGame() {
+            startScreen.style.display = 'none';
+            // Fullscreen calls removed
+            init();
+        }
+
+        // --- Event Listeners ---
+        window.addEventListener('resize', handleResize);
+        document.addEventListener('keydown', handleKeyDown);
+        startButton.addEventListener('click', startGame);
+        restartButton.addEventListener('click', init);
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('mousedown', e => {
+            if (!gameActive) return;
+            if (e.button === 0) { turn('left'); } else if (e.button === 2) { turn('right'); }
+        });
+        document.addEventListener('touchstart', e => {
+            if (!gameActive) return;
+            e.preventDefault();
+            const touchX = e.changedTouches[0].clientX;
+            if (touchX < window.innerWidth / 2) { turn('left'); } else { turn('right'); }
+        }, { passive: false });
+        
+        // Initial setup
+        resizeCanvas();
+
+    </script>
+</body>
+</html>

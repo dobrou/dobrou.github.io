@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prohlížeč Google Časové osy</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- LeafletJS for map rendering -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <style>
+        /* Custom styles for the application */
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Prevent scrollbars */
+        }
+        #map {
+            height: 100vh;
+            width: 100%;
+            z-index: 10;
+        }
+        #controls {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            z-index: 20;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 350px;
+            max-height: calc(100vh - 2rem);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
+            transform: translateX(0);
+        }
+        #controls.is-hidden {
+            transform: translateX(-120%);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .file-drop-zone {
+            border: 2px dashed #cbd5e1;
+            border-radius: 0.5rem;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        .file-drop-zone.dragover {
+            background-color: #e2e8f0;
+            border-color: #4f46e5;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Style for the Leaflet layers control */
+        .leaflet-control-layers {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .leaflet-control-layers-base label, .leaflet-control-layers-overlays label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+        }
+        .layer-color-swatch {
+             width: 1rem;
+             height: 1rem;
+             border-radius: 50%;
+             display: inline-block;
+             flex-shrink: 0;
+        }
+        /* Custom tooltip for date display */
+        .custom-tooltip {
+            background-color: rgba(30, 41, 59, 0.85); /* slate-800 */
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+
+    <div id="map"></div>
+
+    <div id="controls">
+        <div class="flex-shrink-0">
+            <h1 class="text-xl font-bold text-gray-800">Mapový prohlížeč</h1>
+            <p class="text-sm text-gray-600 mt-1">Vizualizace vaší Google Časové osy.</p>
+        </div>
+
+        <div id="upload-container" class="mt-4">
+            <p class="text-sm font-medium text-gray-700 mb-2">Nahrajte `Timeline.json`</p>
+            <div id="file-drop-zone" class="file-drop-zone">
+                <p class="text-gray-500">Přetáhněte soubor sem nebo <span class="font-semibold text-indigo-600">klikněte pro výběr</span>.</p>
+            </div>
+            <input type="file" id="file-input" class="hidden" accept=".json">
+        </div>
+
+        <div id="new-upload-container" class="mt-4 hidden">
+             <button id="new-upload-button" class="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-indigo-700 transition">
+                Nahrát nový soubor
+            </button>
+        </div>
+
+        <div id="status-container" class="mt-4 text-sm text-gray-700 space-y-2"></div>
+
+        <div id="info-container" class="mt-4 border-t pt-4 flex-shrink-0"></div>
+    </div>
+
+    <script>
+        // --- Global variables ---
+        let map;
+        let mapInitialized = false;
+        let layerControl = null;
+        let allDataByDay = {}; // { 'YYYY': { 'YYYY-MM-DD': [ [path1], [path2] ] } }
+        let yearColors = {};
+        
+        // --- Map Layers ---
+        const standardLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        });
+        const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        });
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+        });
+        
+        const baseMaps = {
+            "Standardní": standardLayer,
+            "Tmavá": darkLayer,
+            "Satelitní": satelliteLayer
+        };
+
+        // --- DOM Elements ---
+        const controlsPanel = document.getElementById('controls');
+        const fileInput = document.getElementById('file-input');
+        const dropZone = document.getElementById('file-drop-zone');
+        const uploadContainer = document.getElementById('upload-container');
+        const newUploadContainer = document.getElementById('new-upload-container');
+        const newUploadButton = document.getElementById('new-upload-button');
+        const statusContainer = document.getElementById('status-container');
+        const infoContainer = document.getElementById('info-container');
+        
+        // --- Core Functions ---
+        
+        function setupMap() {
+            if (mapInitialized) return;
+            map = L.map('map', {
+                layers: [darkLayer] // Start with dark layer by default
+            }).setView([49.8175, 15.4730], 7); // Center of Czech Republic
+            
+            layerControl = L.control.layers(baseMaps, {}).addTo(map);
+            mapInitialized = true;
+        }
+
+        function handleFile(file) {
+            if (!file || !file.type.match('application/json')) {
+                updateStatus('Chyba: Nahrajte prosím platný .json soubor.', 'error');
+                return;
+            }
+            updateStatus('Načítání souboru...', 'loading');
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                updateStatus('Zpracovávání dat... To může chvíli trvat.', 'loading');
+                setTimeout(() => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        processAndDisplayData(data);
+                    } catch (error) {
+                        updateStatus(`Chyba při parsování JSON: ${error.message}`, 'error');
+                    }
+                }, 50);
+            };
+            reader.onerror = () => updateStatus('Chyba při čtení souboru.', 'error');
+            reader.readAsText(file);
+        }
+
+        function processAndDisplayData(data) {
+            if (!data.semanticSegments || !Array.isArray(data.semanticSegments)) {
+                updateStatus('Chyba: JSON soubor nemá očekávanou strukturu (chybí "semanticSegments").', 'error');
+                return;
+            }
+
+            // --- Reset state for new file ---
+            allDataByDay = {};
+            yearColors = {};
+            infoContainer.innerHTML = '';
+            if (layerControl) {
+                 map.eachLayer(layer => {
+                    if (layer.options.isOverlay) {
+                         map.removeLayer(layer);
+                         layerControl.removeLayer(layer);
+                    }
+                 });
+            }
+
+            let minDate = null, maxDate = null, pointCount = 0;
+
+            data.semanticSegments.forEach(segment => {
+                if (!segment.timelinePath || segment.timelinePath.length < 2) return;
+                const firstPoint = segment.timelinePath[0];
+                if (!firstPoint.time) return;
+
+                const timestamp = new Date(firstPoint.time);
+                const year = timestamp.getFullYear();
+                const dayId = timestamp.toISOString().split('T')[0];
+                
+                if (!minDate || timestamp < minDate) minDate = timestamp;
+                if (!maxDate || timestamp > maxDate) maxDate = timestamp;
+
+                const latLngs = segment.timelinePath.map(p => parseLatLng(p.point)).filter(p => p !== null);
+                pointCount += latLngs.length;
+
+                if (latLngs.length > 1) {
+                    if (!allDataByDay[year]) allDataByDay[year] = {};
+                    if (!allDataByDay[year][dayId]) allDataByDay[year][dayId] = [];
+                    allDataByDay[year][dayId].push(latLngs);
+                }
+            });
+
+            if (pointCount === 0) {
+                updateStatus('Nenalezena žádná data o poloze v souboru.', 'warning');
+                return;
+            }
+
+            generateYearColors();
+            createAndAddLayersToControl();
+            displayInfo(minDate, maxDate, pointCount);
+            
+            // --- UI Changes after successful load ---
+            uploadContainer.classList.add('hidden');
+            newUploadContainer.classList.remove('hidden');
+
+            updateStatus(`Zpracováno! Nalezeno ${pointCount.toLocaleString('cs-CZ')} bodů.`, 'success');
+            
+            // Hide control panel after a delay
+            setTimeout(() => {
+                controlsPanel.classList.add('is-hidden');
+            }, 3000);
+        }
+
+        function createAndAddLayersToControl() {
+            const years = Object.keys(allDataByDay).sort((a, b) => b - a);
+            years.forEach(year => {
+                const yearLayerGroup = createYearLayer(year);
+                yearLayerGroup.options.isOverlay = true;
+                const layerName = `<span class="layer-color-swatch" style="background-color:${yearColors[year]}"></span> ${year}`;
+                layerControl.addOverlay(yearLayerGroup, layerName);
+                if (year === years[0]) {
+                    yearLayerGroup.addTo(map);
+                }
+            });
+        }
+        
+        function createYearLayer(year) {
+            const polylines = [];
+            const yearData = allDataByDay[year];
+            
+            for (const dayId in yearData) {
+                const [y, m, d] = dayId.split('-');
+                const formattedDate = `${d}. ${m}. ${y}`;
+
+                yearData[dayId].forEach(path => {
+                    const polyline = L.polyline(path, {
+                        color: yearColors[year],
+                        weight: 3,
+                        opacity: 0.75,
+                        dayId: dayId,
+                        originalColor: yearColors[year]
+                    });
+
+                    polyline.bindTooltip(formattedDate, {
+                        sticky: true,
+                        className: 'custom-tooltip'
+                    });
+
+                    polyline.on('mouseover', onPolylineMouseover);
+                    polyline.on('mouseout', onPolylineMouseout);
+                    polylines.push(polyline);
+                });
+            }
+            return L.layerGroup(polylines);
+        }
+        
+        function onPolylineMouseover(e) {
+            const hoveredDay = e.target.options.dayId;
+            map.eachLayer(layer => {
+                if (layer instanceof L.LayerGroup) {
+                    layer.eachLayer(polyline => {
+                         if (polyline.options.dayId) {
+                            if (polyline.options.dayId === hoveredDay) {
+                                polyline.setStyle({ weight: 6, opacity: 1.0 }).bringToFront();
+                            } else {
+                                polyline.setStyle({ opacity: 0.15, weight: 2 });
+                            }
+                         }
+                    });
+                }
+            });
+        }
+
+        function onPolylineMouseout(e) {
+             map.eachLayer(layer => {
+                if (layer instanceof L.LayerGroup) {
+                    layer.eachLayer(polyline => {
+                         if (polyline.options.dayId) {
+                            polyline.setStyle({
+                                color: polyline.options.originalColor,
+                                weight: 3,
+                                opacity: 0.75
+                            });
+                         }
+                    });
+                }
+            });
+        }
+
+        function displayInfo(minDate, maxDate, pointCount) {
+             const options = { year: 'numeric', month: 'long', day: 'numeric' };
+             infoContainer.innerHTML = `
+                <h2 class="font-semibold text-gray-700">Přehled dat</h2>
+                <div class="text-sm text-gray-600 mt-2 space-y-1">
+                    <p><strong>Časový rozsah:</strong><br> ${minDate.toLocaleDateString('cs-CZ', options)} - ${maxDate.toLocaleDateString('cs-CZ', options)}</p>
+                    <p><strong>Celkem bodů:</strong> ${pointCount.toLocaleString('cs-CZ')}</p>
+                </div>
+             `;
+        }
+
+        function updateStatus(message, type = 'info') {
+            statusContainer.innerHTML = '';
+            const statusDiv = document.createElement('div');
+            let bgColor, textColor, icon;
+            switch (type) {
+                case 'loading':
+                    bgColor = 'bg-blue-100'; textColor = 'text-blue-800';
+                    icon = '<div class="loader flex-shrink-0"></div>'; break;
+                case 'success':
+                    bgColor = 'bg-green-100'; textColor = 'text-green-800';
+                    icon = '<svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>'; break;
+                case 'error':
+                    bgColor = 'bg-red-100'; textColor = 'text-red-800';
+                    icon = '<svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" /></svg>'; break;
+                default:
+                    bgColor = 'bg-gray-100'; textColor = 'text-gray-800'; icon = '';
+            }
+            statusDiv.className = `p-3 rounded-md flex items-center space-x-3 ${bgColor} ${textColor}`;
+            statusDiv.innerHTML = `${icon}<span>${message}</span>`;
+            statusContainer.appendChild(statusDiv);
+        }
+
+        function parseLatLng(latLngString) {
+            if (!latLngString) return null;
+            try {
+                const parts = latLngString.replace(/°/g, '').split(',');
+                if (parts.length !== 2) return null;
+                const lat = parseFloat(parts[0]);
+                const lng = parseFloat(parts[1]);
+                return isNaN(lat) || isNaN(lng) ? null : [lat, lng];
+            } catch (e) { return null; }
+        }
+        
+        function generateYearColors() {
+            const years = Object.keys(allDataByDay);
+            const colors = [
+                '#8E6E95', '#778BA5', '#A1B57D', '#D4A59A', '#6D9886', 
+                '#B38867', '#C7B198', '#E5989B', '#7F9C96', '#A2B29F',
+                '#5E8B7E', '#A491D3', '#D9BF77', '#C78283', '#81B29A',
+                '#264653', '#2A9D8F', '#E9C46A', '#F4A261', '#E76F51'
+            ];
+            years.forEach((year, index) => {
+                yearColors[year] = colors[index % colors.length];
+            });
+        }
+
+        // --- Event Listeners ---
+        const showControlsAndUpload = () => {
+            controlsPanel.classList.remove('is-hidden');
+            fileInput.click();
+        };
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        newUploadButton.addEventListener('click', showControlsAndUpload);
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                controlsPanel.classList.remove('is-hidden');
+                uploadContainer.classList.remove('hidden');
+                newUploadContainer.classList.add('hidden');
+                infoContainer.innerHTML = '';
+                statusContainer.innerHTML = '';
+                handleFile(e.target.files[0]);
+                e.target.value = '';
+            }
+        });
+
+        ['dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                controlsPanel.classList.remove('is-hidden');
+                if (eventName === 'dragover') dropZone.classList.add('dragover');
+                if (eventName === 'dragleave' || eventName === 'drop') dropZone.classList.remove('dragover');
+                if (eventName === 'drop' && e.dataTransfer.files.length) {
+                    handleFile(e.dataTransfer.files[0]);
+                }
+            });
+        });
+        
+        // --- Initial call ---
+        setupMap();
+
+    </script>
+</body>
+</html>

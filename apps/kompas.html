@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Compass</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: none; /* Disable pinch-zoom */
+        }
+        .compass-dial {
+            transition: transform 0.2s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen overflow-hidden">
+
+    <div id="permission-container" class="text-center p-8">
+        <h1 class="text-3xl font-bold mb-4">Digital Compass</h1>
+        <p class="text-gray-400 mb-6">Please grant permission to access device orientation sensors to use the compass.</p>
+        <button id="permission-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-transform transform hover:scale-105">
+            Grant Permission
+        </button>
+    </div>
+
+    <div id="compass-container" class="hidden flex flex-col items-center justify-center relative">
+        <!-- Compass Outer Circle -->
+        <div class="relative w-80 h-80 md:w-96 md:h-96 rounded-full bg-gray-800 shadow-2xl border-4 border-gray-700 flex items-center justify-center">
+            
+            <!-- Cardinal Direction Markers -->
+            <span class="absolute top-2 text-3xl font-bold text-red-500">N</span>
+            <span class="absolute bottom-2 text-2xl font-bold text-gray-400">S</span>
+            <span class="absolute left-4 text-2xl font-bold text-gray-400">W</span>
+            <span class="absolute right-4 text-2xl font-bold text-gray-400">E</span>
+
+            <!-- Degree markers -->
+            <div class="absolute w-full h-full">
+                <div class="absolute top-1/2 left-1/2 w-px h-4 bg-gray-500" style="transform: translateX(-50%) translateY(-50%) rotate(30deg) translateY(-9rem);"></div>
+                <div class="absolute top-1/2 left-1/2 w-px h-4 bg-gray-500" style="transform: translateX(-50%) translateY(-50%) rotate(60deg) translateY(-9rem);"></div>
+                <div class="absolute top-1/2 left-1/2 w-px h-4 bg-gray-500" style="transform: translateX(-50%) translateY(-50%) rotate(120deg) translateY(-9rem);"></div>
+                <div class="absolute top-1/2 left-1/2 w-px h-4 bg-gray-500" style="transform: translateX(-50%) translateY(-50%) rotate(150deg) translateY(-9rem);"></div>
+                <div class="absolute top-1/2 left-1/2 w-px h-4 bg-gray-500" style="transform: translateX(-50%) translateY(-50%) rotate(210deg) translateY(-9rem);"></div>
+                <div class="absolute top-1/2 left-1/2 w-px h-4 bg-gray-500" style="transform: translateX(-50%) translateY(-50%) rotate(240deg) translateY(-9rem);"></div>
+                <div class="absolute top-1/2 left-1/2 w-px h-4 bg-gray-500" style="transform: translateX(-50%) translateY(-50%) rotate(300deg) translateY(-9rem);"></div>
+                <div class="absolute top-1/2 left-1/2 w-px h-4 bg-gray-500" style="transform: translateX(-50%) translateY(-50%) rotate(330deg) translateY(-9rem);"></div>
+            </div>
+
+            <!-- Compass Dial that rotates -->
+            <div class="compass-dial w-full h-full">
+                 <!-- The Needle -->
+                <div class="absolute top-1/2 left-1/2 w-1 h-32 bg-red-500 rounded-full" style="transform: translateX(-50%) translateY(-100%); transform-origin: bottom center;"></div>
+                <div class="absolute top-1/2 left-1/2 w-1 h-32 bg-gray-400 rounded-full" style="transform: translateX(-50%) translateY(0%); transform-origin: top center;"></div>
+                 <!-- Center point -->
+                <div class="absolute top-1/2 left-1/2 w-4 h-4 bg-white rounded-full border-2 border-gray-900" style="transform: translate(-50%, -50%);"></div>
+            </div>
+            
+            <!-- Degree Display inside the compass -->
+            <div id="degree-display" class="absolute z-10 text-5xl font-mono font-bold text-white">
+                0°
+            </div>
+        </div>
+         <p id="error-message" class="mt-8 text-center text-red-400 p-4"></p>
+    </div>
+
+    <script>
+        const permissionContainer = document.getElementById('permission-container');
+        const permissionBtn = document.getElementById('permission-btn');
+        const compassContainer = document.getElementById('compass-container');
+        const compassDial = document.querySelector('.compass-dial');
+        const degreeDisplay = document.getElementById('degree-display');
+        const errorMessage = document.getElementById('error-message');
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            // Ensure compass UI is hidden if an error occurs after permission was granted
+            compassContainer.classList.add('hidden');
+            permissionContainer.classList.remove('hidden');
+            permissionBtn.style.display = 'none'; // Hide button as it's not relevant now
+            permissionContainer.querySelector('h1').textContent = 'Error';
+            permissionContainer.querySelector('p').textContent = message;
+        }
+
+        function handleOrientation(event) {
+            // The 'alpha' property represents the device's rotation around the z-axis, which is our compass heading.
+            // 'webkitCompassHeading' is a non-standard but available property on iOS devices that provides a more accurate compass reading.
+            let heading = event.webkitCompassHeading || event.alpha;
+
+            if (typeof heading === 'undefined' || heading === null) {
+                showError('Your device or browser does not provide heading information.');
+                return;
+            }
+
+            // The 'alpha' value from the spec is 0-360, where 0 is North.
+            // Some devices might report it differently, but this is the standard.
+            // We adjust for the device's screen orientation.
+            let rotation = 360 - heading;
+
+            // Apply the rotation to the compass dial.
+            compassDial.style.transform = `rotate(${rotation}deg)`;
+
+            // Update the degree display.
+            degreeDisplay.textContent = `${Math.round(heading)}°`;
+        }
+
+        function requestDeviceOrientationPermission() {
+            // iOS 13+ requires permission to access device orientation events.
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            // Permission granted. Show the compass and start listening.
+                            permissionContainer.classList.add('hidden');
+                            compassContainer.classList.remove('hidden');
+                            window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+                        } else {
+                            // Permission denied.
+                            showError('Permission to access device orientation was denied.');
+                        }
+                    })
+                    .catch((error) => {
+                        // Handle errors in requesting permission.
+                        console.error(error);
+                        showError('An error occurred while requesting permission.');
+                    });
+            } else {
+                // For non-iOS 13+ browsers that don't require explicit permission.
+                // We first check if the API is supported at all.
+                if ('DeviceOrientationEvent' in window) {
+                     permissionContainer.classList.add('hidden');
+                     compassContainer.classList.remove('hidden');
+                     // 'deviceorientationabsolute' provides values independent of the device's initial orientation.
+                     window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+                } else {
+                    showError('Your browser does not support the Device Orientation API.');
+                }
+            }
+        }
+
+        // Attach the event listener to the button.
+        permissionBtn.addEventListener('click', requestDeviceOrientationPermission);
+
+        // Check for HTTPS, as sensors are secure features
+        if (window.location.protocol !== 'https:') {
+            showError('This feature is only available on secure (HTTPS) connections.');
+            permissionBtn.disabled = true;
+        }
+
+    </script>
+</body>
+</html>

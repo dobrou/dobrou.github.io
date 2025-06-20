@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Fotbal: Penaltový Rozstřel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            touch-action: none; /* Prevents scrolling and zooming on touch devices */
+        }
+        canvas {
+            background-color: #4CAF50; /* Soccer field green */
+            cursor: crosshair;
+            display: block;
+            margin: 0 auto;
+            border-radius: 8px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+        .message-box {
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+        }
+        .hidden-message {
+            opacity: 0;
+            transform: scale(0.9) translateY(20px);
+        }
+        .visible-message {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div id="game-container" class="w-full max-w-4xl mx-auto">
+        <!-- Scoreboard -->
+        <div class="bg-white p-4 rounded-t-lg shadow-md flex justify-around items-center text-center">
+            <div>
+                <h2 class="text-lg font-bold text-gray-700">TY</h2>
+                <p id="player-score" class="text-3xl font-bold text-blue-600">0</p>
+            </div>
+            <div class="text-center">
+                 <h2 id="turn-indicator" class="text-xl font-semibold text-gray-800 mb-1">JSI NA ŘADĚ: STŘÍLEJ</h2>
+                 <p id="round-indicator" class="text-md font-medium text-gray-500">KOLO 1 / 5</p>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold text-gray-700">PC</h2>
+                <p id="cpu-score" class="text-3xl font-bold text-red-600">0</p>
+            </div>
+        </div>
+
+        <!-- Game Canvas -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Message Box -->
+        <div id="message-box" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+             <div id="message-content" class="text-6xl font-extrabold text-white text-center hidden-message" style="text-shadow: 3px 3px 6px rgba(0,0,0,0.5);"></div>
+        </div>
+
+        <!-- Restart Button -->
+        <div id="restart-container" class="text-center mt-4 hidden">
+            <button id="restart-button" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-lg">Hrát znovu</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // UI Elements
+        const playerScoreEl = document.getElementById('player-score');
+        const cpuScoreEl = document.getElementById('cpu-score');
+        const turnIndicatorEl = document.getElementById('turn-indicator');
+        const roundIndicatorEl = document.getElementById('round-indicator');
+        const messageBox = document.getElementById('message-box');
+        const messageContent = document.getElementById('message-content');
+        const restartContainer = document.getElementById('restart-container');
+        const restartButton = document.getElementById('restart-button');
+
+        // Game State
+        let isShooting, isSaving, isAnimating, isPoweringUp, isGameOver;
+        let ball, goal, keeper, target;
+        let power, powerMeterHeight, powerMeterSpeed;
+        let shotDirection = { x: 0, y: 0 };
+        let playerScore = 0, cpuScore = 0, round = 1;
+        const maxRounds = 5;
+
+        // Input State
+        let isPointerDown = false;
+        let pointerStartPos = null;
+        let pointerCurrentPos = null;
+        let pointerStartTime = 0;
+
+
+        // --- Game Initialization ---
+        function init() {
+            const container = document.getElementById('game-container');
+            const containerWidth = container.clientWidth;
+            canvas.width = containerWidth;
+            canvas.height = containerWidth * 0.6; 
+
+            isAnimating = false;
+            isPoweringUp = false;
+            isPointerDown = false;
+            isGameOver = false;
+
+            goal = { x: canvas.width*0.25, y: canvas.height*0.1, width: canvas.width*0.5, height: canvas.height*0.35, postWidth: canvas.width*0.015 };
+            ball = { x: canvas.width/2, y: canvas.height*0.85, radius: canvas.width*0.015, speed: 0, targetX: 0, targetY: 0, dx: 0, dy: 0, dz: 0, z: 0 };
+            keeper = { x: canvas.width/2, y: goal.y+goal.height/2, width: canvas.width*0.05, height: canvas.height*0.2, isDiving: false, diveTargetX: 0, diveTargetY: 0, diveProgress: 0 };
+            target = { x: 0, y: 0, radius: 30, visible: false, timeShown: 0 };
+            power = 0;
+            powerMeterHeight = 0;
+            powerMeterSpeed = (canvas.height / 100);
+
+            restartContainer.classList.add('hidden');
+            startNextTurn();
+        }
+
+        function resetScores() {
+             playerScore = 0;
+             cpuScore = 0;
+             round = 1;
+             updateScoreboard();
+        }
+
+        // --- Game State Management ---
+        function startNextTurn() {
+            if (Math.ceil(round / 2) > maxRounds) {
+                endGame();
+                return;
+            }
+            isShooting = (round % 2 !== 0);
+            isSaving = !isShooting;
+            turnIndicatorEl.textContent = isShooting ? "JSI NA ŘADĚ: STŘÍLEJ" : "JSI NA ŘADĚ: CHYTEJ";
+            
+            if (isSaving) {
+                prepareComputerShot();
+            }
+            resetPositions();
+            if (!isGameOver) requestAnimationFrame(gameLoop);
+        }
+
+        function resetPositions() {
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height * 0.85;
+            ball.z = 0;
+            ball.speed = 0;
+            keeper.x = canvas.width / 2;
+            keeper.y = goal.y + goal.height / 2;
+            keeper.isDiving = false;
+            keeper.diveProgress = 0;
+            target.visible = false;
+            isAnimating = false;
+            isPoweringUp = false;
+        }
+
+        // --- Drawing ---
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, canvas.height, canvas.width/4, 0, Math.PI, true);
+            ctx.stroke();
+            ctx.strokeRect(canvas.width/2 - goal.width*0.8, goal.y, goal.width*1.6, canvas.height);
+
+            ctx.fillStyle = '#FFF';
+            ctx.fillRect(goal.x, goal.y, goal.postWidth, goal.height);
+            ctx.fillRect(goal.x + goal.width - goal.postWidth, goal.y, goal.postWidth, goal.height);
+            ctx.fillRect(goal.x, goal.y, goal.width, goal.postWidth / 2);
+
+            ctx.fillStyle = '#FF5722';
+            ctx.fillRect(keeper.x - keeper.width/2, keeper.y - keeper.height/2, keeper.width, keeper.height);
+            
+            const ballScale = 1 + ball.z;
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius * ballScale, 0, Math.PI * 2);
+            ctx.fillStyle = 'white';
+            ctx.fill();
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            if (isPointerDown && isShooting && pointerCurrentPos) {
+                 ctx.beginPath();
+                 ctx.moveTo(ball.x, ball.y);
+                 ctx.lineTo(pointerCurrentPos.x, pointerCurrentPos.y);
+                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                 ctx.lineWidth = 3;
+                 ctx.setLineDash([10, 5]);
+                 ctx.stroke();
+                 ctx.setLineDash([]);
+            }
+
+            if (isPoweringUp) {
+                const meterX = canvas.width - 50, meterY = canvas.height/2 - 100;
+                const meterWidth = 20, meterHeight = 200;
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(meterX, meterY, meterWidth, meterHeight);
+                ctx.fillStyle = `hsl(${120 - powerMeterHeight*0.6}, 100%, 50%)`;
+                ctx.fillRect(meterX, meterY + meterHeight - powerMeterHeight, meterWidth, powerMeterHeight);
+                ctx.strokeStyle = 'white';
+                ctx.strokeRect(meterX, meterY, meterWidth, meterHeight);
+            }
+            
+            if (target.visible) {
+                ctx.beginPath();
+                ctx.arc(target.x, target.y, target.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = 'yellow'; ctx.lineWidth = 4; ctx.globalAlpha = 0.8;
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(target.x - 10, target.y); ctx.lineTo(target.x + 10, target.y);
+                ctx.moveTo(target.x, target.y - 10); ctx.lineTo(target.x, target.y + 10);
+                ctx.stroke();
+                ctx.globalAlpha = 1.0;
+            }
+        }
+        
+        // --- Game Loop ---
+        function gameLoop() {
+            if (isGameOver) return;
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update() {
+            if (isPoweringUp) {
+                powerMeterHeight += powerMeterSpeed;
+                if (powerMeterHeight > 200 || powerMeterHeight < 0) powerMeterSpeed *= -1;
+            }
+            if (isAnimating && isShooting) {
+                if (Math.hypot(ball.x - ball.targetX, ball.y - ball.targetY) < 10) handleShotResult();
+                else {
+                    ball.x += ball.dx; ball.y += ball.dy; ball.z += ball.dz;
+                    if(ball.y < canvas.height / 2) ball.dz -= 0.002;
+                }
+            }
+            if (keeper.isDiving) {
+                keeper.x += (keeper.diveTargetX - keeper.x) * 0.1;
+                keeper.y += (keeper.diveTargetY - keeper.y) * 0.1;
+                keeper.diveProgress += 0.05;
+                if(keeper.diveProgress >= 1) keeper.isDiving = false;
+            }
+        }
+        
+        // --- Input Handling ---
+        function onPointerDown(e) {
+            e.preventDefault();
+            if (isGameOver || isAnimating) return;
+            isPointerDown = true;
+            pointerStartPos = getEventPos(e);
+            pointerCurrentPos = pointerStartPos;
+            pointerStartTime = Date.now();
+        }
+
+        function onPointerMove(e) {
+            if (!isPointerDown) return;
+            e.preventDefault();
+            pointerCurrentPos = getEventPos(e);
+        }
+
+        function onPointerUp(e) {
+            if (!isPointerDown) return;
+            e.preventDefault();
+            isPointerDown = false;
+            const upPos = getEventPos(e, true);
+            const duration = Date.now() - pointerStartTime;
+            const distance = Math.hypot(upPos.x - pointerStartPos.x, upPos.y - pointerStartPos.y);
+
+            // It's a TAP if short duration and little movement
+            if (duration < 200 && distance < 10) {
+                handleTap(upPos);
+            } 
+            // It's a DRAG if there was significant movement
+            else if (isShooting && !isPoweringUp) {
+                handleDragRelease(upPos);
+            }
+        }
+        
+        function handleTap(pos) {
+             // Tap to shoot
+            if (isPoweringUp) {
+                power = powerMeterHeight / 2;
+                isPoweringUp = false;
+                shootBall();
+                return;
+            }
+             // Tap to save
+            if (isSaving && target.visible) {
+                const reactionTime = Date.now() - target.timeShown;
+                const distanceToTarget = Math.hypot(pos.x - target.x, pos.y - target.y);
+                target.visible = false;
+                
+                if (reactionTime < 750 && distanceToTarget < target.radius * 2.5) { // generous hitbox
+                    showMessage("CHYCENO!", "success");
+                    keeperDive(target.x, target.y);
+                    setTimeout(() => { round++; updateScoreboard(); startNextTurn(); }, 1500);
+                } else {
+                    showMessage("GÓL!", "fail");
+                    cpuScore++;
+                    updateScoreboard();
+                    setTimeout(() => { round++; startNextTurn(); }, 1500);
+                }
+            }
+        }
+
+        function handleDragRelease(pos) {
+            const angle = Math.atan2(pos.y - ball.y, pos.x - ball.x);
+            shotDirection.x = Math.cos(angle);
+            shotDirection.y = Math.sin(angle);
+            isPoweringUp = true;
+        }
+
+        function shootBall() {
+            isAnimating = true;
+            ball.speed = 10 + (power/100)*15;
+            ball.dx = -shotDirection.x * ball.speed;
+            ball.dy = -shotDirection.y * ball.speed;
+            ball.dz = 0.05 + (power/100)*0.05;
+            ball.targetX = ball.x + ball.dx * 15;
+            ball.targetY = ball.y + ball.dy * 15;
+            setTimeout(computerKeeperReact, 100);
+        }
+
+        // --- AI & Logic ---
+        function prepareComputerShot() {
+             setTimeout(() => {
+                target.x = goal.x + goal.postWidth + Math.random() * (goal.width - goal.postWidth*2);
+                target.y = goal.y + goal.postWidth + Math.random() * (goal.height - goal.postWidth*2);
+                target.radius = canvas.width * 0.05 + Math.random() * 10;
+                target.visible = true;
+                target.timeShown = Date.now();
+            }, 500 + Math.random() * 1000);
+        }
+        
+        function computerKeeperReact() {
+            const shotDifficulty = Math.abs(ball.targetX - canvas.width/2)/(goal.width/2);
+            const powerFactor = power / 100;
+            const saveChance = 0.7 - (shotDifficulty * 0.4) - (powerFactor * 0.4);
+            
+            if (Math.random() < saveChance) {
+                keeperDive(ball.targetX, ball.targetY);
+            } else {
+                keeperDive(keeper.x + (Math.random()-0.5)*100, keeper.y + (Math.random()-0.5)*50);
+            }
+        }
+        
+        function keeperDive(x, y) {
+             keeper.isDiving = true;
+             keeper.diveTargetX = x;
+             keeper.diveTargetY = y;
+        }
+
+        // --- Result Handling ---
+        function handleShotResult() {
+            isAnimating = false;
+            const isGoal = ball.targetX > goal.x + goal.postWidth &&
+                           ball.targetX < goal.x + goal.width - goal.postWidth &&
+                           ball.targetY > goal.y && ball.targetY < goal.y + goal.height;
+            const keeperDistanceToBall = Math.hypot(keeper.x - ball.targetX, keeper.y - ball.targetY);
+            
+            if (isGoal && keeperDistanceToBall > keeper.width * 0.8) {
+                showMessage("GÓL!", "success"); playerScore++;
+            } else {
+                 showMessage("CHYCENO!", "fail"); // CPU gets a point even if shot is out
+            }
+            updateScoreboard();
+            setTimeout(() => { round++; startNextTurn(); }, 1500);
+        }
+        
+        function endGame() {
+            isGameOver = true;
+            let endMessage = "";
+            if (playerScore > cpuScore) {
+                endMessage = `VYHRÁL JSI! ${playerScore}:${cpuScore}`;
+                messageContent.style.color = '#4CAF50';
+            } else if (cpuScore > playerScore) {
+                endMessage = `PROHRÁL JSI! ${playerScore}:${cpuScore}`;
+                messageContent.style.color = '#F44336';
+            } else {
+                endMessage = `REMIZA! ${playerScore}:${cpuScore}`;
+                messageContent.style.color = '#FFC107';
+            }
+            showMessage(endMessage, "final");
+            restartContainer.classList.remove('hidden');
+        }
+
+        // --- UI & Utilities ---
+        function updateScoreboard() {
+            playerScoreEl.textContent = playerScore;
+            cpuScoreEl.textContent = cpuScore;
+            const displayRound = Math.ceil(round / 2);
+            if(displayRound <= maxRounds) {
+                roundIndicatorEl.textContent = `KOLO ${displayRound} / ${maxRounds}`;
+            }
+        }
+        
+        function showMessage(text, type) {
+            messageContent.textContent = text;
+            if(type === 'success') messageContent.style.color = 'lime';
+            else if (type === 'fail') messageContent.style.color = 'red';
+            messageContent.classList.remove('hidden-message');
+            messageContent.classList.add('visible-message');
+            if(type !== "final") {
+                setTimeout(() => {
+                    messageContent.classList.add('hidden-message');
+                }, 1200);
+            }
+        }
+
+        function getEventPos(evt, isTouchEnd = false) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX, clientY;
+            if (evt.type.includes('touch')) {
+                 const touch = isTouchEnd ? evt.changedTouches[0] : evt.touches[0];
+                 clientX = touch.clientX;
+                 clientY = touch.clientY;
+            } else {
+                clientX = evt.clientX;
+                clientY = evt.clientY;
+            }
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+        
+        // --- Event Listeners ---
+        canvas.addEventListener('mousedown', onPointerDown);
+        canvas.addEventListener('mousemove', onPointerMove);
+        canvas.addEventListener('mouseup', onPointerUp);
+        
+        canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+        canvas.addEventListener('touchmove', onPointerMove, { passive: false });
+        canvas.addEventListener('touchend', onPointerUp, { passive: false });
+
+        restartButton.addEventListener('click', () => {
+            messageContent.classList.add('hidden-message');
+            resetScores();
+            init();
+        });
+        
+        window.addEventListener('resize', init);
+        window.onload = () => {
+             resetScores();
+             init();
+        };
+
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Conway's Game of Life</title>
+    <style>
+        /* Basic styles for a fullscreen, dark theme experience */
+        html, body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #111;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none; /* Disables pull-to-refresh and other browser gestures */
+        }
+        /* Canvas fills the entire screen */
+        canvas {
+            display: block;
+            background-color: #111;
+            cursor: pointer;
+        }
+        /* Informational overlay for controls */
+        #info {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #888;
+            background-color: rgba(0, 0, 0, 0.4);
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 14px;
+            pointer-events: none; /* Allows clicks to pass through to the canvas */
+            transition: opacity 0.5s;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+    <div id="info" id="info-overlay">
+        Double-click to Play/Pause | Drag to paint cells | Swipe Up/Down to change speed
+    </div>
+
+    <script>
+        // DOM element references
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const info = document.getElementById('info');
+
+        // --- Configuration ---
+        const cellSize = 20;
+        const cellColor = '#00f7a5';
+        let simulationSpeed = 100;
+        const minSpeed = 20;
+        const maxSpeed = 500;
+
+        // --- Grid State ---
+        let grid;
+        let numCols, numRows;
+        let isRunning = false; // The main play/pause state, toggled by user.
+        let simulationInterval = null; // Holds the interval ID.
+
+        // --- Interaction State ---
+        let isPainting = false;
+        let paintState = 0;
+        let lastPaintedCell = { col: -1, row: -1 };
+        let touchStartY = 0;
+        let touchEndY = 0;
+        let tapTimeout = null;
+        let lastTap = 0;
+
+        /**
+         * Initializes or re-initializes the game grid and canvas size.
+         */
+        function setup() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            numCols = Math.floor(canvas.width / cellSize);
+            numRows = Math.floor(canvas.height / cellSize);
+            grid = createGrid(numCols, numRows);
+            populateCenter(grid);
+            draw();
+            isRunning = false;
+            manageSimulationState(); // Ensure it starts paused.
+        }
+
+        /**
+         * Creates a 2D array representing the grid.
+         */
+        function createGrid(cols, rows) {
+            return new Array(cols).fill(null).map(() => new Array(rows).fill(0));
+        }
+        
+        /**
+         * Populates the center of the grid with a random pattern.
+         */
+        function populateCenter(currentGrid) {
+            const centerCol = Math.floor(numCols / 2);
+            const centerRow = Math.floor(numRows / 2);
+            const randomAreaSize = Math.min(10, numCols - 4, numRows - 4);
+            for (let i = -Math.floor(randomAreaSize / 2); i < Math.ceil(randomAreaSize / 2); i++) {
+                for (let j = -Math.floor(randomAreaSize / 2); j < Math.ceil(randomAreaSize / 2); j++) {
+                    if (centerCol + i >= 0 && centerCol + i < numCols && centerRow + j >= 0 && centerRow + j < numRows) {
+                        currentGrid[centerCol + i][centerRow + j] = Math.random() > 0.6 ? 1 : 0;
+                    }
+                }
+            }
+        }
+
+        /**
+         * Draws the entire grid onto the canvas.
+         */
+        function draw() {
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = cellColor;
+            for (let col = 0; col < numCols; col++) {
+                for (let row = 0; row < numRows; row++) {
+                    if (grid[col][row] === 1) {
+                        ctx.fillRect(col * cellSize, row * cellSize, cellSize - 1, cellSize - 1);
+                    }
+                }
+            }
+        }
+
+        /**
+         * Main simulation loop: calculates the next generation and redraws.
+         */
+        function update() {
+            if (!isRunning || isPainting) return; // Failsafe check
+            let nextGrid = createGrid(numCols, numRows);
+            for (let col = 0; col < numCols; col++) {
+                for (let row = 0; row < numRows; row++) {
+                    const state = grid[col][row];
+                    const neighbors = countNeighbors(grid, col, row);
+                    if (state === 0 && neighbors === 3) {
+                        nextGrid[col][row] = 1;
+                    } else if (state === 1 && (neighbors < 2 || neighbors > 3)) {
+                        nextGrid[col][row] = 0;
+                    } else {
+                        nextGrid[col][row] = state;
+                    }
+                }
+            }
+            grid = nextGrid;
+            draw();
+        }
+
+        /**
+         * Counts live neighbors for a cell, wrapping around the grid.
+         */
+        function countNeighbors(currentGrid, x, y) {
+            let sum = 0;
+            for (let i = -1; i < 2; i++) {
+                for (let j = -1; j < 2; j++) {
+                    if (i === 0 && j === 0) continue;
+                    const col = (x + i + numCols) % numCols;
+                    const row = (y + j + numRows) % numRows;
+                    sum += currentGrid[col][row];
+                }
+            }
+            return sum;
+        }
+        
+        /**
+         * Central function to start or stop the simulation interval
+         * based on the `isRunning` and `isPainting` states.
+         */
+        function manageSimulationState() {
+            clearInterval(simulationInterval); // Always clear any existing interval.
+            simulationInterval = null;
+            
+            // Only start a new interval if the sim should be running AND we aren't painting.
+            if (isRunning && !isPainting) {
+                simulationInterval = setInterval(update, simulationSpeed);
+            }
+            updateInfo();
+        }
+
+        /** Toggles the user-intended simulation state (running/paused). */
+        function toggleSimulation() {
+            isRunning = !isRunning;
+            manageSimulationState();
+        }
+
+        /** Updates the info text overlay based on the persistent isRunning state. */
+        function updateInfo() {
+            const speedPercent = 100 - Math.round(((simulationSpeed - minSpeed) / (maxSpeed - minSpeed)) * 100);
+            info.textContent = `Status: ${isRunning ? 'Running' : 'Paused'} | Speed: ${speedPercent}%`;
+        }
+        
+        /**
+         * Sets the state of a cell at given coordinates using the current paintState.
+         * This function now ALWAYS redraws the canvas after changing a cell.
+         */
+        function paintCellAt(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const col = Math.floor((clientX - rect.left) / cellSize);
+            const row = Math.floor((clientY - rect.top) / cellSize);
+
+            if (col >= 0 && col < numCols && row >= 0 && row < numRows) {
+                if (col !== lastPaintedCell.col || row !== lastPaintedCell.row) {
+                    grid[col][row] = paintState;
+                    lastPaintedCell = { col, row };
+                    draw(); // FIX: Redraw immediately to show the change.
+                }
+            }
+        }
+
+        /**
+         * Handles the start of a painting action (mousedown or touchstart).
+         */
+        function startPainting(clientX, clientY) {
+            isPainting = true;
+            manageSimulationState(); // Pause the simulation while painting.
+            
+            const rect = canvas.getBoundingClientRect();
+            const col = Math.floor((clientX - rect.left) / cellSize);
+            const row = Math.floor((clientY - rect.top) / cellSize);
+
+            if (col >= 0 && col < numCols && row >= 0 && row < numRows) {
+                paintState = grid[col][row] ? 0 : 1;
+            }
+            
+            paintCellAt(clientX, clientY);
+        }
+
+        /**
+         * Handles the end of a painting action (mouseup or touchend).
+         */
+        function stopPainting() {
+            isPainting = false;
+            lastPaintedCell = { col: -1, row: -1 };
+            manageSimulationState(); // Resume simulation if it was running.
+        }
+        
+        // --- Event Handlers ---
+        window.addEventListener('resize', setup);
+        
+        canvas.addEventListener('dblclick', toggleSimulation);
+        canvas.addEventListener('mousedown', (e) => startPainting(e.clientX, e.clientY));
+        canvas.addEventListener('mousemove', (e) => {
+            if (isPainting) paintCellAt(e.clientX, e.clientY);
+        });
+        canvas.addEventListener('mouseup', stopPainting);
+        canvas.addEventListener('mouseleave', () => { if(isPainting) stopPainting(); });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastTap;
+            lastTap = currentTime;
+
+            if (tapLength < 250 && tapLength > 0) {
+                // Double tap
+                clearTimeout(tapTimeout);
+                toggleSimulation();
+            } else {
+                // Single tap start
+                touchStartY = e.changedTouches[0].screenY;
+                startPainting(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (isPainting) {
+                paintCellAt(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            if (!isPainting) return;
+
+            touchEndY = e.changedTouches[0].screenY;
+            handleSwipe();
+            stopPainting();
+        });
+
+        function handleSwipe() {
+            const swipeDistance = touchEndY - touchStartY;
+            if (Math.abs(swipeDistance) > 50) {
+                if (swipeDistance > 0) {
+                    simulationSpeed = Math.min(maxSpeed, simulationSpeed + 25);
+                } else {
+                    simulationSpeed = Math.max(minSpeed, simulationSpeed - 25);
+                }
+                manageSimulationState(); // Re-apply speed change if running.
+                
+                info.style.opacity = '1';
+                setTimeout(() => { info.style.opacity = '0.7'; }, 1500);
+            }
+        }
+
+        // --- Initial Execution ---
+        setup();
+    </script>
+</body>
+</html>

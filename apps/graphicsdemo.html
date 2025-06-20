@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equation Visualizer</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the body and canvas */
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #111827; /* Dark background for the page */
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        /* Style for the main control panel */
+        #controls-wrapper {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(42, 50, 66, 0.8);
+            padding: 1rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: opacity 0.3s ease;
+        }
+        /* Style for the button that shows the controls */
+        #show-controls-btn {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+    </style>
+</head>
+<body class="font-sans">
+
+    <!-- Button to show the control panel (initially hidden) -->
+    <button id="show-controls-btn" class="hidden bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition">Show Controls</button>
+
+    <!-- Control panel for the equation input -->
+    <div id="controls-wrapper">
+        <div>
+            <div class="flex items-center gap-4">
+                 <label for="equation" class="text-white font-medium whitespace-nowrap">f(x, y, t) =</label>
+                 <input type="text" id="equation" value="(x ^ y) * t" class="bg-gray-700 text-white w-72 px-3 py-2 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                 <button id="hide-controls-btn" class="text-gray-400 hover:text-white transition" title="Hide Controls">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                 </button>
+            </div>
+            <!-- Error message container -->
+            <p id="error-message" class="text-red-400 text-sm mt-2 h-5"></p>
+        </div>
+    </div>
+
+    <!-- The canvas where the visualization is drawn -->
+    <canvas id="visualizerCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('visualizerCanvas');
+        const ctx = canvas.getContext('2d');
+        const equationInput = document.getElementById('equation');
+        const errorMessageEl = document.getElementById('error-message');
+        const controlsWrapper = document.getElementById('controls-wrapper');
+        const hideControlsBtn = document.getElementById('hide-controls-btn');
+        const showControlsBtn = document.getElementById('show-controls-btn');
+
+        let t = 0; // Time variable, increments with each frame
+        let intervalId; // To control the animation loop using setInterval
+
+        /**
+         * Resizes the canvas to fill the entire window.
+         */
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        /**
+         * Main drawing function that runs on every interval tick.
+         */
+        function draw() {
+            // Increment time by a smaller value for a slower effect.
+            t += 1;
+            
+            // If canvas has no size yet, wait for the next frame.
+            if (canvas.width <= 0 || canvas.height <= 0) {
+                return;
+            }
+
+            const equation = equationInput.value;
+            
+            // Clear previous error state before validation
+            errorMessageEl.textContent = '';
+            equationInput.classList.remove('border-red-500', 'focus:ring-red-500');
+            equationInput.classList.add('border-gray-600', 'focus:ring-blue-500');
+
+            // Handle empty input to prevent syntax errors.
+            if (!equation.trim()) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear screen
+                return;
+            }
+
+            let userFunction;
+
+            // Attempt to create a function from the user's input string.
+            try {
+                userFunction = new Function('x', 'y', 't', `return ${equation}`);
+                // Test the function with sample values to catch runtime errors as well.
+                userFunction(0, 0, 0); 
+            } catch (e) {
+                // If the equation is invalid, show an error and stop.
+                errorMessageEl.textContent = 'Invalid equation.';
+                equationInput.classList.add('border-red-500', 'focus:ring-red-500');
+                equationInput.classList.remove('border-gray-600', 'focus:ring-blue-500');
+                return;
+            }
+
+            // Get the pixel data array for the canvas.
+            const imageData = ctx.createImageData(canvas.width, canvas.height);
+            const data = imageData.data; // This is a Uint8ClampedArray
+
+            // Loop through every pixel on the canvas.
+            for (let y = 0; y < canvas.height; y++) {
+                for (let x = 0; x < canvas.width; x++) {
+                    const value = userFunction(x, y, t);
+                    const index = (y * canvas.width + x) * 4;
+                    data[index]     = value % 256;
+                    data[index + 1] = (value * 2) % 256;
+                    data[index + 2] = (value * 3) % 256;
+                    data[index + 3] = 255;
+                }
+            }
+
+            // Put the modified pixel data back onto the canvas.
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        /**
+         * Restarts the animation. This is called when the equation or window size changes.
+         */
+        function restartAnimation() {
+            t = 0; // Reset time
+            if (intervalId) {
+                clearInterval(intervalId); // Stop the current animation loop
+            }
+            // Start a new loop targeting 100 frames per second.
+            intervalId = setInterval(draw, 1000 / 100);
+        }
+
+        /**
+         * Toggles the visibility of the control panel.
+         */
+        function toggleControls() {
+            controlsWrapper.classList.toggle('hidden');
+            showControlsBtn.classList.toggle('hidden');
+        }
+        
+        // --- Event Listeners ---
+
+        // Restart the animation when the user types a new equation.
+        equationInput.addEventListener('input', restartAnimation);
+        
+        // Resize the canvas when the window is resized.
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            // No need to call restartAnimation here, as draw loop will adapt.
+        });
+
+        // Add click listeners to hide or show the control panel.
+        hideControlsBtn.addEventListener('click', toggleControls);
+        showControlsBtn.addEventListener('click', toggleControls);
+
+        // --- Initial Setup ---
+        resizeCanvas();
+        restartAnimation(); // Start the animation loop
+    </script>
+
+</body>
+</html>

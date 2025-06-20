@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bluetooth Device Scanner</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles for better look and feel */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Simple transition for discovered devices */
+        .device-card {
+            transition: all 0.3s ease-in-out;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        .device-card.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-2xl">
+        
+        <!-- Header Section -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Bluetooth Device Scanner</h1>
+            <p class="mt-2 text-gray-600 dark:text-gray-400">Discover nearby Bluetooth Low Energy (BLE) devices.</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            
+            <!-- Control and Status Section -->
+            <div class="flex flex-col items-center mb-6">
+                <button id="scanButton" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:transform-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Scan for Devices
+                </button>
+                <div id="status" class="mt-4 text-sm text-gray-500 dark:text-gray-400 min-h-[20px]"></div>
+            </div>
+            
+            <!-- Discovered Devices Section -->
+            <div>
+                <h2 class="text-xl font-semibold border-b border-gray-200 dark:border-gray-700 pb-2 mb-4">Discovered Devices</h2>
+                <div id="deviceList" class="space-y-3">
+                    <!-- Devices will be added here -->
+                    <p id="noDevicesFound" class="text-gray-500 dark:text-gray-400">No devices discovered yet. Click the scan button to start.</p>
+                </div>
+            </div>
+
+        </main>
+        
+        <!-- Footer -->
+        <footer class="text-center mt-8 text-xs text-gray-400 dark:text-gray-500">
+            <p>Note: Web Bluetooth API requires a secure context (HTTPS) and may not be supported by all browsers.</p>
+        </footer>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const scanButton = document.getElementById('scanButton');
+            const statusDiv = document.getElementById('status');
+            const deviceListDiv = document.getElementById('deviceList');
+            const noDevicesFoundP = document.getElementById('noDevicesFound');
+
+            let discoveredDevices = new Set(); // Use a Set to avoid duplicate entries by device ID
+
+            // 1. Check for Web Bluetooth API support
+            if (!navigator.bluetooth) {
+                statusDiv.textContent = 'Error: Web Bluetooth API is not available in this browser.';
+                scanButton.disabled = true;
+                return;
+            }
+
+            // 2. Event Listener for the Scan Button
+            scanButton.addEventListener('click', async () => {
+                statusDiv.textContent = 'Scanning... Please select a device from the browser prompt.';
+                scanButton.disabled = true;
+
+                try {
+                    // 3. Request a Bluetooth device
+                    // This opens the browser's device chooser UI.
+                    const device = await navigator.bluetooth.requestDevice({
+                        acceptAllDevices: true, // You can filter by services: e.g., filters: [{ services: ['battery_service'] }]
+                        // optionalServices: ['device_information'] // Request access to optional services
+                    });
+
+                    // 4. Handle the discovered device
+                    if (!discoveredDevices.has(device.id)) {
+                        discoveredDevices.add(device.id);
+
+                        // If it's the first device, remove the placeholder text
+                        if (noDevicesFoundP) {
+                            noDevicesFoundP.style.display = 'none';
+                        }
+                        
+                        addDeviceToList(device);
+                        statusDiv.textContent = `Discovered: ${device.name || 'Unnamed Device'}`;
+                    } else {
+                        statusDiv.textContent = 'That device has already been discovered.';
+                    }
+
+                } catch (error) {
+                    // 5. Handle errors
+                    if (error.name === 'NotFoundError') {
+                        statusDiv.textContent = 'Scan cancelled. No device was selected.';
+                    } else if (error.name === 'NotSupportedError') {
+                        statusDiv.textContent = 'Error: Web Bluetooth is not supported on this platform.';
+                    } else {
+                        statusDiv.textContent = `Error: ${error.message}`;
+                        console.error('Bluetooth Scan Error:', error);
+                    }
+                } finally {
+                    scanButton.disabled = false;
+                }
+            });
+
+            /**
+             * Creates and appends a device card to the list.
+             * @param {BluetoothDevice} device The Bluetooth device object.
+             */
+            function addDeviceToList(device) {
+                const deviceCard = document.createElement('div');
+                deviceCard.className = 'device-card bg-gray-50 dark:bg-gray-700 p-4 rounded-lg shadow flex items-center justify-between';
+                
+                // Use the device name, or a default if it's not available
+                const deviceName = device.name || 'Unnamed Device';
+                
+                deviceCard.innerHTML = `
+                    <div class="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-500 mr-4" viewBox="0 0 20 20" fill="currentColor">
+                           <path fill-rule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zM8.707 6.293a1 1 0 00-1.414 1.414L8.586 9H7a1 1 0 000 2h1.586l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 11H13a1 1 0 100-2h-1.586l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 6.293z" clip-rule="evenodd" />
+                        </svg>
+                        <div>
+                            <p class="font-semibold text-gray-800 dark:text-gray-100">${escapeHTML(deviceName)}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">ID: ${device.id}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <button onclick="connectToDevice('${device.id}')" class="text-xs bg-green-500 hover:bg-green-600 text-white font-bold py-1 px-3 rounded-full focus:outline-none focus:ring-2 focus:ring-green-400" disabled title="Connect functionality is a placeholder">
+                           Connect
+                        </button>
+                    </div>
+                `;
+                deviceListDiv.appendChild(deviceCard);
+
+                // Add a small delay for the fade-in animation to be visible
+                setTimeout(() => {
+                    deviceCard.classList.add('visible');
+                }, 50);
+            }
+
+             /**
+             * Sanitizes HTML to prevent XSS.
+             * @param {string} str The string to sanitize.
+             * @returns {string} The sanitized string.
+             */
+            function escapeHTML(str) {
+                const div = document.createElement('div');
+                div.appendChild(document.createTextNode(str));
+                return div.innerHTML;
+            }
+
+            // Placeholder for connect functionality
+            window.connectToDevice = (deviceId) => {
+                statusDiv.textContent = `Connecting to ${deviceId}... (Functionality not implemented in this demo)`;
+                // In a real app, you would find the device object and call device.gatt.connect()
+                console.log(`Attempting to connect to device ID: ${deviceId}`);
+            };
+
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bludiště: Útěk třešně</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Press Start 2P', cursive;
+            touch-action: none; /* Prevents browser default touch actions like scrolling */
+        }
+        canvas {
+            background-color: #1a202c; /* tmavší pozadí pro lepší kontrast */
+            border-radius: 0.5rem;
+            box-shadow: 0 0 20px rgba(88, 101, 242, 0.5);
+        }
+        .pixel-font {
+             font-family: 'Press Start 2P', cursive;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4">
+
+    <h1 class="text-3xl md:text-4xl mb-4 text-yellow-300 pixel-font">Útěk třešně</h1>
+
+    <div id="game-info" class="w-full max-w-4xl flex justify-between items-center mb-4 text-lg md:text-xl pixel-font">
+        <div>Level: <span id="level-display">1</span></div>
+        <div>Životy: <span id="lives-display">5</span></div>
+    </div>
+
+    <canvas id="gameCanvas" class="border-4 border-indigo-500"></canvas>
+
+    <div id="message-modal" class="hidden absolute inset-0 bg-black bg-opacity-75 flex flex-col items-center justify-center text-center p-4">
+        <h2 id="message-title" class="text-4xl md:text-6xl mb-4 pixel-font"></h2>
+        <p id="message-text" class="text-xl mb-8 pixel-font"></p>
+        <button id="restart-button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-2xl pixel-font transition-transform transform hover:scale-105">
+            Hrát znovu
+        </button>
+    </div>
+
+    <script type="module">
+        // --- Základní nastavení hry ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const levelDisplay = document.getElementById('level-display');
+        const livesDisplay = document.getElementById('lives-display');
+        const messageModal = document.getElementById('message-modal');
+        const messageTitle = document.getElementById('message-title');
+        const messageText = document.getElementById('message-text');
+        const restartButton = document.getElementById('restart-button');
+
+        const TILE_SIZE = 32;
+        let gridSize;
+        
+        // --- Herní stav ---
+        let player, enemies, portal, potion, bosses, projectiles, bandage;
+        let lives = 5;
+        let currentLevel = 1;
+        let maze = [];
+        let isGameOver = false;
+
+        // --- Nové proměnné pro ovládání a cheat ---
+        const keysPressed = {};
+        let cheatCodeBuffer = '';
+        let lastPlayerMove = 0;
+        const moveCooldown = 110; // Rychlejší odezva (v ms)
+
+
+        // --- Definice levelů ---
+        // 0 = cesta, 1 = zeď
+        const mazeLevels = [
+            // Level 1-2
+            [[1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,1,0,0,0,1,0,0,0,1],[1,0,1,0,1,0,1,0,0,1,1,0,1],[1,0,1,0,0,0,1,0,1,0,0,0,1],[1,0,1,1,1,1,1,1,1,0,1,0,1],[1,0,0,0,0,0,0,0,0,0,1,0,1],[1,1,1,1,1,0,1,0,1,1,1,1,1],[1,0,0,0,1,0,1,0,0,0,0,0,1],[1,0,1,0,1,1,1,1,1,1,1,0,1],[1,0,1,0,0,0,0,0,0,0,1,0,1],[1,0,1,1,1,1,1,0,1,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1]],
+            [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,1,0,0,0,1,0,0,0,0,1],[1,0,1,1,0,1,0,1,0,1,0,1,1,0,1],[1,0,1,0,0,0,0,1,0,0,0,0,1,0,1],[1,0,1,0,1,1,1,1,1,1,1,0,1,0,1],[1,0,0,0,1,0,0,0,0,0,0,0,0,0,1],[1,1,1,0,1,0,1,1,1,0,1,1,1,1,1],[1,0,0,0,1,0,1,0,0,0,1,0,0,0,1],[1,0,1,1,1,0,1,0,1,1,1,0,1,1,1],[1,0,0,0,0,0,0,0,0,0,1,0,0,0,1],[1,0,1,1,1,1,1,1,1,0,1,1,1,0,1],[1,0,1,0,0,0,0,0,1,0,0,0,0,0,1],[1,0,1,0,1,1,1,0,1,1,1,1,1,0,1],[1,0,0,0,0,0,1,0,0,0,0,0,1,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],
+            // Level 3 (17x17) - OPRAVENÝ, VÍCE PRŮCHOZÍ
+            [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1],[1,0,1,1,1,0,1,0,1,0,1,0,1,1,1,0,1],[1,0,1,0,0,0,1,0,1,0,1,0,0,0,1,0,1],[1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,0,1],[1,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,1],[1,0,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1],[1,0,0,0,1,0,1,0,0,0,1,0,1,0,0,0,1],[1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1],[1,0,0,0,1,0,1,0,1,0,1,0,1,0,0,0,1],[1,0,1,1,1,0,1,0,1,0,1,0,1,1,1,0,1],[1,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,1],[1,0,1,0,1,1,1,1,1,1,1,1,1,0,1,0,1],[1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],[1,0,1,1,1,1,1,1,0,1,1,1,1,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],
+            // Level 4-5
+            [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],[1,0,1,1,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1],[1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1,0,1],[1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,0,1],[1,0,0,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,1],[1,0,1,0,1,1,1,1,0,1,1,1,1,0,1,1,1,0,1],[1,0,1,0,0,0,0,1,0,1,0,0,0,0,0,0,1,0,1],[1,0,1,1,1,1,0,1,0,1,0,1,1,1,1,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,0,1,1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1],[1,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],[1,1,0,1,1,1,1,1,0,1,0,1,1,1,1,1,1,0,1],[1,0,0,0,0,0,1,0,0,1,0,1,0,0,0,1,0,0,1],[1,0,1,1,1,0,1,0,1,1,0,1,0,1,0,1,0,1,1],[1,0,1,0,0,0,1,0,0,0,0,1,0,1,0,1,0,0,1],[1,0,1,0,1,1,1,1,1,1,1,1,0,1,0,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],
+            [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,1],[1,0,1,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,1,0,1],[1,0,0,0,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,0,1],[1,1,1,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,1,1,1],[1,0,0,0,0,1,0,0,0,1,0,1,0,0,0,1,0,0,0,0,1],[1,0,1,1,0,1,1,1,0,1,0,1,0,1,1,1,0,1,1,0,1],[1,0,0,1,0,0,0,1,0,1,0,1,0,1,0,0,0,1,0,0,1],[1,1,0,1,1,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,1],[1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1],[1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1],[1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],[1,1,0,1,1,1,0,1,0,1,1,1,1,1,0,1,1,1,0,1,1],[1,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,1],[1,0,1,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,0,1],[1,0,0,0,0,1,0,0,0,1,0,1,0,0,0,1,0,0,0,0,1],[1,1,1,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,1,1,1],[1,0,0,0,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,0,1],[1,0,1,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,1,0,1],[1,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],
+            // Level 6
+            [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],[1,0,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,0,1],[1,0,1,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,1,0,1],[1,0,1,0,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1],[1,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,1],[1,0,1,1,1,1,1,0,1,0,1,0,1,0,1,1,1,1,1,0,1],[1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1],[1,0,1,0,1,0,1,1,1,1,1,1,1,1,1,0,1,0,1,0,1],[1,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,1],[1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1],[1,0,0,0,0,0,0,0,1,0,1,0,1,0,0,0,0,0,0,0,1],[1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,1,1,0,1],[1,0,1,0,0,0,1,0,0,0,1,0,1,0,1,0,0,0,0,0,1],[1,0,1,0,1,1,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1],[1,0,1,0,0,0,1,0,1,0,0,0,1,0,1,0,1,0,0,0,1],[1,0,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1,1],[1,0,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1],[1,0,1,1,1,1,1,1,1,0,1,0,1,1,1,1,1,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],
+            // Level 7 (BOSS)
+            [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,0,1,1,1,1,1,1,1,0,1,0,1,0,1,1,1,1,1,1,1,0,1],[1,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,1,0,1],[1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1,1,1,1,0,1,0,1],[1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],[1,0,1,0,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,0,1,0,1],[1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1],[1,0,1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1,1,0,1],[1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],[1,0,1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1,1,0,1],[1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1],[1,0,1,0,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,0,1,0,1],[1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],[1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1,1,1,1,0,1,0,1],[1,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,1,0,1],[1,0,1,1,1,1,1,1,1,0,1,0,1,0,1,1,1,1,1,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]
+        ];
+
+        // --- Herní objekty ---
+        class GameObject {
+            constructor(x, y, emoji) {
+                this.x = x;
+                this.y = y;
+                this.emoji = emoji;
+            }
+
+            draw() {
+                if (!this.emoji) return;
+                ctx.font = `${TILE_SIZE * 0.8}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.emoji, this.x * TILE_SIZE + TILE_SIZE / 2, this.y * TILE_SIZE + TILE_SIZE / 2);
+            }
+        }
+
+        class Player extends GameObject {
+            constructor(x, y) {
+                super(x, y, '🍒');
+            }
+
+            move(dx, dy) {
+                if (isGameOver) return;
+                const nextX = this.x + dx;
+                const nextY = this.y + dy;
+                if (!isWall(nextX, nextY)) {
+                    this.x = nextX;
+                    this.y = nextY;
+                }
+            }
+        }
+        
+        class Projectile extends GameObject {
+            constructor(x, y, dx, dy) {
+                super(x, y, '🔥');
+                this.px = x * TILE_SIZE + TILE_SIZE / 2;
+                this.py = y * TILE_SIZE + TILE_SIZE / 2;
+                this.dx = dx;
+                this.dy = dy;
+                this.speed = 4;
+            }
+            
+            update() {
+                this.px += this.dx * this.speed;
+                this.py += this.dy * this.speed;
+                this.x = Math.floor(this.px / TILE_SIZE);
+                this.y = Math.floor(this.py / TILE_SIZE);
+            }
+            
+            draw() {
+                ctx.font = `${TILE_SIZE * 0.7}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.emoji, this.px, this.py);
+            }
+        }
+
+        class Enemy extends GameObject {
+            constructor(x, y) {
+                super(x, y, null);
+                this.moveDelay = 350 - (currentLevel * 15);
+                this.lastMove = Date.now();
+                this.mouthOpen = false;
+                this.lastMouthToggle = Date.now();
+            }
+
+            draw(sizeModifier = 1) {
+                if (Date.now() - this.lastMouthToggle > 300) {
+                    this.mouthOpen = !this.mouthOpen;
+                    this.lastMouthToggle = Date.now();
+                }
+
+                const currentTileSize = TILE_SIZE * sizeModifier;
+                const centerX = this.x * TILE_SIZE + TILE_SIZE / 2;
+                const centerY = this.y * TILE_SIZE + TILE_SIZE / 2;
+                const radius = currentTileSize * 0.4;
+
+                ctx.fillStyle = 'yellow';
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = 'black';
+                ctx.beginPath();
+                ctx.arc(centerX - currentTileSize * 0.15, centerY - currentTileSize * 0.1, currentTileSize * 0.05, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(centerX + currentTileSize * 0.15, centerY - currentTileSize * 0.1, currentTileSize * 0.05, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 2 * sizeModifier;
+                ctx.beginPath();
+                if (this.mouthOpen) {
+                    ctx.arc(centerX, centerY + currentTileSize * 0.05, radius * 0.5, 0.1 * Math.PI, 0.9 * Math.PI, false);
+                } else {
+                    ctx.moveTo(centerX - radius * 0.3, centerY + currentTileSize * 0.15);
+                    ctx.lineTo(centerX + radius * 0.3, centerY + currentTileSize * 0.15);
+                }
+                ctx.stroke();
+            }
+
+            move() {
+                if (Date.now() - this.lastMove < this.moveDelay) return;
+                this.lastMove = Date.now();
+
+                const dx = Math.sign(player.x - this.x);
+                const dy = Math.sign(player.y - this.y);
+                
+                if (Math.random() > 0.5) { 
+                    if (dx !== 0 && !isWall(this.x + dx, this.y)) { this.x += dx; }
+                    else if (dy !== 0 && !isWall(this.x, this.y + dy)) { this.y += dy; }
+                } else {
+                    if (dy !== 0 && !isWall(this.x, this.y + dy)) { this.y += dy; }
+                    else if (dx !== 0 && !isWall(this.x + dx, this.y)) { this.x += dx; }
+                }
+            }
+        }
+        
+        class Boss extends Enemy {
+            constructor(x, y) {
+                super(x, y);
+                this.moveDelay = 800;
+                this.shootCooldown = 2000;
+                this.lastShot = Date.now();
+            }
+            
+            draw() {
+                super.draw(2.5);
+            }
+            
+            shoot() {
+                if (isGameOver || Date.now() - this.lastShot < this.shootCooldown) return;
+                
+                this.lastShot = Date.now();
+                const dx = player.x - this.x;
+                const dy = player.y - this.y;
+                const distance = Math.sqrt(dx*dx + dy*dy);
+                
+                if (distance > 0) {
+                    const dirX = dx / distance;
+                    const dirY = dy / distance;
+                    projectiles.push(new Projectile(this.x, this.y, dirX, dirY));
+                }
+            }
+        }
+
+
+        // --- Pomocné funkce ---
+        function isWall(x, y) {
+            return !maze[y] || maze[y][x] === undefined || maze[y][x] === 1;
+        }
+
+        function getRandomEmptyTile() {
+            let emptyTiles = [];
+            for (let y = 0; y < gridSize; y++) {
+                for (let x = 0; x < gridSize; x++) {
+                    if (maze[y][x] === 0) { emptyTiles.push({ x, y }); }
+                }
+            }
+            return emptyTiles.length > 0 ? emptyTiles[Math.floor(Math.random() * emptyTiles.length)] : { x: 1, y: 1 };
+        }
+        
+        function resetEnemyPositions() {
+            enemies.forEach(enemy => {
+                let pos;
+                do {
+                    pos = getRandomEmptyTile();
+                } while (Math.abs(pos.x - player.x) < 5 && Math.abs(pos.y - player.y) < 5);
+                enemy.x = pos.x;
+                enemy.y = pos.y;
+            });
+        }
+
+        // --- Funkce pro inicializaci ---
+        function initLevel() {
+            isGameOver = false;
+            let mazeData = mazeLevels[Math.min(currentLevel - 1, mazeLevels.length - 1)];
+            maze = mazeData.map(row => [...row]);
+            gridSize = maze.length;
+
+            canvas.width = gridSize * TILE_SIZE;
+            canvas.height = gridSize * TILE_SIZE;
+
+            player = new Player(1, 1);
+            
+            enemies = [];
+            bosses = [];
+            projectiles = [];
+            
+            if (currentLevel === mazeLevels.length) {
+                bosses.push(new Boss(gridSize - 2, gridSize - 2));
+                bosses.push(new Boss(1, gridSize - 2));
+                bosses.push(new Boss(gridSize - 2, 1));
+                bosses.push(new Boss(Math.floor(gridSize/2), 1));
+                bosses.push(new Boss(Math.floor(gridSize/2), gridSize - 2));
+            } else {
+                const enemyCount = Math.min(1 + Math.floor(currentLevel / 2), 3);
+                for (let i = 0; i < enemyCount; i++) {
+                    enemies.push(new Enemy(0, 0));
+                }
+                resetEnemyPositions();
+            }
+
+            let portalPos;
+            do {
+                portalPos = getRandomEmptyTile();
+            } while (Math.abs(portalPos.x - player.x) < gridSize / 2 && Math.abs(portalPos.y - player.y) < gridSize / 2);
+            portal = new GameObject(portalPos.x, portalPos.y, '🌀');
+            
+            potion = null;
+            bandage = null;
+            if (currentLevel < mazeLevels.length) {
+                let potionPos;
+                 do {
+                    potionPos = getRandomEmptyTile();
+                } while ((potionPos.x === player.x && potionPos.y === player.y) || (potionPos.x === portal.x && potionPos.y === portal.y));
+                potion = new GameObject(potionPos.x, potionPos.y, '🧪');
+
+                let bandagePos;
+                 do {
+                    bandagePos = getRandomEmptyTile();
+                } while ((bandagePos.x === player.x && bandagePos.y === player.y) || 
+                         (bandagePos.x === portal.x && bandagePos.y === portal.y) ||
+                         (potion && bandagePos.x === potion.x && bandagePos.y === potion.y));
+                bandage = new GameObject(bandagePos.x, bandagePos.y, '🩹');
+            }
+
+            updateUI();
+        }
+
+        function updateUI() {
+            levelDisplay.textContent = currentLevel;
+            livesDisplay.textContent = "❤️".repeat(lives) + "🖤".repeat(Math.max(0, 5 - lives));
+        }
+
+        function restartGame() {
+            lives = 5;
+            currentLevel = 1;
+            messageModal.classList.add('hidden');
+            initLevel();
+            gameLoop();
+        }
+
+        // --- Herní smyčka ---
+        function gameLoop() {
+            if (isGameOver) return;
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update() {
+            // Plynulý pohyb hráče
+            const now = Date.now();
+            if (now - lastPlayerMove > moveCooldown) {
+                let moved = false;
+                if (keysPressed['ArrowUp'] || keysPressed['w']) {
+                    player.move(0, -1);
+                    moved = true;
+                } else if (keysPressed['ArrowDown'] || keysPressed['s']) {
+                    player.move(0, 1);
+                    moved = true;
+                } else if (keysPressed['ArrowLeft'] || keysPressed['a']) {
+                    player.move(-1, 0);
+                    moved = true;
+                } else if (keysPressed['ArrowRight'] || keysPressed['d']) {
+                    player.move(1, 0);
+                    moved = true;
+                }
+
+                if (moved) {
+                    lastPlayerMove = now;
+                }
+            }
+
+            enemies.forEach(enemy => enemy.move());
+            bosses.forEach(b => {
+                b.move();
+                b.shoot();
+            });
+
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                p.update();
+
+                if (p.x === player.x && p.y === player.y) {
+                    lives -= 2;
+                    projectiles.splice(i, 1);
+                    player.x = 1;
+                    player.y = 1;
+                    if (lives <= 0) {
+                        lives = 0;
+                        gameOver(false);
+                    }
+                    updateUI();
+                    continue;
+                }
+                
+                const gridX = p.x;
+                const gridY = p.y;
+                if (isWall(gridX, gridY)) {
+                    if (gridX > 0 && gridX < gridSize - 1 && gridY > 0 && gridY < gridSize - 1) {
+                        maze[gridY][gridX] = 0;
+                    } else {
+                        projectiles.splice(i, 1);
+                    }
+                }
+            }
+
+            let collisionDetected = false;
+            const allMonsters = [...bosses, ...enemies];
+            allMonsters.forEach(monster => {
+                if (!collisionDetected && monster.x === player.x && monster.y === player.y) {
+                    collisionDetected = true;
+                    lives--;
+                    updateUI();
+                    
+                    if (lives <= 0) { gameOver(false); }
+                    else {
+                       player.x = 1;
+                       player.y = 1;
+                       if (enemies.length > 0) {
+                           resetEnemyPositions();
+                       }
+                    }
+                }
+            });
+
+            if (portal.x === player.x && portal.y === player.y) {
+                nextLevel();
+            }
+            
+            if (potion && potion.x === player.x && potion.y === player.y) {
+                potion = null;
+                enemies = [];
+            }
+            
+            if (bandage && bandage.x === player.x && bandage.y === player.y) {
+                bandage = null;
+                if (lives < 5) {
+                    lives++;
+                    updateUI();
+                }
+            }
+        }
+        
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#1a202c';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let y = 0; y < gridSize; y++) {
+                for (let x = 0; x < gridSize; x++) {
+                    if (isWall(x, y)) {
+                        ctx.fillStyle = '#4a5568';
+                        ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                    }
+                }
+            }
+
+            portal.draw();
+            if(potion) potion.draw();
+            if(bandage) bandage.draw();
+            player.draw();
+            enemies.forEach(enemy => enemy.draw());
+            bosses.forEach(b => b.draw());
+            projectiles.forEach(p => p.draw());
+        }
+
+        function nextLevel() {
+            currentLevel++;
+            if (currentLevel > mazeLevels.length) {
+                gameOver(true); 
+            } else {
+                initLevel();
+            }
+        }
+
+        function gameOver(isWin) {
+            isGameOver = true;
+            if (isWin) {
+                messageTitle.textContent = "VÝHRA!";
+                messageText.textContent = "Dokázal jsi to a prošel všechna bludiště!";
+                messageTitle.style.color = '#48bb78';
+            } else {
+                messageTitle.textContent = "KONEC HRY";
+                messageText.textContent = `Došly ti životy. Zkus to znovu!`;
+                messageTitle.style.color = '#f56565';
+            }
+            messageModal.classList.remove('hidden');
+        }
+
+        // --- Ovládání ---
+        window.addEventListener('keydown', e => {
+            if(isGameOver) return;
+            
+            // Zaznamená stisk klávesy pro plynulý pohyb
+            keysPressed[e.key] = true;
+            
+            // Zpracování cheat kódu
+            cheatCodeBuffer += e.key.toUpperCase();
+            cheatCodeBuffer = cheatCodeBuffer.slice(-4); // Udržuje buffer na délce 4 znaků
+            if (cheatCodeBuffer === 'BOSS') {
+                currentLevel = mazeLevels.length;
+                initLevel();
+                cheatCodeBuffer = ''; // Resetuje buffer po použití
+                return;
+            }
+        });
+        
+        window.addEventListener('keyup', e => {
+            // Zaznamená uvolnění klávesy
+            keysPressed[e.key] = false;
+        });
+
+
+        let touchStartX = 0, touchStartY = 0, moved = false;
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); touchStartX = e.changedTouches[0].screenX; touchStartY = e.changedTouches[0].screenY; moved = false; }, { passive: false });
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (moved || isGameOver) return;
+            const touchEndX = e.changedTouches[0].screenX;
+            const touchEndY = e.changedTouches[0].screenY;
+            const dx = touchEndX - touchStartX;
+            const dy = touchEndY - touchStartY;
+            const threshold = 20;
+
+            if (Math.abs(dx) > Math.abs(dy)) {
+                if (Math.abs(dx) > threshold) { player.move(dx > 0 ? 1 : -1, 0); moved = true; }
+            } else {
+                if (Math.abs(dy) > threshold) { player.move(0, dy > 0 ? 1 : -1); moved = true; }
+            }
+        }, { passive: false });
+
+        restartButton.addEventListener('click', restartGame);
+
+        // --- Start hry ---
+        initLevel();
+        gameLoop();
+    </script>
+
+</body>
+</html>
