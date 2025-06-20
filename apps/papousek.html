@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vylepšená aplikace Papoušek</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            transition: background-color 0.3s ease;
+        }
+        .dot-gray { background-color: #6b7280; }
+        .dot-blue { background-color: #3b82f6; }
+        .dot-red { background-color: #ef4444; }
+        .dot-green { background-color: #22c55e; }
+
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            50% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+        }
+        .dot-red.animate-pulse {
+            animation: pulse-red 1.5s infinite;
+        }
+        
+        #volume-meter-container {
+            width: 100%;
+            height: 20px;
+            background-color: #e5e7eb;
+            border-radius: 9999px;
+            position: relative;
+            overflow: hidden;
+        }
+        #volume-level {
+            height: 100%;
+            width: 0%;
+            background-color: #3b82f6;
+            border-radius: 9999px;
+            transition: width 0.1s linear;
+        }
+        #threshold-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #ef4444;
+            opacity: 0.6;
+        }
+        .dark #volume-meter-container {
+             background-color: #374151;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8 max-w-md w-full text-center space-y-6">
+        <div>
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-24 h-24 mx-auto text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M14.62,1.52c-1.26-0.56-2.73-0.28-3.69,.69L5.47,7.67a3.5,3.5,0,0,0,0,4.95l4.95,4.95a3.5,3.5,0,0,0,4.95,0l5.46-5.46c0.97-0.97,1.25-2.43,.69-3.69C20.1,5.6,18,4.2,16.5,3.34c-1-0.58-2.29-1.2-1.88-1.82M11.09,10.27a1,1,0,1,1-1.41-1.41,1,1,0,0,1,1.41,1.41M12,2A10,10,0,0,0,2,12a1,1,0,0,0,2,0,8,8,0,0,1,8-8,1,1,0,0,0,0-2Z"/></svg>
+        </div>
+
+        <div>
+            <h1 class="text-4xl font-bold text-blue-600 dark:text-blue-400">Papoušek</h1>
+            <p class="text-gray-500 dark:text-gray-400 mt-2">Zopakuji vše, co řekneš, legračními hlasy!</p>
+        </div>
+
+        <div class="space-y-2">
+            <label class="text-sm font-medium text-gray-500 dark:text-gray-400">Úroveň hlasitosti</label>
+            <div id="volume-meter-container">
+                <div id="volume-level"></div>
+                <div id="threshold-line"></div>
+            </div>
+        </div>
+
+        <button id="toggleButton" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800 transition-all duration-300 ease-in-out text-lg">
+            Začít poslouchat
+        </button>
+
+        <div id="status" class="flex items-center justify-center text-lg font-medium text-gray-600 dark:text-gray-300 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
+            <span id="statusDot" class="status-dot dot-gray"></span>
+            <span id="statusText">Připraven</span>
+        </div>
+        
+        <div id="error-message" class="text-red-500 font-medium hidden"></div>
+
+    </div>
+
+    <script>
+        // Reference na HTML prvky
+        const toggleButton = document.getElementById('toggleButton');
+        const statusText = document.getElementById('statusText');
+        const statusDot = document.getElementById('statusDot');
+        const errorMessage = document.getElementById('error-message');
+        const volumeLevel = document.getElementById('volume-level');
+        const thresholdLine = document.getElementById('threshold-line');
+
+        // Globální proměnné pro stav aplikace
+        let isListening = false;
+        let stream;
+        let audioContext;
+        let silenceTimeout = null;
+        let isRecording = false;
+        let audioNodes = {};
+        
+        // Nové proměnné pro nahrávání s předstihem
+        let preRollBuffer = null;
+        let recordingBuffer = [];
+        let preRollBufferWriteIndex = 0;
+        let preRollLengthInSeconds = 1;
+
+        // Nastavení
+        const VOLUME_THRESHOLD = 20;
+        const SILENCE_DELAY = 2000;
+        // NOVÉ: Nastavení pro zvukové efekty
+        const CHIPMUNK_PITCH = 1.4; // Zmírněný chipmunk efekt
+        const DEEP_VOICE_PITCH = 0.65; // Zpomalený, hluboký hlas
+
+        thresholdLine.style.left = `${VOLUME_THRESHOLD}%`;
+
+        // Funkce pro aktualizaci stavu v UI
+        function updateStatus(text, dotClass, isPulsing = false) {
+            statusText.textContent = text;
+            statusDot.className = `status-dot ${dotClass}`;
+            statusDot.classList.toggle('animate-pulse', isPulsing);
+        }
+        
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+
+        toggleButton.addEventListener('click', () => {
+            if (isListening) {
+                stopListening();
+            } else {
+                startListening();
+            }
+        });
+
+        async function ensureAudioContextIsRunning() {
+            if (audioContext && audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+        }
+
+        async function startListening() {
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                await ensureAudioContextIsRunning();
+
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+                const analyser = audioContext.createAnalyser();
+                analyser.smoothingTimeConstant = 0.8;
+                analyser.fftSize = 1024;
+
+                const microphone = audioContext.createMediaStreamSource(stream);
+                const javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
+                
+                const preRollBufferLength = audioContext.sampleRate * preRollLengthInSeconds;
+                preRollBuffer = new Float32Array(preRollBufferLength);
+
+                microphone.connect(analyser);
+                analyser.connect(javascriptNode);
+                javascriptNode.connect(audioContext.destination);
+
+                audioNodes = { microphone, analyser, javascriptNode };
+
+                javascriptNode.onaudioprocess = (event) => {
+                    if (!isListening) return;
+                    
+                    const inputData = event.inputBuffer.getChannelData(0);
+
+                    for (let i = 0; i < inputData.length; i++) {
+                        preRollBuffer[(preRollBufferWriteIndex + i) % preRollBuffer.length] = inputData[i];
+                    }
+                    preRollBufferWriteIndex = (preRollBufferWriteIndex + inputData.length) % preRollBuffer.length;
+                    
+                    if (isRecording) {
+                        recordingBuffer.push(new Float32Array(inputData));
+                    }
+
+                    const array = new Uint8Array(analyser.frequencyBinCount);
+                    analyser.getByteFrequencyData(array);
+                    let sum = 0;
+                    for (const value of array) sum += value * value;
+                    const average = Math.sqrt(sum / array.length);
+                    const volumePercent = (average / 128) * 100;
+                    volumeLevel.style.width = `${Math.min(100, volumePercent)}%`;
+
+                    if (volumePercent > VOLUME_THRESHOLD) {
+                        if (silenceTimeout) {
+                            clearTimeout(silenceTimeout);
+                            silenceTimeout = null;
+                        }
+                        if (!isRecording) startRecording();
+                    } else {
+                        if (isRecording && !silenceTimeout) {
+                            silenceTimeout = setTimeout(() => {
+                                stopRecording();
+                                silenceTimeout = null;
+                            }, SILENCE_DELAY);
+                        }
+                    }
+                };
+                
+                isListening = true;
+                toggleButton.textContent = 'Přestat poslouchat';
+                toggleButton.classList.replace('bg-blue-600', 'bg-red-600');
+                toggleButton.classList.replace('hover:bg-blue-700', 'hover:bg-red-700');
+                errorMessage.classList.add('hidden');
+                updateStatus('Poslouchám...', 'dot-blue');
+
+            } catch (err) {
+                console.error("Chyba při přístupu k mikrofonu:", err);
+                showError('Nepodařilo se získat přístup k mikrofonu.');
+                stopListening();
+            }
+        }
+        
+        function startRecording() {
+            if (!isListening || isRecording) return;
+            isRecording = true;
+            recordingBuffer = [];
+            updateStatus('Nahrávám...', 'dot-red', true);
+        }
+
+        function stopRecording() {
+            if (!isRecording) return;
+            isRecording = false;
+            updateStatus('Zpracovávám...', 'dot-green');
+            playRecordedAudio();
+        }
+
+        async function playRecordedAudio() {
+            if (recordingBuffer.length === 0) {
+                if(isListening) updateStatus('Poslouchám...', 'dot-blue');
+                return;
+            }
+
+            try {
+                await ensureAudioContextIsRunning();
+
+                const orderedPreRoll = new Float32Array(preRollBuffer.length);
+                const firstPart = preRollBuffer.subarray(preRollBufferWriteIndex);
+                const secondPart = preRollBuffer.subarray(0, preRollBufferWriteIndex);
+                orderedPreRoll.set(firstPart, 0);
+                orderedPreRoll.set(secondPart, firstPart.length);
+
+                let mainRecordingLength = 0;
+                for(const buffer of recordingBuffer) {
+                    mainRecordingLength += buffer.length;
+                }
+
+                const finalBufferData = new Float32Array(orderedPreRoll.length + mainRecordingLength);
+                finalBufferData.set(orderedPreRoll, 0);
+                let offset = orderedPreRoll.length;
+                for(const buffer of recordingBuffer) {
+                    finalBufferData.set(buffer, offset);
+                    offset += buffer.length;
+                }
+                
+                const audioBuffer = audioContext.createBuffer(1, finalBufferData.length, audioContext.sampleRate);
+                audioBuffer.copyToChannel(finalBufferData, 0);
+
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+
+                // NOVÉ: Náhodný výběr efektu
+                // 70% šance na chipmunk, 30% na hluboký hlas
+                const randomPitch = Math.random() < 0.7 ? CHIPMUNK_PITCH : DEEP_VOICE_PITCH;
+                source.playbackRate.value = randomPitch;
+                
+                source.connect(audioContext.destination);
+                source.start();
+
+                updateStatus('Opakuji...', 'dot-green');
+                source.onended = () => {
+                    if(isListening) {
+                        updateStatus('Poslouchám...', 'dot-blue');
+                    }
+                };
+            } catch (e) {
+                console.error("Chyba při přehrávání zvuku:", e);
+                showError("Chyba při zpracování zvuku.");
+                if(isListening) updateStatus('Poslouchám...', 'dot-blue');
+            }
+        }
+
+        function stopListening() {
+            if (!isListening) return;
+            isListening = false;
+            
+            if(silenceTimeout) {
+                clearTimeout(silenceTimeout);
+                silenceTimeout = null;
+            }
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            
+            if (audioNodes.microphone) audioNodes.microphone.disconnect();
+            if (audioNodes.analyser) audioNodes.analyser.disconnect();
+            if (audioNodes.javascriptNode) {
+                audioNodes.javascriptNode.onaudioprocess = null;
+                audioNodes.javascriptNode.disconnect();
+            }
+            
+            isRecording = false;
+            recordingBuffer = [];
+
+            toggleButton.textContent = 'Začít poslouchat';
+            toggleButton.classList.replace('bg-red-600', 'bg-blue-600');
+            toggleButton.classList.replace('hover:bg-red-700', 'hover:bg-blue-700');
+            updateStatus('Připraven', 'dot-gray');
+            volumeLevel.style.width = '0%';
+        }
+
+    </script>
+</body>
+</html>

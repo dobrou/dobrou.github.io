@@ -4,3 +4,4 @@
 - [Web Video Player](video/player.html)
 - [D3.js force](d3/d3.force.html)
 - [Abakus calculator](test/abakus.html)
+- [Apps](apps/)
