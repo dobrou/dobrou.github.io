@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Real-Time Edge Detection (Interactive)</title>
+    <title>Real-Time Edge Detection (Optimized)</title>
     <style>
         body, html {
             margin: 0;
@@ -204,17 +204,14 @@
             const outputImageData = ctx.createImageData(canvas.width, canvas.height);
             const data = imageData.data;
 
-            // Common processing for edge detection
+            // Common processing for edge detection.
+            // The noise reduction filter has been removed for performance.
             const grayData = toGrayscale(data);
-            let sobelData = sobel(grayData, filterStrength);
-            
-            // --- NEW: Noise reduction step ---
-            // This filter is applied to the edge data to remove noise.
-            const filteredEdgeData = medianFilter(sobelData, canvas.width, canvas.height);
+            const sobelData = sobel(grayData, filterStrength);
             
             if (processingMode === 'classic') {
-                for (let i = 0; i < filteredEdgeData.length; i++) {
-                    const value = filteredEdgeData[i];
+                for (let i = 0; i < sobelData.length; i++) {
+                    const value = sobelData[i];
                     const dataIndex = i * 4;
                     outputImageData.data[dataIndex] = value;
                     outputImageData.data[dataIndex + 1] = value;
@@ -222,9 +219,9 @@
                     outputImageData.data[dataIndex + 3] = 255;
                 }
             } else if (processingMode === 'comics') {
-                for (let i = 0; i < filteredEdgeData.length; i++) {
+                for (let i = 0; i < sobelData.length; i++) {
                     const dataIndex = i * 4;
-                    const edgeValue = filteredEdgeData[i];
+                    const edgeValue = sobelData[i];
 
                     if (edgeValue > 40) { // Edge threshold
                         outputImageData.data[dataIndex] = 0;
@@ -232,6 +229,7 @@
                         outputImageData.data[dataIndex + 2] = 0;
                         outputImageData.data[dataIndex + 3] = 255;
                     } else {
+                        // Vibrant, pastel, flat color logic
                         const [h, s, l] = rgbToHsl(data[dataIndex], data[dataIndex + 1], data[dataIndex + 2]);
                         const newS = Math.min(1.0, s * 1.5);
                         const newL = (l + 0.5) / 1.5;
@@ -247,19 +245,22 @@
                     }
                 }
             } else if (processingMode === 'classic_video') {
-                 for (let i = 0; i < filteredEdgeData.length; i++) {
+                 const brightnessBoost = 40; // Increase this value for a brighter image
+                 for (let i = 0; i < sobelData.length; i++) {
                     const dataIndex = i * 4;
-                    const edgeValue = filteredEdgeData[i];
+                    const edgeValue = sobelData[i];
 
                     if (edgeValue > 40) { // Edge threshold
+                        // Draw black for the edge
                         outputImageData.data[dataIndex] = 0;
                         outputImageData.data[dataIndex + 1] = 0;
                         outputImageData.data[dataIndex + 2] = 0;
                         outputImageData.data[dataIndex + 3] = 255;
                     } else {
-                        outputImageData.data[dataIndex] = data[dataIndex];
-                        outputImageData.data[dataIndex + 1] = data[dataIndex + 1];
-                        outputImageData.data[dataIndex + 2] = data[dataIndex + 2];
+                        // Use the original color from the video, but make it lighter
+                        outputImageData.data[dataIndex] = Math.min(255, data[dataIndex] + brightnessBoost);
+                        outputImageData.data[dataIndex + 1] = Math.min(255, data[dataIndex + 1] + brightnessBoost);
+                        outputImageData.data[dataIndex + 2] = Math.min(255, data[dataIndex + 2] + brightnessBoost);
                         outputImageData.data[dataIndex + 3] = 255;
                     }
                 }
@@ -270,35 +271,6 @@
         }
 
         // --- Image Processing Algorithms ---
-        
-        /**
-         * NEW: Median Filter for noise reduction.
-         * This removes isolated pixels ("salt-and-pepper noise") from the edge data.
-         * @param {Uint8ClampedArray} data The edge magnitude data from the Sobel filter.
-         * @param {number} width The width of the canvas.
-         * @param {number} height The height of the canvas.
-         * @returns {Uint8ClampedArray} The filtered data.
-         */
-        function medianFilter(data, width, height) {
-            const filteredData = new Uint8ClampedArray(data.length);
-            const kernelRadius = 1; // Corresponds to a 3x3 kernel
-            const window = new Array(9);
-
-            for (let y = kernelRadius; y < height - kernelRadius; y++) {
-                for (let x = kernelRadius; x < width - kernelRadius; x++) {
-                    let i = 0;
-                    for (let ky = -kernelRadius; ky <= kernelRadius; ky++) {
-                        for (let kx = -kernelRadius; kx <= kernelRadius; kx++) {
-                            window[i++] = data[(y + ky) * width + (x + kx)];
-                        }
-                    }
-                    window.sort((a, b) => a - b);
-                    filteredData[y * width + x] = window[4]; // The median of a 9-element array
-                }
-            }
-            return filteredData;
-        }
-
         function rgbToHsl(r, g, b) {
             r /= 255, g /= 255, b /= 255;
             const max = Math.max(r, g, b), min = Math.min(r, g, b);
