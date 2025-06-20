@@ -59,6 +59,10 @@
         .dark #volume-meter-container {
              background-color: #374151;
         }
+        /* NOVÉ: Styly pro odpočet ticha */
+        #silence-countdown-bar {
+            transition: width 0.1s linear;
+        }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex items-center justify-center min-h-screen p-4">
@@ -73,11 +77,20 @@
             <p class="text-gray-500 dark:text-gray-400 mt-2">Zopakuji vše, co řekneš, legračními hlasy!</p>
         </div>
 
-        <div class="space-y-2">
-            <label class="text-sm font-medium text-gray-500 dark:text-gray-400">Úroveň hlasitosti</label>
-            <div id="volume-meter-container">
-                <div id="volume-level"></div>
-                <div id="threshold-line"></div>
+        <div class="space-y-4">
+            <div>
+                <label class="text-sm font-medium text-gray-500 dark:text-gray-400">Úroveň hlasitosti</label>
+                <div id="volume-meter-container" class="mt-1">
+                    <div id="volume-level"></div>
+                    <div id="threshold-line"></div>
+                </div>
+            </div>
+             <!-- NOVÉ: Kontejner pro odpočet ticha -->
+            <div id="silence-countdown-container" class="hidden">
+                 <label class="text-sm font-medium text-gray-500 dark:text-gray-400">Odpočet ticha</label>
+                <div class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full mt-1">
+                    <div id="silence-countdown-bar" class="h-full bg-yellow-400 rounded-full" style="width: 100%;"></div>
+                </div>
             </div>
         </div>
 
@@ -102,6 +115,9 @@
         const errorMessage = document.getElementById('error-message');
         const volumeLevel = document.getElementById('volume-level');
         const thresholdLine = document.getElementById('threshold-line');
+        // NOVÉ: Reference na prvky odpočtu
+        const silenceCountdownContainer = document.getElementById('silence-countdown-container');
+        const silenceCountdownBar = document.getElementById('silence-countdown-bar');
 
         // Globální proměnné pro stav aplikace
         let isListening = false;
@@ -111,22 +127,23 @@
         let isRecording = false;
         let audioNodes = {};
         
-        // Nové proměnné pro nahrávání s předstihem
         let preRollBuffer = null;
         let recordingBuffer = [];
         let preRollBufferWriteIndex = 0;
         let preRollLengthInSeconds = 1;
 
+        // NOVÉ: Proměnné pro animaci odpočtu
+        let countdownAnimationId = null;
+        let silenceStartTime = 0;
+
         // Nastavení
         const VOLUME_THRESHOLD = 20;
         const SILENCE_DELAY = 2000;
-        // NOVÉ: Nastavení pro zvukové efekty
-        const CHIPMUNK_PITCH = 1.4; // Zmírněný chipmunk efekt
-        const DEEP_VOICE_PITCH = 0.65; // Zpomalený, hluboký hlas
+        const CHIPMUNK_PITCH = 1.4;
+        const DEEP_VOICE_PITCH = 0.65;
 
         thresholdLine.style.left = `${VOLUME_THRESHOLD}%`;
 
-        // Funkce pro aktualizaci stavu v UI
         function updateStatus(text, dotClass, isPulsing = false) {
             statusText.textContent = text;
             statusDot.className = `status-dot ${dotClass}`;
@@ -152,6 +169,33 @@
             }
         }
 
+        // NOVÉ: Funkce pro animaci odpočtu
+        function updateCountdownAnimation() {
+            const elapsed = Date.now() - silenceStartTime;
+            const remainingPercent = Math.max(0, 100 * (1 - elapsed / SILENCE_DELAY));
+            silenceCountdownBar.style.width = `${remainingPercent}%`;
+
+            if (remainingPercent > 0) {
+                countdownAnimationId = requestAnimationFrame(updateCountdownAnimation);
+            } else {
+                hideCountdown();
+            }
+        }
+
+        function showCountdown() {
+            silenceStartTime = Date.now();
+            silenceCountdownContainer.classList.remove('hidden');
+            if (countdownAnimationId) cancelAnimationFrame(countdownAnimationId);
+            updateCountdownAnimation();
+        }
+
+        function hideCountdown() {
+            silenceCountdownContainer.classList.add('hidden');
+            if (countdownAnimationId) cancelAnimationFrame(countdownAnimationId);
+            countdownAnimationId = null;
+        }
+
+
         async function startListening() {
             try {
                 if (!audioContext) {
@@ -162,14 +206,12 @@
                 stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
                 const analyser = audioContext.createAnalyser();
-                analyser.smoothingTimeConstant = 0.8;
-                analyser.fftSize = 1024;
-
                 const microphone = audioContext.createMediaStreamSource(stream);
                 const javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
                 
                 const preRollBufferLength = audioContext.sampleRate * preRollLengthInSeconds;
                 preRollBuffer = new Float32Array(preRollBufferLength);
+                preRollBufferWriteIndex = 0;
 
                 microphone.connect(analyser);
                 analyser.connect(javascriptNode);
@@ -203,10 +245,12 @@
                         if (silenceTimeout) {
                             clearTimeout(silenceTimeout);
                             silenceTimeout = null;
+                            hideCountdown(); // Skryjeme odpočet, když se začne mluvit
                         }
                         if (!isRecording) startRecording();
                     } else {
                         if (isRecording && !silenceTimeout) {
+                            showCountdown(); // Zobrazíme odpočet při začátku ticha
                             silenceTimeout = setTimeout(() => {
                                 stopRecording();
                                 silenceTimeout = null;
@@ -239,6 +283,7 @@
         function stopRecording() {
             if (!isRecording) return;
             isRecording = false;
+            hideCountdown();
             updateStatus('Zpracovávám...', 'dot-green');
             playRecordedAudio();
         }
@@ -259,9 +304,7 @@
                 orderedPreRoll.set(secondPart, firstPart.length);
 
                 let mainRecordingLength = 0;
-                for(const buffer of recordingBuffer) {
-                    mainRecordingLength += buffer.length;
-                }
+                for(const buffer of recordingBuffer) mainRecordingLength += buffer.length;
 
                 const finalBufferData = new Float32Array(orderedPreRoll.length + mainRecordingLength);
                 finalBufferData.set(orderedPreRoll, 0);
@@ -276,9 +319,7 @@
 
                 const source = audioContext.createBufferSource();
                 source.buffer = audioBuffer;
-
-                // NOVÉ: Náhodný výběr efektu
-                // 70% šance na chipmunk, 30% na hluboký hlas
+                
                 const randomPitch = Math.random() < 0.7 ? CHIPMUNK_PITCH : DEEP_VOICE_PITCH;
                 source.playbackRate.value = randomPitch;
                 
@@ -306,6 +347,7 @@
                 clearTimeout(silenceTimeout);
                 silenceTimeout = null;
             }
+            hideCountdown();
             
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
