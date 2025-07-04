@@ -320,6 +320,7 @@
                 this.dropInterval = 1000; // Milliseconds per drop
                 this.lastDropTime = 0;
                 this.gameOver = false;
+                console.log(`Player ${this.playerIndex + 1} GameState initialized.`);
             }
 
             // Function to draw a single block
@@ -333,6 +334,7 @@
             // Function to initialize the game board
             initBoard() {
                 this.board = Array(BOARD_HEIGHT).fill(0).map(() => Array(BOARD_WIDTH).fill(0));
+                console.log(`Player ${this.playerIndex + 1} board initialized.`);
             }
 
             // Function to generate a random tetromino
@@ -340,6 +342,7 @@
                 const pieceKeys = Object.keys(TETROMINOES);
                 const randomKey = pieceKeys[Math.floor(Math.random() * pieceKeys.length)];
                 const pieceData = TETROMINOES[randomKey];
+                console.log(`Player ${this.playerIndex + 1} generated new piece: ${randomKey}`);
                 return {
                     shape: pieceData.shape,
                     color: pieceData.color,
@@ -350,6 +353,7 @@
 
             // Function to draw the current piece
             drawPiece(piece, context, offsetX = 0, offsetY = 0) {
+                // console.log(`Player ${this.playerIndex + 1} drawing piece at (${piece.x}, ${piece.y})`);
                 piece.shape.forEach((row, y) => {
                     row.forEach((value, x) => {
                         if (value) {
@@ -361,6 +365,7 @@
 
             // Function to draw the entire board
             drawBoard() {
+                // console.log(`Player ${this.playerIndex + 1} drawing board.`);
                 this.board.forEach((row, y) => {
                     row.forEach((color, x) => {
                         if (color) {
@@ -380,10 +385,12 @@
 
                             // Check boundaries
                             if (boardX < 0 || boardX >= BOARD_WIDTH || boardY >= BOARD_HEIGHT) {
+                                // console.log(`Collision: Boundary at (${boardX}, ${boardY})`);
                                 return true;
                             }
                             // Check if hitting an existing block (and not out of bounds at the top)
                             if (boardY >= 0 && boardY < BOARD_HEIGHT && this.board[boardY][boardX]) {
+                                // console.log(`Collision: Existing block at (${boardX}, ${boardY})`);
                                 return true;
                             }
                         }
@@ -401,6 +408,7 @@
                         }
                     });
                 });
+                console.log(`Player ${this.playerIndex + 1} piece merged.`);
             }
 
             // Clear full lines
@@ -418,23 +426,23 @@
                 }
 
                 if (linesCleared > 0) {
-                    // Scoring system (e.g., Nintendo scoring)
-                    const scores = [0, 100, 300, 500, 800]; // 0, single, double, triple, tetris
+                    const scores = [0, 100, 300, 500, 800];
                     this.score += scores[linesCleared] * this.level;
                     this.scoreDisplay.textContent = this.score;
+                    console.log(`Player ${this.playerIndex + 1} cleared ${linesCleared} lines. New score: ${this.score}`);
 
-                    // Increase level
-                    if (this.score >= this.level * 1000) { // Example: level up every 1000 points
+                    if (this.score >= this.level * 1000) {
                         this.level++;
                         this.levelDisplay.textContent = this.level;
-                        this.dropInterval = Math.max(50, this.dropInterval - 50); // Decrease drop interval, min 50ms
+                        this.dropInterval = Math.max(50, this.dropInterval - 50);
+                        console.log(`Player ${this.playerIndex + 1} leveled up to ${this.level}. New drop interval: ${this.dropInterval}`);
                     }
                 }
             }
 
             // Rotate piece (clockwise)
             rotate() {
-                // Create a new rotated shape
+                console.log(`Player ${this.playerIndex + 1} attempting rotate.`);
                 const numRows = this.currentPiece.shape.length;
                 const numCols = this.currentPiece.shape[0].length;
                 const newShape = Array(numCols).fill(0).map(() => Array(numRows).fill(0));
@@ -445,15 +453,12 @@
                     }
                 }
 
-                // Test if the rotated piece collides
                 const originalShape = this.currentPiece.shape;
                 this.currentPiece.shape = newShape;
 
-                // Simple wall kick implementation
                 if (this.checkCollision(this.currentPiece)) {
                     let originalX = this.currentPiece.x;
                     let moved = false;
-                    // Try moving right
                     for (let i = 1; i <= 2; i++) {
                         this.currentPiece.x++;
                         if (!this.checkCollision(this.currentPiece)) {
@@ -462,8 +467,7 @@
                         }
                     }
                     if (!moved) {
-                        this.currentPiece.x = originalX; // Reset x
-                        // Try moving left
+                        this.currentPiece.x = originalX;
                         for (let i = 1; i <= 2; i++) {
                             this.currentPiece.x--;
                             if (!this.checkCollision(this.currentPiece)) {
@@ -474,25 +478,31 @@
                     }
 
                     if (!moved) {
-                        this.currentPiece.x = originalX; // Reset x
-                        this.currentPiece.shape = originalShape; // Revert if no valid position found
+                        this.currentPiece.x = originalX;
+                        this.currentPiece.shape = originalShape;
+                        console.log(`Player ${this.playerIndex + 1} rotation failed.`);
+                    } else {
+                        console.log(`Player ${this.playerIndex + 1} rotated and wall-kicked.`);
                     }
+                } else {
+                    console.log(`Player ${this.playerIndex + 1} rotated successfully.`);
                 }
             }
 
             // Display Next Piece
             drawNextPiece() {
                 this.nextCtx.clearRect(0, 0, this.nextPieceCanvas.width, this.nextPieceCanvas.height);
-                // Center the next piece in its display area
                 const pieceWidth = this.nextPiece.shape[0].length;
                 const pieceHeight = this.nextPiece.shape.length;
                 const startX = (this.nextPieceCanvas.width / (BLOCK_SIZE * (window.devicePixelRatio || 1)) - pieceWidth) / 2;
                 const startY = (this.nextPieceCanvas.height / (BLOCK_SIZE * (window.devicePixelRatio || 1)) - pieceHeight) / 2;
                 this.drawPiece(this.nextPiece, this.nextCtx, startX, startY);
+                console.log(`Player ${this.playerIndex + 1} next piece drawn.`);
             }
 
             // Move piece down (soft drop)
             softDrop() {
+                // console.log(`Player ${this.playerIndex + 1} soft dropping. Current Y: ${this.currentPiece.y}`);
                 this.currentPiece.y++;
                 if (this.checkCollision(this.currentPiece)) {
                     this.currentPiece.y--;
@@ -504,13 +514,15 @@
                     if (this.checkCollision(this.currentPiece)) {
                         this.gameOver = true;
                         showMessage(`Player ${this.playerIndex + 1} Game Over!`, `Your score: ${this.score}`);
+                        console.error(`Player ${this.playerIndex + 1} Game Over detected on new piece spawn.`);
                     }
                 }
-                this.lastDropTime = performance.now();
+                this.lastDropTime = Date.now(); // Use Date.now()
             }
 
             // Hard drop
             hardDrop() {
+                console.log(`Player ${this.playerIndex + 1} hard dropping.`);
                 while (!this.checkCollision(this.currentPiece, 0, 1)) {
                     this.currentPiece.y++;
                 }
@@ -522,45 +534,51 @@
                 if (this.checkCollision(this.currentPiece)) {
                     this.gameOver = true;
                     showMessage(`Player ${this.playerIndex + 1} Game Over!`, `Your score: ${this.score}`);
+                    console.error(`Player ${this.playerIndex + 1} Game Over detected on hard drop.`);
                 }
-                this.lastDropTime = performance.now();
+                this.lastDropTime = Date.now(); // Use Date.now()
             }
 
             // Move piece left
             moveLeft() {
+                console.log(`Player ${this.playerIndex + 1} moving left.`);
                 const originalX = this.currentPiece.x;
                 this.currentPiece.x--;
                 if (this.checkCollision(this.currentPiece)) {
                     this.currentPiece.x = originalX;
+                    console.log(`Player ${this.playerIndex + 1} left move blocked.`);
                 }
             }
 
             // Move piece right
             moveRight() {
+                console.log(`Player ${this.playerIndex + 1} moving right.`);
                 const originalX = this.currentPiece.x;
                 this.currentPiece.x++;
                 if (this.checkCollision(this.currentPiece)) {
                     this.currentPiece.x = originalX;
+                    console.log(`Player ${this.playerIndex + 1} right move blocked.`);
                 }
             }
         }
 
         // --- Game Loop ---
-        let animationFrameId = null; // Single animation frame ID for the main loop
+        let gameLoopTimeoutId = null; // Changed from animationFrameId to hold setTimeout ID
 
-        function update(time = 0) {
+        function update() { // Removed time parameter as setTimeout doesn't provide it
+            // console.log(`Update loop running.`);
             let allGamesOver = true;
             gameInstances.forEach(gameState => {
-                if (gameState.gameOver) return; // Skip if game is over for this player
-                allGamesOver = false; // At least one game is still active
+                if (gameState.gameOver) return;
+                allGamesOver = false;
 
-                const deltaTime = time - gameState.lastDropTime;
+                const currentTime = Date.now(); // Use Date.now()
+                const deltaTime = currentTime - gameState.lastDropTime;
 
                 if (deltaTime > gameState.dropInterval) {
-                    gameState.softDrop(); // Use the softDrop method
+                    gameState.softDrop();
                 }
 
-                // Clear canvas and redraw
                 gameState.ctx.clearRect(0, 0, gameState.gameCanvas.width, gameState.gameCanvas.height);
                 gameState.drawBoard();
                 if (gameState.currentPiece) {
@@ -568,13 +586,12 @@
                 }
             });
 
-            // Poll gamepads only if at least one game is active
             if (!allGamesOver) {
-                pollGamepads();
-                animationFrameId = requestAnimationFrame(update);
+                gameLoopTimeoutId = setTimeout(update, 1000 / 60); // Aim for roughly 60 FPS, or adjust as needed
             } else {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null; // Reset
+                clearTimeout(gameLoopTimeoutId);
+                gameLoopTimeoutId = null;
+                console.log("All games over. Game loop stopped.");
             }
         }
 
@@ -583,162 +600,122 @@
             messageTitle.textContent = title;
             messageText.textContent = text;
             messageBox.style.display = 'flex';
+            console.log(`Displaying message: ${title} - ${text}`);
         }
 
         function hideMessage() {
             messageBox.style.display = 'none';
+            console.log("Hiding message box.");
         }
 
         // --- Gamepad Support ---
-        let prevGamepadStates = {}; // To track button presses (not just holds)
+        let prevGamepadStates = {};
 
         function pollGamepads() {
-            const currentPads = navigator.getGamepads ? navigator.getGamepads() : [];
-            // Check for late join via gamepad connection
-            const connectedGamepadCount = currentPads.filter(g => g !== null).length;
-            if (gameInstances.length === 1 && connectedGamepadCount >= 2) { // If currently 1 player and 2+ gamepads detected
-                initGames(); // Re-initialize to 2-player mode
-                return; // Game will restart, so stop polling for this frame
-            }
+            try {
+                const currentPads = navigator.getGamepads ? navigator.getGamepads() : [];
+                const connectedGamepadCount = currentPads.filter(g => g !== null).length;
 
-            for (let i = 0; i < currentPads.length && i < gameInstances.length; i++) {
-                const pad = currentPads[i];
-                if (pad && gameInstances[i] && !gameInstances[i].gameOver) {
-                    if (!prevGamepadStates[i]) {
-                        prevGamepadStates[i] = { buttons: pad.buttons.map(b => b.pressed) };
-                    }
+                if (gameInstances.length === 1 && connectedGamepadCount >= 2) {
+                    console.log("Late join detected via gamepad. Re-initializing games.");
+                    initGames();
+                    return;
+                }
 
-                    const gameState = gameInstances[i];
-
-                    // Check buttons
-                    pad.buttons.forEach((button, buttonIndex) => {
-                        if (button.pressed && !prevGamepadStates[i].buttons[buttonIndex]) {
-                            // Button was just pressed
-                            handleGamepadInput(gameState, buttonIndex);
+                for (let i = 0; i < currentPads.length && i < gameInstances.length; i++) {
+                    const pad = currentPads[i];
+                    if (pad && gameInstances[i] && !gameInstances[i].gameOver) {
+                        if (!prevGamepadStates[i]) {
+                            prevGamepadStates[i] = { buttons: pad.buttons.map(b => b.pressed) };
+                            console.log(`Initialized prevGamepadStates for pad ${i}.`);
                         }
-                    });
 
-                    // Update previous state for next frame
-                    prevGamepadStates[i].buttons = pad.buttons.map(b => b.pressed);
+                        const gameState = gameInstances[i];
 
-                    // Check axes for continuous movement (D-pad/Analog sticks)
-                    const axisThreshold = 0.5;
+                        pad.buttons.forEach((button, buttonIndex) => {
+                            if (button.pressed && !prevGamepadStates[i].buttons[buttonIndex]) {
+                                console.log(`Gamepad ${i} button ${buttonIndex} pressed.`);
+                                handleGamepadInput(gameState, buttonIndex);
+                            }
+                        });
 
-                    // Left/Right movement from axes (e.g., left stick horizontal axis 0)
-                    if (pad.axes[0] < -axisThreshold) {
-                        gameState.moveLeft();
-                    } else if (pad.axes[0] > axisThreshold) {
-                        gameState.moveRight();
-                    }
+                        prevGamepadStates[i].buttons = pad.buttons.map(b => b.pressed);
 
-                    // Soft drop from axes (e.g., left stick vertical axis 1)
-                    if (pad.axes[1] > axisThreshold) {
-                        gameState.softDrop();
+                        const axisThreshold = 0.5;
+                        if (pad.axes[0] < -axisThreshold) { gameState.moveLeft(); }
+                        else if (pad.axes[0] > axisThreshold) { gameState.moveRight(); }
+                        if (pad.axes[1] > axisThreshold) { gameState.softDrop(); }
                     }
                 }
+            } catch (e) {
+                console.error("Error in pollGamepads:", e);
             }
         }
 
         function handleGamepadInput(gameState, buttonIndex) {
-            // Common gamepad button mappings
+            console.log(`Handling gamepad input for Player ${gameState.playerIndex + 1}, button: ${buttonIndex}`);
             switch (buttonIndex) {
-                case 0: // A button (Xbox), Cross (PlayStation) - Rotate
-                case 1: // B button (Xbox), Circle (PlayStation) - Rotate
-                case 12: // D-pad Up
-                    gameState.rotate();
-                    break;
-                case 13: // D-pad Down - Soft Drop (on press)
-                    gameState.softDrop();
-                    break;
-                case 14: // D-pad Left
-                    gameState.moveLeft();
-                    break;
-                case 15: // D-pad Right
-                    gameState.moveRight();
-                    break;
-                case 2: // X button (Xbox), Square (PlayStation) - Hard Drop
-                case 3: // Y button (Xbox), Triangle (PlayStation) - Hard Drop
-                case 7: // Right Trigger (often for hard drop)
-                    gameState.hardDrop();
-                    break;
+                case 0: case 1: case 12: gameState.rotate(); break;
+                case 13: gameState.softDrop(); break;
+                case 14: gameState.moveLeft(); break;
+                case 15: gameState.moveRight(); break;
+                case 2: case 3: case 7: gameState.hardDrop(); break;
             }
         }
 
         // --- Keyboard Controls (for Player 1 and Player 2) ---
         document.addEventListener('keydown', e => {
+            console.log(`Keydown event: ${e.key}`);
             // Player 1 controls (Arrow keys, Shift)
             if (gameInstances.length > 0 && !gameInstances[0].gameOver) {
                 const player1GameState = gameInstances[0];
                 switch (e.key) {
-                    case 'ArrowLeft':
-                        player1GameState.moveLeft();
-                        break;
-                    case 'ArrowRight':
-                        player1GameState.moveRight();
-                        break;
-                    case 'ArrowDown':
-                        player1GameState.softDrop();
-                        break;
-                    case 'ArrowUp':
-                    case ' ': // Spacebar for rotation
-                        player1GameState.rotate();
-                        break;
-                    case 'Shift': // Hard drop
-                        player1GameState.hardDrop();
-                        break;
+                    case 'ArrowLeft': player1GameState.moveLeft(); break;
+                    case 'ArrowRight': player1GameState.moveRight(); break;
+                    case 'ArrowDown': player1GameState.softDrop(); break;
+                    case 'ArrowUp': case ' ': player1GameState.rotate(); break;
+                    case 'Shift': player1GameState.hardDrop(); break;
                 }
             }
 
             // Player 2 controls (WASD, Q)
-            // Check for late join via WASD
-            if (gameInstances.length === 1 && !wasdUsedForPlayer2) { // Only check if currently in 1-player mode
+            if (gameInstances.length === 1 && !wasdUsedForPlayer2) {
                 const key = e.key.toLowerCase();
                 if (['w', 'a', 's', 'd', 'q'].includes(key)) {
                     wasdUsedForPlayer2 = true;
-                    initGames(); // Re-initialize to 2-player mode
-                    e.preventDefault(); // Prevent default browser action for keys like 'space' if it was also 'w'
-                    return; // Stop further processing for this keydown, game will restart
+                    console.log("Late join detected via WASD. Re-initializing games.");
+                    initGames();
+                    e.preventDefault();
+                    return;
                 }
             }
 
             if (gameInstances.length > 1 && !gameInstances[1].gameOver) {
                 const player2GameState = gameInstances[1];
-                switch (e.key.toLowerCase()) { // Use toLowerCase to handle both 'W' and 'w'
-                    case 'a':
-                        player2GameState.moveLeft();
-                        e.preventDefault();
-                        break;
-                    case 'd':
-                        player2GameState.moveRight();
-                        e.preventDefault();
-                        break;
-                    case 's':
-                        player2GameState.softDrop();
-                        e.preventDefault();
-                        break;
-                    case 'w': // W for rotation
-                        player2GameState.rotate();
-                        e.preventDefault();
-                        break;
-                    case 'q': // Q for hard drop
-                        player2GameState.hardDrop();
-                        e.preventDefault();
-                        break;
+                switch (e.key.toLowerCase()) {
+                    case 'a': player2GameState.moveLeft(); e.preventDefault(); break;
+                    case 'd': player2GameState.moveRight(); e.preventDefault(); break;
+                    case 's': player2GameState.softDrop(); e.preventDefault(); break;
+                    case 'w': player2GameState.rotate(); e.preventDefault(); break;
+                    case 'q': player2GameState.hardDrop(); e.preventDefault(); break;
                 }
             }
         });
 
         restartButton.addEventListener('click', () => {
+            console.log("Restart button clicked.");
             hideMessage();
-            initGames(); // Re-initialize all games
+            initGames();
         });
 
         // --- Initial Game Setup ---
         function initGames() {
-            // Cancel any ongoing animation frame to prevent conflicts during UI rebuild
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
+            console.log("initGames called.");
+            // Clear any existing timeout to prevent multiple loops running
+            if (gameLoopTimeoutId) {
+                clearTimeout(gameLoopTimeoutId);
+                gameLoopTimeoutId = null;
+                console.log("Cleared previous game loop timeout.");
             }
 
             const player1BoardContainer = document.getElementById('player1-board-container');
@@ -747,28 +724,27 @@
             const player2InfoBlock = document.getElementById('player2-info-block');
             const centralInfoArea = document.getElementById('central-info-area');
 
-
             const connectedGamepads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(g => g !== null) : [];
-
-            let desiredNumPlayers = Math.max(1, connectedGamepads.length); // Start with at least 1 player (keyboard P1)
+            let desiredNumPlayers = Math.max(1, connectedGamepads.length);
             if (wasdUsedForPlayer2) {
-                desiredNumPlayers = Math.max(desiredNumPlayers, 2); // Force 2 players if WASD was used
+                desiredNumPlayers = Math.max(desiredNumPlayers, 2);
             }
-            desiredNumPlayers = Math.min(desiredNumPlayers, MAX_PLAYERS); // Cap at MAX_PLAYERS
+            desiredNumPlayers = Math.min(desiredNumPlayers, MAX_PLAYERS);
+            console.log(`Desired number of players: ${desiredNumPlayers}`);
 
-            // Show/hide player 2 elements based on desired number of players
             if (desiredNumPlayers === 2) {
                 player2BoardContainer.style.display = 'flex';
                 player2InfoBlock.style.display = 'flex';
-                centralInfoArea.classList.add('two-players'); /* Add class for side-by-side stats */
+                centralInfoArea.classList.add('two-players');
+                console.log("Displaying two-player UI.");
             } else {
                 player2BoardContainer.style.display = 'none';
                 player2InfoBlock.style.display = 'none';
-                centralInfoArea.classList.remove('two-players'); /* Remove class if only one player */
+                centralInfoArea.classList.remove('two-players');
+                console.log("Displaying one-player UI.");
             }
 
-            // Re-initialize gameInstances array (important for a clean restart)
-            gameInstances = [];
+            gameInstances = []; // Reset game instances
 
             // Initialize Player 1
             const gameCanvas0 = document.getElementById('gameCanvas-0');
@@ -776,6 +752,7 @@
             const score0 = document.getElementById('score-0');
             const level0 = document.getElementById('level-0');
             gameInstances.push(new GameState(0, gameCanvas0, nextPieceCanvas0, score0, level0));
+            console.log("Player 1 GameState added.");
 
             // Initialize Player 2 if needed
             if (desiredNumPlayers === 2) {
@@ -784,9 +761,9 @@
                 const score1 = document.getElementById('score-1');
                 const level1 = document.getElementById('level-1');
                 gameInstances.push(new GameState(1, gameCanvas1, nextPieceCanvas1, score1, level1));
+                console.log("Player 2 GameState added.");
             }
 
-            // Always reset the state of all active games
             gameInstances.forEach(gameState => {
                 gameState.initBoard();
                 gameState.score = 0;
@@ -798,9 +775,9 @@
                 gameState.currentPiece = gameState.getRandomPiece();
                 gameState.nextPiece = gameState.getRandomPiece();
                 gameState.drawNextPiece();
-                gameState.lastDropTime = performance.now();
+                gameState.lastDropTime = Date.now(); // Use Date.now()
+                console.log(`Player ${gameState.playerIndex + 1} game state reset.`);
 
-                // Adjust canvas size for high-DPI screens and responsiveness
                 const dpr = window.devicePixelRatio || 1;
                 gameState.gameCanvas.width = CANVAS_WIDTH * dpr;
                 gameState.gameCanvas.height = CANVAS_HEIGHT * dpr;
@@ -813,23 +790,23 @@
                 gameState.nextCtx.scale(dpr, dpr);
                 gameState.nextPieceCanvas.style.width = '120px';
                 gameState.nextPieceCanvas.style.height = '120px';
+                console.log(`Player ${gameState.playerIndex + 1} canvas resized.`);
             });
 
-            // Start the main animation loop if not already running
-            if (!animationFrameId) {
-                animationFrameId = requestAnimationFrame(update);
+            // Start the game loop using setTimeout
+            if (!gameLoopTimeoutId) {
+                gameLoopTimeoutId = setTimeout(update, 1000 / 60); // Aim for ~60 FPS
+                console.log("Game loop started with setTimeout.");
             }
 
-            // Reset WASD flag after initialization (important for subsequent restarts)
             wasdUsedForPlayer2 = false;
         }
 
-        // Event listeners for gamepad connection/disconnection
         window.addEventListener("gamepadconnected", initGames);
         window.addEventListener("gamepaddisconnected", initGames);
 
-        // Initial call on window load
         window.onload = function () {
+            console.log("Window loaded. Starting game initialization.");
             initGames();
         };
     </script>
