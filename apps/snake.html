@@ -117,7 +117,7 @@
         // --- Game Constants and Variables ---
         const gridSize = 20;
         let players = [];
-        let apple = {};
+        let apples = []; // Changed to an array for multiple apples
         let gameSpeed = 100;
         let particles = [];
         let gameActive = false;
@@ -155,12 +155,15 @@
             }
         }
 
-        /** Efficiently places an apple on a random grid location that is not occupied by any snake. */
+        /** Efficiently places a new apple on a random grid location that is not occupied. */
         function spawnApple() {
-            const allSnakeCoordinates = new Set();
+            const allOccupiedCoordinates = new Set();
+            // Add all snake segments to occupied set
             players.forEach(p => {
-                if (p) p.snake.forEach(segment => allSnakeCoordinates.add(`${segment.x},${segment.y}`));
+                if (p) p.snake.forEach(segment => allOccupiedCoordinates.add(`${segment.x},${segment.y}`));
             });
+            // Add all existing apple locations to occupied set
+            apples.forEach(a => allOccupiedCoordinates.add(`${a.x},${a.y}`));
 
             const availableSpots = [];
             const cols = Math.floor(canvas.width / gridSize);
@@ -169,7 +172,7 @@
                 for (let y = 0; y < rows; y++) {
                     const gridX = x * gridSize;
                     const gridY = y * gridSize;
-                    if (!allSnakeCoordinates.has(`${gridX},${gridY}`)) {
+                    if (!allOccupiedCoordinates.has(`${gridX},${gridY}`)) {
                         availableSpots.push({ x: gridX, y: gridY });
                     }
                 }
@@ -179,8 +182,7 @@
                 return;
             }
             const newApplePosition = availableSpots[Math.floor(Math.random() * availableSpots.length)];
-            apple.x = newApplePosition.x;
-            apple.y = newApplePosition.y;
+            apples.push(newApplePosition); // Add new apple to the array
         }
         
         /** The main game loop. */
@@ -194,7 +196,7 @@
 
             window.gameLoopTimeout = setTimeout(() => {
                 clearCanvas();
-                drawApple();
+                drawApples();
                 players.forEach(p => { if(p) moveSnake(p); });
                 updateAndDrawParticles();
                 players.forEach(p => { if(p) drawSnake(p); });
@@ -233,13 +235,15 @@
             });
         }
 
-        /** Draws the apple on the canvas. */
-        function drawApple() {
-            if (!gameActive || (!apple.x && apple.x !== 0)) return;
+        /** Draws all apples on the canvas. */
+        function drawApples() {
+            if (!gameActive) return;
             ctx.fillStyle = '#e74c3c';
             ctx.strokeStyle = '#c0392b';
-            ctx.fillRect(apple.x, apple.y, gridSize, gridSize);
-            ctx.strokeRect(apple.x, apple.y, gridSize, gridSize);
+            apples.forEach(apple => {
+                ctx.fillRect(apple.x, apple.y, gridSize, gridSize);
+                ctx.strokeRect(apple.x, apple.y, gridSize, gridSize);
+            });
         }
 
         /** Updates a snake's position, handles wall bouncing, and checks for apple consumption. */
@@ -263,12 +267,21 @@
             const head = { x: player.snake[0].x + player.dx, y: player.snake[0].y + player.dy };
             player.snake.unshift(head);
 
-            if (head.x === apple.x && head.y === apple.y) {
-                player.score += 10;
-                updateScores();
-                spawnApple();
-                if(gameSpeed > 50) gameSpeed -= 2;
-            } else {
+            let ateApple = false;
+            for (let i = apples.length - 1; i >= 0; i--) {
+                const apple = apples[i];
+                if (head.x === apple.x && head.y === apple.y) {
+                    player.score += 10;
+                    updateScores();
+                    apples.splice(i, 1); // Remove eaten apple
+                    spawnApple(); // Add a new apple to replace it
+                    if(gameSpeed > 50) gameSpeed -= 2;
+                    ateApple = true;
+                    break; // A snake can only eat one apple per frame
+                }
+            }
+
+            if (!ateApple) {
                 player.snake.pop();
             }
         }
@@ -325,13 +338,14 @@
         function init() {
             resizeCanvas(); 
             players = [createPlayer(1)];
+            apples = [];
             gameSpeed = 100;
             particles = [];
             gameActive = true;
             updateScores();
             score2Element.style.display = 'none';
             gameOverScreen.style.display = 'none';
-            spawnApple();
+            spawnApple(); // Spawn the first apple
             clearTimeout(window.gameLoopTimeout); 
             gameLoop();
         }
@@ -364,11 +378,17 @@
                 players.forEach(p => {
                     if (p && p.snake[0].x >= canvas.width || p.snake[0].y >= canvas.height) endGame();
                 });
-                if ((apple.x && apple.x >= canvas.width) || (apple.y && apple.y >= canvas.height)) spawnApple();
+                // Check if any apple is out of bounds
+                for (let i = apples.length - 1; i >= 0; i--) {
+                    if (apples[i].x >= canvas.width || apples[i].y >= canvas.height) {
+                        apples.splice(i, 1);
+                        spawnApple();
+                    }
+                }
             }
             clearCanvas();
             updateAndDrawParticles();
-            drawApple();
+            drawApples();
             players.forEach(p => { if(p) drawSnake(p); });
         }
         
@@ -381,22 +401,21 @@
                 const gp = gamepads[i];
                 if (!gp) continue;
 
-                // Find if a player is already using this gamepad
                 const playerUsingGamepad = players.find(p => p && p.gamepadIndex === i);
                 
-                // Player 2 join logic: if game is active, in 1-player mode, and an unassigned gamepad presses start
-                if (gameActive && !playerUsingGamepad && players.length === 1 && gp.buttons[9] && gp.buttons[9].pressed) {
+                // Player 2 join logic: if game is active, in 1-player mode, and an unassigned gamepad has any input
+                if (gameActive && !playerUsingGamepad && players.length === 1 && gp.buttons.some(b => b.pressed)) {
                     if (!players[1]) { // Ensure P2 doesn't already exist
                         const p2 = createPlayer(2);
                         p2.gamepadIndex = i;
                         players[1] = p2;
                         score2Element.style.display = 'block';
+                        spawnApple(); // Add a second apple for player 2
                     }
                 }
 
                 // Assign first detected active gamepad to P1 if they don't have one
                 if (players[0] && players[0].gamepadIndex === null && !players.find(p => p && p.gamepadIndex === i)) {
-                    // Check for any button press to assign P1
                     if (gp.buttons.some(b => b.pressed)) {
                         players[0].gamepadIndex = i;
                     }
@@ -439,8 +458,10 @@
         }, { passive: false });
         
         // --- Initial setup ---
-        init();
-        gamepadLoop();
+        window.addEventListener('load', () => {
+            init();
+            gamepadLoop();
+        });
 
     </script>
 </body>
