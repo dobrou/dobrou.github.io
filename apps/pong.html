@@ -49,29 +49,12 @@
             font-size: 0.8em;
             color: #ccc;
         }
-        /* Info text for controls */
-        .info-text {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            font-size: 1em;
-            color: #888;
-            transition: opacity 0.5s;
-        }
-        .info-text.hidden {
-            opacity: 0;
-        }
     </style>
 </head>
 <body>
     <div id="winnerOverlay" class="overlay">
         <h1 id="winnerText"></h1>
         <p>Click or Tap to Play Again</p>
-    </div>
-
-    <div class="info-text">
-        <p id="p1-control-info">P1: (Move to assign)</p>
-        <p id="p2-control-info">P2: (Move to assign or AI)</p>
     </div>
 
     <canvas id="pongCanvas"></canvas>
@@ -81,8 +64,6 @@
         const ctx = canvas.getContext('2d');
         const winnerOverlay = document.getElementById('winnerOverlay');
         const winnerText = document.getElementById('winnerText');
-        const p1ControlInfo = document.getElementById('p1-control-info');
-        const p2ControlInfo = document.getElementById('p2-control-info');
 
         // --- Game Configuration ---
         const PADDLE_WIDTH = 15;
@@ -92,7 +73,7 @@
         const BALL_RADIUS = 10;
         const PADDLE_SPEED = 8;
         const AI_SPEED = 6;
-        const WINNING_SCORE = 15;
+        const WINNING_SCORE = 10;
 
         let ball, player1, player2, keys, gamepads;
         let scores = { p1: 0, p2: 0 };
@@ -111,6 +92,8 @@
             GAMEPAD_0: 'Gamepad 1',
             GAMEPAD_1: 'Gamepad 2',
             GYRO: 'Gyroscope',
+            TOUCH_LEFT: 'Touch (Left)',
+            TOUCH_RIGHT: 'Touch (Right)',
             AI: 'Computer'
         };
 
@@ -124,19 +107,44 @@
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             const now = audioCtx.currentTime;
-            const duration = 0.15;
+            
             oscillator.connect(gainNode);
             gainNode.connect(audioCtx.destination);
-            gainNode.gain.setValueAtTime(0.3, now);
             oscillator.type = 'sine';
+
             switch(type) {
-                case 'paddle': oscillator.frequency.setValueAtTime(440, now); break;
-                case 'wall': oscillator.frequency.setValueAtTime(150, now); break;
-                case 'score': oscillator.frequency.setValueAtTime(660, now); gainNode.gain.setValueAtTime(0.4, now); break;
+                case 'paddle':
+                    gainNode.gain.setValueAtTime(0.3, now);
+                    oscillator.frequency.setValueAtTime(440, now);
+                    gainNode.gain.linearRampToValueAtTime(0.0001, now + 0.15);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.15);
+                    break;
+                case 'wall':
+                    gainNode.gain.setValueAtTime(0.3, now);
+                    oscillator.frequency.setValueAtTime(150, now);
+                    gainNode.gain.linearRampToValueAtTime(0.0001, now + 0.15);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.15);
+                    break;
+                case 'score':
+                    gainNode.gain.setValueAtTime(0.4, now);
+                    oscillator.frequency.setValueAtTime(660, now);
+                    gainNode.gain.linearRampToValueAtTime(0.0001, now + 0.15);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.15);
+                    break;
+                case 'win': // Calm fanfare sound
+                    gainNode.gain.setValueAtTime(0.5, now);
+                    oscillator.frequency.setValueAtTime(261.63, now); // C4
+                    oscillator.frequency.linearRampToValueAtTime(329.63, now + 0.2); // E4
+                    oscillator.frequency.linearRampToValueAtTime(392.00, now + 0.4); // G4
+                    oscillator.frequency.linearRampToValueAtTime(523.25, now + 0.6); // C5
+                    gainNode.gain.linearRampToValueAtTime(0.0001, now + 0.8);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.8);
+                    break;
             }
-            oscillator.start(now);
-            gainNode.gain.linearRampToValueAtTime(0.0001, now + duration);
-            oscillator.stop(now + duration);
         }
 
         // --- Game Objects ---
@@ -153,7 +161,6 @@
             
             player1Control = null;
             player2Control = null;
-            updateControlInfo();
 
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -186,14 +193,19 @@
                 player2.x = canvas.width - 30 - PADDLE_WIDTH;
             });
             
+            // Gyroscope Listener
             if ('DeviceOrientationEvent' in window) {
                 window.addEventListener('deviceorientation', (e) => {
                     if (e.gamma !== null) {
                         assignControl(controlTypes.GYRO);
-                        handleGyro(e.gamma, player1Control === controlTypes.GYRO ? player1 : player2);
+                        handleGyro(e.gamma);
                     }
                 });
             }
+            
+            // Touch Listeners
+            canvas.addEventListener('touchstart', handleTouch);
+            canvas.addEventListener('touchmove', handleTouch);
 
             const startListener = (e) => {
                 setupAudio();
@@ -203,8 +215,33 @@
                 }
             };
             document.body.addEventListener('click', startListener);
-            document.body.addEventListener('touchstart', startListener);
+            document.body.addEventListener('touchend', startListener); // Also use touchend for restart
         }
+        
+        // --- Touch Handling ---
+        function handleTouch(e) {
+            e.preventDefault(); // Prevent scrolling
+            for (const touch of e.touches) {
+                if (touch.clientX < canvas.width / 2) {
+                    // Left side of screen
+                    assignControl(controlTypes.TOUCH_LEFT);
+                    if (player1Control === controlTypes.TOUCH_LEFT) {
+                        player1.y = touch.clientY - player1.height / 2;
+                    } else if (player2Control === controlTypes.TOUCH_LEFT) {
+                        player2.y = touch.clientY - player2.height / 2;
+                    }
+                } else {
+                    // Right side of screen
+                    assignControl(controlTypes.TOUCH_RIGHT);
+                     if (player1Control === controlTypes.TOUCH_RIGHT) {
+                        player1.y = touch.clientY - player1.height / 2;
+                    } else if (player2Control === controlTypes.TOUCH_RIGHT) {
+                        player2.y = touch.clientY - player2.height / 2;
+                    }
+                }
+            }
+        }
+
 
         // --- Control Assignment Logic ---
         function assignControl(type) {
@@ -213,19 +250,11 @@
             } else if (!player2Control && player1Control !== type) {
                 player2Control = type;
             }
-            updateControlInfo();
         }
 
         function detectControl(key) {
             if (['w', 's'].includes(key)) assignControl(controlTypes.KEYBOARD_WS);
             else if (['arrowup', 'arrowdown'].includes(key)) assignControl(controlTypes.KEYBOARD_ARROWS);
-        }
-        
-        function updateControlInfo() {
-            if (player1Control) p1ControlInfo.classList.add('hidden'); else p1ControlInfo.classList.remove('hidden');
-            if (player2Control) p2ControlInfo.classList.add('hidden'); else p2ControlInfo.classList.remove('hidden');
-            p1ControlInfo.textContent = `P1: ${player1Control || '(Move to assign)'}`;
-            p2ControlInfo.textContent = `P2: ${player2Control || '(AI or move to assign)'}`;
         }
 
         // --- Game Logic Update ---
@@ -256,13 +285,13 @@
                     if(keys['a']) change = -5;
                     if(keys['d']) change = 5;
                     break;
-                case controlTypes.KEYBOARD_ARROWS: // Using J/L for P2 as an example
+                case controlTypes.KEYBOARD_ARROWS:
                     if(keys['j']) change = -5;
                     if(keys['l']) change = 5;
                     break;
                 case controlTypes.GAMEPAD_0:
-                    if(gamepads[0]?.buttons[14]?.pressed) change = -5; // D-pad left
-                    if(gamepads[0]?.buttons[15]?.pressed) change = 5; // D-pad right
+                    if(gamepads[0]?.buttons[14]?.pressed) change = -5;
+                    if(gamepads[0]?.buttons[15]?.pressed) change = 5;
                     break;
                 case controlTypes.GAMEPAD_1:
                     if(gamepads[1]?.buttons[14]?.pressed) change = -5;
@@ -297,12 +326,17 @@
                         if (Math.abs(axis) > 0.1) return axis * PADDLE_SPEED;
                     }
                     return 0;
-                case controlTypes.GYRO: return 0;
+                // Gyro and Touch are handled directly, not via velocity
+                case controlTypes.GYRO: 
+                case controlTypes.TOUCH_LEFT:
+                case controlTypes.TOUCH_RIGHT:
+                    return 0;
                 default: return 0;
             }
         }
 
-        function handleGyro(gamma, paddle) {
+        function handleGyro(gamma) {
+            const paddle = (player1Control === controlTypes.GYRO) ? player1 : player2;
             if (!paddle) return;
             let tilt = Math.max(-60, Math.min(60, gamma));
             const targetY = ((tilt + 60) / 120) * (canvas.height - paddle.height);
@@ -310,16 +344,25 @@
         }
 
         function movePaddles() {
-            if (player1Control !== controlTypes.GYRO) player1.y += player1.dy;
-            if (player2Control !== controlTypes.GYRO) player2.y += player2.dy;
+            // Only move via dy if not controlled by Gyro or Touch
+            if (![controlTypes.GYRO, controlTypes.TOUCH_LEFT, controlTypes.TOUCH_RIGHT].includes(player1Control)) {
+                 player1.y += player1.dy;
+            }
+            if (![controlTypes.GYRO, controlTypes.TOUCH_LEFT, controlTypes.TOUCH_RIGHT].includes(player2Control)) {
+                 player2.y += player2.dy;
+            }
 
+            // Clamp P1
             player1.y = Math.max(0, Math.min(canvas.height - player1.height, player1.y));
 
+            // AI logic for P2 if no human control
             if (!player2Control) {
                 const paddleCenter = player2.y + player2.height / 2;
                 if (paddleCenter < ball.y - 35) player2.y += AI_SPEED;
                 else if (paddleCenter > ball.y + 35) player2.y -= AI_SPEED;
             }
+            
+            // Clamp P2
             player2.y = Math.max(0, Math.min(canvas.height - player2.height, player2.y));
         }
 
@@ -347,10 +390,10 @@
             if (hitPlayer1 || hitPlayer2) {
                 playSound('paddle');
                 createSparkles(ball.x, ball.y);
-                ball.dx *= -1.05;
+                ball.dx *= -1.02;
                 let paddle = hitPlayer1 ? player1 : player2;
                 let deltaY = ball.y - (paddle.y + paddle.height / 2);
-                ball.dy = deltaY * 0.35;
+                ball.dy = deltaY * 0.25;
             }
         }
         
@@ -366,10 +409,11 @@
         
         function endGame() {
             gameOver = true;
+            playSound('win');
             winnerOverlay.style.display = 'flex';
             clearInterval(fireworksInterval);
             fireworksInterval = setInterval(createFirework, 500);
-            createFirework(); // Launch one immediately
+            createFirework();
             requestAnimationFrame(overlayLoop);
         }
 
