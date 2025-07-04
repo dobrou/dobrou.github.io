@@ -112,7 +112,7 @@
         var finalScoreEl = document.getElementById('final-score');
         var restartButton = document.getElementById('restart-button');
 
-        var players, foods, gameInterval, particles, grid;
+        var players, foods, gameInterval, particles, grid, gameOverLoopId;
         var MAX_PLAYERS = 4;
         var GRID_SIZE = 24;
         var SNAKE_RADIUS = 6;
@@ -162,6 +162,9 @@
             
             gameOverModal.style.display = 'none';
             if (gameInterval) clearInterval(gameInterval);
+            if (gameOverLoopId) cancelAnimationFrame(gameOverLoopId);
+            document.removeEventListener('keydown', handleRestartKey);
+
             gameInterval = setInterval(gameLoop, 1000 / 60);
         }
         
@@ -264,18 +267,15 @@
 
                                     if (occupant.playerId === player.id) {
                                         if (occupant.segmentIndex > 5 && distance < SNAKE_RADIUS) {
-                                            console.log("Game Over Trigger: Player " + player.id + " self-collided with segment " + occupant.segmentIndex + ".");
                                             player.active = false;
                                             return;
                                         }
                                     } else {
                                         if (otherPlayer.spawnTimer === 0 && distance < SNAKE_RADIUS * 2) {
                                             if (occupant.segmentIndex === 0) {
-                                                console.log("Game Over Trigger: Head-on collision between P" + player.id + " and P" + otherPlayer.id + ".");
                                                 player.active = false;
                                                 otherPlayer.active = false;
                                             } else {
-                                                console.log("Game Over Trigger: Player " + player.id + " hit Player " + otherPlayer.id + "'s body.");
                                                 player.active = false;
                                             }
                                             return;
@@ -453,6 +453,26 @@
                 finalScoreEl.textContent = scoreText;
             }
             gameOverModal.style.display = 'flex';
+            document.addEventListener('keydown', handleRestartKey);
+            gameOverLoop();
+        }
+
+        function handleRestartKey(e) {
+            if (e.key === 'Enter') {
+                setup();
+            }
+        }
+
+        function gameOverLoop() {
+            var gamepads = navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads() : []);
+            for (var i = 0; i < gamepads.length; i++) {
+                var gp = gamepads[i];
+                if (gp && gp.buttons[0].pressed) {
+                    setup();
+                    return;
+                }
+            }
+            gameOverLoopId = requestAnimationFrame(gameOverLoop);
         }
 
         function updateScoresUI() {
