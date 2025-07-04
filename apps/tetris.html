@@ -163,6 +163,24 @@
             background-color: #45a049;
         }
 
+        #gamepad-debug {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: 'monospace';
+            font-size: 0.8em;
+            max-width: 300px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1001;
+            display: none; /* Hidden by default, show for debugging */
+            white-space: pre-wrap; /* Preserve whitespace and wrap */
+        }
+
         /* Responsive adjustments: Only stack elements on truly small screens */
         @media (max-width: 768px) {
             .main-game-area {
@@ -250,6 +268,12 @@
         <button id="restartButton">Play Again</button>
     </div>
 
+    <!-- Gamepad Debugging Output -->
+    <div id="gamepad-debug" style="display: block;">
+        <h3>Gamepad Debug</h3>
+        <pre id="gamepad-info"></pre>
+    </div>
+
     <script>
         // --- Game Setup ---
         const CANVAS_WIDTH = 300; // Standard Tetris width (10 blocks * 30px)
@@ -262,6 +286,7 @@
         const messageTitle = document.getElementById('message-title');
         const messageText = document.getElementById('message-text');
         const restartButton = document.getElementById('restartButton');
+        const gamepadInfoDisplay = document.getElementById('gamepad-info'); // Gamepad debug display
 
         let gameInstances = []; // Global array to hold game instances
         const MAX_PLAYERS = 2; // Maximum number of players supported
@@ -497,6 +522,11 @@
 
             // Display Next Piece (Rewritten for direct pixel drawing)
             drawNextPiece() {
+                if (this.gameOver) { // Don't draw if game is over
+                    this.nextCtx.clearRect(0, 0, this.nextPieceCanvas.width, this.nextPieceCanvas.height); // Ensure it's clear
+                    return;
+                }
+
                 this.nextCtx.clearRect(0, 0, this.nextPieceCanvas.width, this.nextPieceCanvas.height);
 
                 const piece = this.nextPiece;
@@ -536,11 +566,9 @@
             // Move piece down (soft drop)
             softDrop() {
                 const currentTime = Date.now();
-                // This softDrop is called both by game loop and manual input.
-                // Only apply cooldown if it's a manual input (i.e., not from the main game loop's automatic drop)
-                // For the game loop, we rely on dropInterval.
-                // For manual input, we debounce.
-                if (currentTime - this.lastActionTime < this.actionCooldown && this.currentPiece.y !== 0) { // Don't debounce initial spawn
+                // Apply cooldown only for manual inputs (not for automatic drop by game loop)
+                // The game loop's drop is controlled by dropInterval
+                if (this.currentPiece.y !== -2 && currentTime - this.lastActionTime < this.actionCooldown) {
                     return;
                 }
 
@@ -551,11 +579,15 @@
                     this.clearLines();
                     this.currentPiece = this.nextPiece;
                     this.nextPiece = this.getRandomPiece();
-                    this.drawNextPiece();
+                    this.drawNextPiece(); // Draw next piece immediately after getting it
+
                     if (this.checkCollision(this.currentPiece)) {
                         this.gameOver = true;
                         showMessage(`Player ${this.playerIndex + 1} Game Over!`, `Your score: ${this.score}`);
                         console.error(`Player ${this.playerIndex + 1} Game Over detected on new piece spawn.`);
+                        this.ctx.clearRect(0, 0, this.gameCanvas.width, this.gameCanvas.height); // Clear main board on game over
+                        this.nextCtx.clearRect(0, 0, this.nextPieceCanvas.width, this.nextPieceCanvas.height); // Clear next piece on game over
+                        return; // Stop further processing for this player
                     }
                 }
                 this.lastDropTime = currentTime;
@@ -574,11 +606,15 @@
                 this.clearLines();
                 this.currentPiece = this.nextPiece;
                 this.nextPiece = this.getRandomPiece();
-                this.drawNextPiece();
+                this.drawNextPiece(); // Draw next piece immediately after getting it
+
                 if (this.checkCollision(this.currentPiece)) {
                     this.gameOver = true;
                     showMessage(`Player ${this.playerIndex + 1} Game Over!`, `Your score: ${this.score}`);
                     console.error(`Player ${this.playerIndex + 1} Game Over detected on hard drop.`);
+                    this.ctx.clearRect(0, 0, this.gameCanvas.width, this.gameCanvas.height); // Clear main board on game over
+                    this.nextCtx.clearRect(0, 0, this.nextPieceCanvas.width, this.nextPieceCanvas.height); // Clear next piece on game over
+                    return; // Stop further processing for this player
                 }
                 this.lastDropTime = currentTime;
                 this.lastActionTime = currentTime;
@@ -619,7 +655,7 @@
         function update() {
             let allGamesOver = true;
             gameInstances.forEach(gameState => {
-                if (gameState.gameOver) return;
+                if (gameState.gameOver) return; // Skip updating this player if their game is over
                 allGamesOver = false;
 
                 const currentTime = Date.now();
@@ -665,12 +701,22 @@
             try {
                 // Ensure navigator.getGamepads exists for compatibility
                 if (!navigator.getGamepads) {
-                    // console.warn("navigator.getGamepads not supported.");
+                    gamepadInfoDisplay.textContent = "Gamepad API not supported.";
                     return;
                 }
 
                 const currentPads = Array.from(navigator.getGamepads()).filter(g => g !== null);
                 const connectedGamepadCount = currentPads.length;
+
+                // Update gamepad debug display
+                let debugOutput = `Connected Gamepads: ${connectedGamepadCount}\n`;
+                currentPads.forEach((pad, i) => {
+                    debugOutput += `Pad ${i}: ${pad.id}\n`;
+                    debugOutput += `  Buttons: [${pad.buttons.map((b, idx) => b.pressed ? `B${idx}` : '').filter(Boolean).join(', ')}]\n`;
+                    debugOutput += `  Axes: [${pad.axes.map(a => a.toFixed(2)).join(', ')}]\n`;
+                });
+                gamepadInfoDisplay.textContent = debugOutput;
+
 
                 if (gameInstances.length === 1 && connectedGamepadCount >= 2) {
                     console.log("Late join detected via gamepad. Re-initializing games.");
@@ -732,11 +778,19 @@
                 }
             } catch (e) {
                 console.error("Error in pollGamepads:", e);
+                gamepadInfoDisplay.textContent = `Error: ${e.message}`; // Display error in debug div
             }
         }
 
         function handleGamepadInput(gameState, buttonIndex) {
             console.log(`Player ${gameState.playerIndex + 1} - Gamepad button ${buttonIndex} triggered action.`);
+            const currentTime = Date.now();
+            // Apply cooldown to gamepad actions to prevent rapid fire
+            if (currentTime - gameState.lastActionTime < gameState.actionCooldown) {
+                console.log(`  -> Action debounced for Player ${gameState.playerIndex + 1}`);
+                return;
+            }
+
             switch (buttonIndex) {
                 case 0: // A (Xbox), Cross (PS)
                 case 1: // B (Xbox), Circle (PS)
@@ -762,15 +816,29 @@
                     gameState.hardDrop();
                     console.log(`  -> Hard Drop`);
                     break;
+                case 9: // Start button (common for menu/restart)
+                    if (messageBox.style.display === 'flex') { // Only restart if game over message is showing
+                        restartButton.click();
+                        console.log(`  -> Restart Game (Gamepad Start Button)`);
+                    }
+                    break;
                 default:
                     console.log(`  -> Unmapped button: ${buttonIndex}`);
                     break;
             }
+            gameState.lastActionTime = currentTime; // Update last action time after successful action
         }
 
         // --- Keyboard Controls (for Player 1 and Player 2) ---
         document.addEventListener('keydown', e => {
             console.log(`Keydown event: ${e.key}`);
+            // Handle restart button with Enter key when message box is visible
+            if (e.key === 'Enter' && messageBox.style.display === 'flex') {
+                restartButton.click();
+                console.log(`Restart Game (Keyboard Enter Key)`);
+                return; // Prevent further key processing
+            }
+
             // Player 1 controls (Arrow keys, Shift)
             if (gameInstances.length > 0 && !gameInstances[0].gameOver) {
                 const player1GameState = gameInstances[0];
