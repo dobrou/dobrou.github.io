@@ -83,6 +83,7 @@
         let currentLevel = 1;
         let maze = [];
         let isGameOver = false;
+        let isTwoPlayerKeyboard = false;
         
         let escapePotion = null;
         let openedWall = null;
@@ -111,7 +112,7 @@
             [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1],[1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1],[1,0,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,0,1],[1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0,1],[1,0,1,0,1,1,1,0,1,1,1,1,1,1,1,0,1,0,1,0,1],[1,0,1,0,1,0,0,0,1,0,0,0,0,0,1,0,1,0,1,0,1],[1,0,1,0,1,0,1,1,1,0,1,1,1,0,1,0,1,0,1,0,1],[1,0,1,0,1,0,1,0,0,0,1,0,0,0,1,0,1,0,1,0,1],[1,0,1,0,1,0,1,0,1,1,1,0,1,1,1,0,1,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,0,0,1,0,0,0,1,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,1,1,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,0,0,0,1,0,0,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,0,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1],[1,0,1,0,1,0,0,0,1,0,0,0,0,0,0,0,1,0,1,0,1],[1,0,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,0,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],
             [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,1],[1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1,1,0,1],[1,1,1,1,1,0,1,0,1,0,1,0,1,0,0,0,1,0,0,0,1],[1,0,0,0,0,0,1,0,1,0,1,0,1,1,1,0,1,0,1,1,1],[1,0,1,1,1,1,1,0,1,0,1,0,0,0,1,0,1,0,1,0,1],[1,0,1,0,0,0,0,0,1,0,1,1,1,0,1,0,1,0,1,0,1],[1,0,1,0,1,1,1,1,1,0,0,0,1,0,1,0,1,0,0,0,1],[1,0,1,0,1,0,0,0,0,0,1,0,1,0,1,0,1,1,1,0,1],[1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,0,0,1,0,1],[1,0,1,0,1,0,1,0,0,0,1,0,1,0,1,1,1,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,1,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],[1,0,0,0,1,0,1,0,1,0,1,0,0,0,1,0,1,0,1,0,1],[1,1,1,1,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0,1],[1,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,1,0,0,0,1],[1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,0,1,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],
             // Level 12 (opraveno)
-            [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,1,0,0,1,0,0,0,0,0,0,0,1,0,0,1,0,0,0,1],[1,0,1,0,1,0,1,1,0,1,0,1,0,1,1,1,0,1,1,0,1,0,1],[1,0,1,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,1,0,1,0,1],[1,0,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,0,1,0,1],[1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,1,0,1],[1,1,1,1,1,0,1,0,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],[1,0,0,0,1,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,0,0,1],[1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,0,1,1,1,1,1,0,1],[1,0,1,0,0,0,1,0,0,0,0,0,1,0,1,0,1,0,0,0,1,0,1],[1,0,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,0,1],[1,0,0,0,1,0,0,0,1,0,1,0,1,0,0,0,1,0,1,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0,1],[1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],[1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1],[1,0,1,0,0,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,1,0,1],[1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,0,1,1,1,1,1],[1,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,1,0,0,0,0,0,1],[1,0,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,1,1,0,1,0,1],[1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,1],[1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,0,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],
+            [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,1,0,0,1,0,0,0,0,0,0,0,1,0,0,1,0,0,0,1],[1,0,1,0,1,0,1,1,0,1,0,1,0,1,1,1,0,1,1,0,1,0,1],[1,0,1,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,1,0,1,0,1],[1,0,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,0,1,0,1],[1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,1,0,1],[1,1,1,1,1,0,1,0,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],[1,0,0,0,1,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,0,0,1],[1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,0,1,1,1,1,1,0,1],[1,0,1,0,0,0,1,0,0,0,0,0,1,0,1,0,1,0,0,0,1,0,1],[1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,0,1,0,1,0,1],[1,0,0,0,1,0,0,0,1,0,1,0,1,0,0,0,1,0,1,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0,1],[1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],[1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1],[1,0,1,0,0,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,1,0,1],[1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,0,1,1,1,1,1],[1,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,1,0,0,0,0,0,1],[1,0,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,1,1,0,1,0,1],[1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,1],[1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,0,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],
             // Finální boss level
             [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,0,1,1,1,1,1,1,1,0,1,0,1,0,1,1,1,1,1,1,1,0,1],[1,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,1,0,1],[1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1,1,1,1,0,1,0,1],[1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],[1,0,1,0,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,0,1,0,1],[1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1],[1,0,1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1,1,0,1],[1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],[1,0,1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1,1,0,1],[1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1],[1,0,1,0,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,0,1,0,1],[1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],[1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1,1,1,1,0,1,0,1],[1,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,1,0,1],[1,0,1,1,1,1,1,1,1,0,1,0,1,0,1,1,1,1,1,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]
         ];
@@ -132,6 +133,11 @@
                     const jumpHeight = Math.sin(jumpProgress * Math.PI); // Parabolická křivka
                     drawSize *= 1 + jumpHeight * 0.5; // Zvětšení až o 50%
                 }
+                
+                if(this.isTrapped && Math.floor(Date.now() / 150) % 2 === 0) {
+                    return; // Blikání
+                }
+
                 ctx.font = `${drawSize}px sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
@@ -146,6 +152,7 @@
                 this.jumpDuration = 500; // ms
                 this.jumpStartTime = 0;
                 this.isTrapped = false;
+                this.isTrapImmune = false;
             }
 
             jump() {
@@ -407,7 +414,7 @@
             players = [new Player(1, 1)];
             
             const pads = navigator.getGamepads();
-            if (pads && pads[0] && pads[1]) {
+            if ((pads && pads[0] && pads[1]) || isTwoPlayerKeyboard) {
                 players.push(new Player(1, 2));
                 players[1].emoji = '🍓';
                 lives = 10;
@@ -463,24 +470,23 @@
                          (potion && bandagePos.x === potion.x && bandagePos.y === potion.y));
                 bandage = new GameObject(bandagePos.x, bandagePos.y, '🩹');
                 
-                for(let i=0; i<3; i++){
-                    let trapPos;
-                    do {
-                        trapPos = getRandomEmptyTile();
-                    } while(isWall(trapPos.x, trapPos.y));
-                    trapBowls.push(new TrapBowl(trapPos.x, trapPos.y));
-                }
+                let trapPos;
+                do {
+                    trapPos = getRandomEmptyTile();
+                } while(isWall(trapPos.x, trapPos.y));
+                trapBowls.push(new TrapBowl(trapPos.x, trapPos.y));
             }
 
             updateUI();
         }
 
         function updateUI() {
-            levelDisplay.textContent = currentLevel;
-            livesDisplay.textContent = "❤️".repeat(lives) + "🖤".repeat(Math.max(0, 10 - lives));
+            const maxLives = players.length > 1 ? 10 : 5;
+            livesDisplay.textContent = "❤️".repeat(lives) + "🖤".repeat(Math.max(0, maxLives - lives));
         }
 
         function restartGame() {
+            isTwoPlayerKeyboard = false;
             lives = 5;
             currentLevel = 1;
             messageModal.classList.add('hidden');
@@ -497,9 +503,10 @@
                 keysPressed['gp0_down'] = pad.axes[1] > 0.5 || pad.buttons[13].pressed;
                 keysPressed['gp0_left'] = pad.axes[0] < -0.5 || pad.buttons[14].pressed;
                 keysPressed['gp0_right'] = pad.axes[0] > 0.5 || pad.buttons[15].pressed;
-                if (pad.buttons[0].pressed) {
+                if (pad.buttons[0].pressed && !pad.buttons[0].lastPressed) {
                     players[0].jump();
                 }
+                pad.buttons[0].lastPressed = pad.buttons[0].pressed;
             }
 
             if (players.length > 1 && pads[1]) {
@@ -508,9 +515,10 @@
                 keysPressed['gp1_down'] = pad.axes[1] > 0.5 || pad.buttons[13].pressed;
                 keysPressed['gp1_left'] = pad.axes[0] < -0.5 || pad.buttons[14].pressed;
                 keysPressed['gp1_right'] = pad.axes[0] > 0.5 || pad.buttons[15].pressed;
-                 if (pad.buttons[0].pressed) {
+                 if (pad.buttons[0].pressed && !pad.buttons[0].lastPressed) {
                     players[1].jump();
                 }
+                pad.buttons[0].lastPressed = pad.buttons[0].pressed;
             }
         }
 
@@ -526,16 +534,16 @@
             const now = Date.now();
             if (now - lastPlayerMove > moveCooldown) {
                 let moved = false;
-                if (keysPressed['ArrowUp'] || keysPressed['w'] || keysPressed['gp0_up']) { players[0].move(0, -1); moved = true; } 
-                else if (keysPressed['ArrowDown'] || keysPressed['s'] || keysPressed['gp0_down']) { players[0].move(0, 1); moved = true; } 
-                else if (keysPressed['ArrowLeft'] || keysPressed['a'] || keysPressed['gp0_left']) { players[0].move(-1, 0); moved = true; } 
-                else if (keysPressed['ArrowRight'] || keysPressed['d'] || keysPressed['gp0_right']) { players[0].move(1, 0); moved = true; }
+                if (keysPressed['arrowup'] || keysPressed['gp0_up']) { players[0].move(0, -1); moved = true; } 
+                else if (keysPressed['arrowdown'] || keysPressed['gp0_down']) { players[0].move(0, 1); moved = true; } 
+                else if (keysPressed['arrowleft'] || keysPressed['gp0_left']) { players[0].move(-1, 0); moved = true; } 
+                else if (keysPressed['arrowright'] || keysPressed['gp0_right']) { players[0].move(1, 0); moved = true; }
                 
                 if (players.length > 1) {
-                    if (keysPressed['gp1_up']) { players[1].move(0, -1); moved = true; } 
-                    else if (keysPressed['gp1_down']) { players[1].move(0, 1); moved = true; } 
-                    else if (keysPressed['gp1_left']) { players[1].move(-1, 0); moved = true; } 
-                    else if (keysPressed['gp1_right']) { players[1].move(1, 0); moved = true; }
+                    if (keysPressed['w'] || keysPressed['gp1_up']) { players[1].move(0, -1); moved = true; } 
+                    else if (keysPressed['s'] || keysPressed['gp1_down']) { players[1].move(0, 1); moved = true; } 
+                    else if (keysPressed['a'] || keysPressed['gp1_left']) { players[1].move(-1, 0); moved = true; } 
+                    else if (keysPressed['d'] || keysPressed['gp1_right']) { players[1].move(1, 0); moved = true; }
                 }
 
                 if (moved) lastPlayerMove = now;
@@ -597,8 +605,10 @@
             }
             
             players.forEach(p_instance => {
-                if (isPlayerInDeadEnd(p_instance) && !escapePotion && !openedWall) {
-                    escapePotion = new GameObject(p_instance.x, p_instance.y, '💥');
+                if (isPlayerInDeadEnd(p_instance) && !p_instance.escapePotion && !openedWall) {
+                    p_instance.escapePotion = new GameObject(p_instance.x, p_instance.y, '💥');
+                } else if (!isPlayerInDeadEnd(p_instance)) {
+                    p_instance.escapePotion = null;
                 }
             });
 
@@ -658,7 +668,7 @@
             });
 
             if (players.length > 1) {
-                if (portal.x === players[0].x && portal.y === players[0].y && portal.x === players[1].x && portal.y === players[1].y) { nextLevel(); }
+                if (portal.x === players[0].x && portal.y === players[0].y && players[1] && portal.x === players[1].x && portal.y === players[1].y) { nextLevel(); }
             } else {
                 if (portal.x === players[0].x && portal.y === players[0].y) { nextLevel(); }
             }
@@ -683,8 +693,8 @@
             }
             
             players.forEach(p_instance => {
-                if (escapePotion && p_instance.x === escapePotion.x && p_instance.y === escapePotion.y) {
-                    escapePotion = null;
+                if (p_instance.escapePotion && p_instance.x === p_instance.escapePotion.x && p_instance.y === p_instance.escapePotion.y) {
+                    p_instance.escapePotion = null;
                     const { x, y } = p_instance;
                     const wallNeighbors = [];
                     const neighbors = [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }];
@@ -710,11 +720,15 @@
                 }
 
                 trapBowls.forEach(trap => {
-                    if(p_instance.x === trap.x && p_instance.y === trap.y && !p_instance.isTrapped){
+                    if(p_instance.x === trap.x && p_instance.y === trap.y && !p_instance.isTrapped && !p_instance.isTrapImmune){
                         p_instance.isTrapped = true;
                         setTimeout(() => {
                             p_instance.isTrapped = false;
-                        }, 2000);
+                            p_instance.isTrapImmune = true;
+                            setTimeout(() => {
+                                p_instance.isTrapImmune = false;
+                            }, 5000);
+                        }, 1500);
                     }
                 });
             });
@@ -735,7 +749,7 @@
             portal.draw();
             if(potion) potion.draw();
             if(bandage) bandage.draw();
-            if(escapePotion) escapePotion.draw();
+            players.forEach(p => { if(p.escapePotion) p.escapePotion.draw() });
             trapBowls.forEach(t => t.draw());
             players.forEach(p => p.draw());
             enemies.forEach(enemy => enemy.draw());
@@ -770,7 +784,7 @@
             const pads = navigator.getGamepads().filter(p => p);
             const numPlayers = Math.max(1, pads.length);
             
-            if (numPlayers !== players.length) {
+            if (numPlayers > players.length) {
                 console.log(`Počet hráčů se změnil na ${numPlayers}. Restartuji level.`);
                 initLevel();
             }
@@ -779,10 +793,21 @@
         // --- Ovládání ---
         window.addEventListener('keydown', e => {
             if(isGameOver) return;
-            if (e.code === 'Space') {
-                players[0].jump();
+
+            const key = e.key.toLowerCase();
+            if (players.length < 2 && ['w','a','s','d'].includes(key)) {
+                const pads = navigator.getGamepads().filter(p => p);
+                if (pads.length < 2) { 
+                    isTwoPlayerKeyboard = true;
+                    initLevel();
+                    return;
+                }
             }
-            keysPressed[e.key] = true;
+
+            if (e.code === 'Space') players[0]?.jump();
+            if (e.code === 'ShiftLeft' && players.length > 1) players[1]?.jump();
+            
+            keysPressed[key] = true;
             
             cheatCodeBuffer += e.key.toUpperCase();
             if (cheatCodeBuffer.length > 5) {
@@ -815,7 +840,7 @@
         });
         
         window.addEventListener('keyup', e => {
-            keysPressed[e.key] = false;
+            keysPressed[e.key.toLowerCase()] = false;
         });
 
         let touchStartX = 0, touchStartY = 0, touchStartTime = 0, touchMoved = false;
@@ -841,14 +866,14 @@
                 const dy = touchEndY - touchStartY;
                 const threshold = 10;
 
-                keysPressed['ArrowUp'] = keysPressed['ArrowDown'] = keysPressed['ArrowLeft'] = keysPressed['ArrowRight'] = false;
+                keysPressed['arrowup'] = keysPressed['arrowdown'] = keysPressed['arrowleft'] = keysPressed['arrowright'] = false;
 
                 if (Math.abs(dx) > Math.abs(dy)) {
-                    if (dx > threshold) keysPressed['ArrowRight'] = true;
-                    else if (dx < -threshold) keysPressed['ArrowLeft'] = true;
+                    if (dx > threshold) keysPressed['arrowright'] = true;
+                    else if (dx < -threshold) keysPressed['arrowleft'] = true;
                 } else {
-                    if (dy > threshold) keysPressed['ArrowDown'] = true;
-                    else if (dy < -threshold) keysPressed['ArrowUp'] = true;
+                    if (dy > threshold) keysPressed['arrowdown'] = true;
+                    else if (dy < -threshold) keysPressed['arrowup'] = true;
                 }
             }
         }, { passive: false });
@@ -857,7 +882,7 @@
             if (Date.now() - touchStartTime < 200 && !touchMoved) {
                 players[0].jump();
             }
-             keysPressed['ArrowUp'] = keysPressed['ArrowDown'] = keysPressed['ArrowLeft'] = keysPressed['ArrowRight'] = false;
+             keysPressed['arrowup'] = keysPressed['arrowdown'] = keysPressed['arrowleft'] = keysPressed['arrowright'] = false;
         });
 
         window.addEventListener("gamepadconnected", checkPlayerCount);
