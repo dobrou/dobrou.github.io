@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Retro Pong - Dynamic Controls</title>
+    <style>
+        /* Basic reset and full-screen setup */
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100%;
+            width: 100%;
+            background-color: #000;
+            color: #fff;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        /* Canvas styling */
+        canvas {
+            display: block;
+            background-color: #080808;
+        }
+        /* Overlay for messages */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            font-size: 2em;
+            /* Hidden by default */
+            display: none;
+        }
+        .overlay h1 {
+            margin: 0;
+            font-size: 2.5em;
+            color: #0f0; /* Green for a retro feel */
+        }
+        .overlay p {
+            margin-top: 20px;
+            font-size: 0.8em;
+            color: #ccc;
+        }
+        /* Info text for controls */
+        .info-text {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 1em;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div id="winnerOverlay" class="overlay">
+        <h1 id="winnerText"></h1>
+        <p>Click or Tap to Play Again</p>
+    </div>
+
+    <div class="info-text">
+        <p id="p1-control-info">P1: (Move to assign)</p>
+        <p id="p2-control-info">P2: (Move to assign or AI)</p>
+    </div>
+
+    <canvas id="pongCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('pongCanvas');
+        const ctx = canvas.getContext('2d');
+        const winnerOverlay = document.getElementById('winnerOverlay');
+        const winnerText = document.getElementById('winnerText');
+        const p1ControlInfo = document.getElementById('p1-control-info');
+        const p2ControlInfo = document.getElementById('p2-control-info');
+
+        // --- Game Configuration ---
+        const PADDLE_WIDTH = 15;
+        const PADDLE_HEIGHT = 100;
+        const BALL_RADIUS = 10;
+        const PADDLE_SPEED = 8;
+        const AI_SPEED = 6;
+        const WINNING_SCORE = 15;
+
+        let ball, player1, player2, keys, gamepads;
+        let scores = { p1: 0, p2: 0 };
+        let gameOver = false;
+        let audioCtx;
+
+        // --- Control Management ---
+        let player1Control = null;
+        let player2Control = null;
+        const controlTypes = {
+            KEYBOARD_WS: 'Keyboard (W/S)',
+            KEYBOARD_ARROWS: 'Keyboard (Arrows)',
+            GAMEPAD_0: 'Gamepad 1',
+            GAMEPAD_1: 'Gamepad 2',
+            GYRO: 'Gyroscope',
+            AI: 'Computer'
+        };
+
+        // --- Sound Generation ---
+        function setupAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+        
+        function playSound(type) {
+            if (!audioCtx) return;
+
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            const now = audioCtx.currentTime;
+            const duration = 0.15; // Sound duration
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            // Set initial volume
+            gainNode.gain.setValueAtTime(0.3, now);
+
+            // Use sine waves for smoother, more pleasant sounds
+            oscillator.type = 'sine';
+
+            switch(type) {
+                case 'paddle':
+                    // A clear, medium-pitched "bip"
+                    oscillator.frequency.setValueAtTime(440, now);
+                    break;
+                case 'wall':
+                    // A lower-pitched "bop"
+                    oscillator.frequency.setValueAtTime(150, now);
+                    break;
+                case 'score':
+                    // A higher, more rewarding "ding"
+                    oscillator.frequency.setValueAtTime(660, now);
+                    gainNode.gain.setValueAtTime(0.4, now); // Make score sound slightly louder
+                    break;
+            }
+
+            // Start the sound
+            oscillator.start(now);
+
+            // Smoothly fade out the sound instead of stopping it abruptly for a less harsh cutoff
+            gainNode.gain.linearRampToValueAtTime(0.0001, now + duration);
+            oscillator.stop(now + duration);
+        }
+
+        // --- Game Objects ---
+        function createBall() { return { x: canvas.width / 2, y: canvas.height / 2, radius: BALL_RADIUS, speed: 7, dx: 5, dy: 5 }; }
+        function createPaddle(x) { return { x: x, y: canvas.height / 2 - PADDLE_HEIGHT / 2, width: PADDLE_WIDTH, height: PADDLE_HEIGHT, speed: PADDLE_SPEED, dy: 0 }; }
+
+        // --- Initialization ---
+        function init() {
+            gameOver = false;
+            winnerOverlay.style.display = 'none';
+            player1Control = null;
+            player2Control = null; // AI will be assigned if no second player joins
+            updateControlInfo();
+
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            ball = createBall();
+            player1 = createPaddle(30);
+            player2 = createPaddle(canvas.width - 30 - PADDLE_WIDTH);
+            
+            keys = {};
+            gamepads = {};
+            scores = { p1: 0, p2: 0 };
+
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // --- Event Listeners ---
+        function addEventListeners() {
+            document.addEventListener('keydown', (e) => {
+                keys[e.key] = true;
+                detectControl(e.key);
+            });
+            document.addEventListener('keyup', (e) => keys[e.key] = false);
+
+            window.addEventListener("gamepadconnected", (e) => gamepads[e.gamepad.index] = e.gamepad);
+            window.addEventListener("gamepaddisconnected", (e) => delete gamepads[e.gamepad.index]);
+
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                player2.x = canvas.width - 30 - PADDLE_WIDTH;
+            });
+            
+            if ('DeviceOrientationEvent' in window) {
+                window.addEventListener('deviceorientation', (event) => {
+                    if (event.gamma !== null) {
+                        assignControl(controlTypes.GYRO);
+                        handleGyro(event.gamma, player1Control === controlTypes.GYRO ? player1 : player2);
+                    }
+                });
+            }
+
+            const startListener = () => {
+                setupAudio();
+                if (gameOver) init();
+            };
+            document.addEventListener('click', startListener);
+            document.addEventListener('touchstart', startListener);
+        }
+
+        // --- Control Assignment Logic ---
+        function assignControl(type) {
+            if (!player1Control) {
+                player1Control = type;
+            } else if (!player2Control && player1Control !== type) {
+                player2Control = type;
+            }
+            updateControlInfo();
+        }
+
+        function detectControl(key) {
+            if (['w', 's', 'W', 'S'].includes(key)) {
+                assignControl(controlTypes.KEYBOARD_WS);
+            } else if (['ArrowUp', 'ArrowDown'].includes(key)) {
+                assignControl(controlTypes.KEYBOARD_ARROWS);
+            }
+        }
+        
+        function updateControlInfo() {
+            p1ControlInfo.textContent = `P1: ${player1Control || '(Move to assign)'}`;
+            p2ControlInfo.textContent = `P2: ${player2Control || '(AI or move to assign)'}`;
+        }
+
+        // --- Game Logic Update ---
+        function update() {
+            if (gameOver) return;
+            handleInput();
+            movePaddles();
+            moveBall();
+            handleCollisions();
+        }
+
+        function handleInput() {
+            // Check for gamepad input and assign controls
+            const connectedGamepads = navigator.getGamepads();
+            if (connectedGamepads[0]) assignControl(controlTypes.GAMEPAD_0);
+            if (connectedGamepads[1]) assignControl(controlTypes.GAMEPAD_1);
+
+            // Set paddle movement based on assigned controls
+            player1.dy = getPlayerMovement(player1Control, connectedGamepads);
+            // If P2 has no control, AI takes over.
+            player2.dy = getPlayerMovement(player2Control, connectedGamepads);
+        }
+
+        function getPlayerMovement(control, gamepads) {
+            switch (control) {
+                case controlTypes.KEYBOARD_WS:
+                    if (keys['w'] || keys['W']) return -PADDLE_SPEED;
+                    if (keys['s'] || keys['S']) return PADDLE_SPEED;
+                    return 0;
+                case controlTypes.KEYBOARD_ARROWS:
+                    if (keys['ArrowUp']) return -PADDLE_SPEED;
+                    if (keys['ArrowDown']) return PADDLE_SPEED;
+                    return 0;
+                case controlTypes.GAMEPAD_0:
+                    if (gamepads[0]) {
+                        const axis = gamepads[0].axes[1];
+                        if (Math.abs(axis) > 0.1) return axis * PADDLE_SPEED;
+                    }
+                    return 0;
+                case controlTypes.GAMEPAD_1:
+                    if (gamepads[1]) {
+                        const axis = gamepads[1].axes[1];
+                        if (Math.abs(axis) > 0.1) return axis * PADDLE_SPEED;
+                    }
+                    return 0;
+                case controlTypes.GYRO:
+                    return 0; // Gyro moves paddle directly, not via velocity
+                default:
+                    return 0; // No human input
+            }
+        }
+
+        function handleGyro(gamma, paddle) {
+            if (!paddle) return; // Don't control if paddle not assigned
+            let tilt = Math.max(-60, Math.min(60, gamma));
+            const targetY = ((tilt + 60) / 120) * (canvas.height - paddle.height);
+            paddle.y = targetY;
+        }
+
+        function movePaddles() {
+            // Only move via dy if not controlled by Gyro
+            if (player1Control !== controlTypes.GYRO) player1.y += player1.dy;
+            if (player2Control !== controlTypes.GYRO) player2.y += player2.dy;
+
+            // Clamp P1
+            if (player1.y < 0) player1.y = 0;
+            if (player1.y + player1.height > canvas.height) player1.y = canvas.height - player1.height;
+
+            // AI logic for P2 if no human control
+            if (!player2Control) {
+                const paddleCenter = player2.y + player2.height / 2;
+                if (paddleCenter < ball.y - 35) player2.y += AI_SPEED;
+                else if (paddleCenter > ball.y + 35) player2.y -= AI_SPEED;
+            }
+
+            // Clamp P2
+            if (player2.y < 0) player2.y = 0;
+            if (player2.y + player2.height > canvas.height) player2.y = canvas.height - player2.height;
+        }
+
+        function moveBall() {
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) {
+                ball.dy *= -1;
+                playSound('wall');
+            }
+
+            if (ball.x + ball.radius > canvas.width) {
+                scores.p1++;
+                playSound('score');
+                checkWin();
+                resetBall();
+            }
+            if (ball.x - ball.radius < 0) {
+                scores.p2++;
+                playSound('score');
+                checkWin();
+                resetBall();
+            }
+        }
+        
+        function handleCollisions() {
+            const hitPlayer1 = ball.dx < 0 && ball.x - ball.radius < player1.x + player1.width && ball.y > player1.y && ball.y < player1.y + player1.height;
+            const hitPlayer2 = ball.dx > 0 && ball.x + ball.radius > player2.x && ball.y > player2.y && ball.y < player2.y + player2.height;
+            
+            if (hitPlayer1 || hitPlayer2) {
+                playSound('paddle');
+                ball.dx *= -1.05; // Reverse and speed up
+                let paddle = hitPlayer1 ? player1 : player2;
+                let deltaY = ball.y - (paddle.y + paddle.height / 2);
+                ball.dy = deltaY * 0.35;
+            }
+        }
+        
+        function checkWin() {
+            if (scores.p1 >= WINNING_SCORE) {
+                winnerText.textContent = "Player 1 Wins!";
+                endGame();
+            } else if (scores.p2 >= WINNING_SCORE) {
+                winnerText.textContent = (player2Control ? "Player 2" : "Computer") + " Wins!";
+                endGame();
+            }
+        }
+        
+        function endGame() {
+            gameOver = true;
+            winnerOverlay.style.display = 'flex';
+        }
+
+        function resetBall() {
+            if (gameOver) return;
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height / 2;
+            ball.dx = 5 * (ball.dx > 0 ? -1 : 1);
+            ball.dy = 5 * (Math.random() > 0.5 ? 1 : -1);
+        }
+
+        // --- Drawing ---
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawNet();
+            drawRect(player1.x, player1.y, player1.width, player1.height, '#fff');
+            drawRect(player2.x, player2.y, player2.width, player2.height, '#fff');
+            drawCircle(ball.x, ball.y, ball.radius, '#fff');
+            drawScores();
+        }
+
+        function drawRect(x, y, w, h, color) { ctx.fillStyle = color; ctx.fillRect(x, y, w, h); }
+        function drawCircle(x, y, r, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+        function drawNet() {
+            ctx.beginPath();
+            ctx.setLineDash([10, 15]);
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        function drawScores() {
+            ctx.font = '50px "Courier New", Courier, monospace';
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'center';
+            ctx.fillText(scores.p1, canvas.width / 4, 60);
+            ctx.fillText(scores.p2, 3 * canvas.width / 4, 60);
+        }
+
+        // --- Game Loop ---
+        function gameLoop() {
+            if (!gameOver) {
+                update();
+                draw();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        // --- Start the game ---
+        addEventListeners();
+        init();
+    </script>
+</body>
+</html>

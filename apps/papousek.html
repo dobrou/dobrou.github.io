@@ -59,9 +59,12 @@
         .dark #volume-meter-container {
              background-color: #374151;
         }
-        /* NOVÉ: Styly pro odpočet ticha */
         #silence-countdown-bar {
             transition: width 0.1s linear;
+        }
+        /* OPRAVA POSKAKOVÁNÍ: Používáme 'visibility' místo 'display' */
+        .invisible {
+            visibility: hidden;
         }
     </style>
 </head>
@@ -85,8 +88,7 @@
                     <div id="threshold-line"></div>
                 </div>
             </div>
-             <!-- NOVÉ: Kontejner pro odpočet ticha -->
-            <div id="silence-countdown-container" class="hidden">
+            <div id="silence-countdown-container" class="invisible">
                  <label class="text-sm font-medium text-gray-500 dark:text-gray-400">Odpočet ticha</label>
                 <div class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full mt-1">
                     <div id="silence-countdown-bar" class="h-full bg-yellow-400 rounded-full" style="width: 100%;"></div>
@@ -94,9 +96,19 @@
             </div>
         </div>
 
-        <button id="toggleButton" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800 transition-all duration-300 ease-in-out text-lg">
-            Začít poslouchat
-        </button>
+        <!-- NOVÉ: Kontejner pro ovládací tlačítka -->
+        <div class="flex space-x-4">
+            <button id="toggleButton" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800 transition-all duration-300 ease-in-out text-lg">
+                Začít poslouchat
+            </button>
+            <button id="playButton" disabled class="bg-gray-300 text-gray-500 p-3 rounded-lg transition-all duration-300 ease-in-out">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </button>
+        </div>
+
 
         <div id="status" class="flex items-center justify-center text-lg font-medium text-gray-600 dark:text-gray-300 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
             <span id="statusDot" class="status-dot dot-gray"></span>
@@ -108,18 +120,16 @@
     </div>
 
     <script>
-        // Reference na HTML prvky
         const toggleButton = document.getElementById('toggleButton');
+        const playButton = document.getElementById('playButton');
         const statusText = document.getElementById('statusText');
         const statusDot = document.getElementById('statusDot');
         const errorMessage = document.getElementById('error-message');
         const volumeLevel = document.getElementById('volume-level');
         const thresholdLine = document.getElementById('threshold-line');
-        // NOVÉ: Reference na prvky odpočtu
         const silenceCountdownContainer = document.getElementById('silence-countdown-container');
         const silenceCountdownBar = document.getElementById('silence-countdown-bar');
 
-        // Globální proměnné pro stav aplikace
         let isListening = false;
         let stream;
         let audioContext;
@@ -132,15 +142,16 @@
         let preRollBufferWriteIndex = 0;
         let preRollLengthInSeconds = 1;
 
-        // NOVÉ: Proměnné pro animaci odpočtu
+        let lastRecordingBuffer = null; // NOVÉ: Pro uložení poslední nahrávky
+
         let countdownAnimationId = null;
         let silenceStartTime = 0;
 
-        // Nastavení
         const VOLUME_THRESHOLD = 20;
         const SILENCE_DELAY = 2000;
         const CHIPMUNK_PITCH = 1.4;
         const DEEP_VOICE_PITCH = 0.65;
+        const FADE_DURATION_MS = 20;
 
         thresholdLine.style.left = `${VOLUME_THRESHOLD}%`;
 
@@ -163,38 +174,40 @@
             }
         });
 
+        // NOVÉ: Event listener pro manuální přehrání
+        playButton.addEventListener('click', () => {
+            if(lastRecordingBuffer) {
+                playBuffer(lastRecordingBuffer);
+            }
+        });
+
         async function ensureAudioContextIsRunning() {
             if (audioContext && audioContext.state === 'suspended') {
                 await audioContext.resume();
             }
         }
 
-        // NOVÉ: Funkce pro animaci odpočtu
         function updateCountdownAnimation() {
             const elapsed = Date.now() - silenceStartTime;
             const remainingPercent = Math.max(0, 100 * (1 - elapsed / SILENCE_DELAY));
             silenceCountdownBar.style.width = `${remainingPercent}%`;
-
             if (remainingPercent > 0) {
                 countdownAnimationId = requestAnimationFrame(updateCountdownAnimation);
-            } else {
-                hideCountdown();
             }
         }
 
         function showCountdown() {
             silenceStartTime = Date.now();
-            silenceCountdownContainer.classList.remove('hidden');
+            silenceCountdownContainer.classList.remove('invisible');
             if (countdownAnimationId) cancelAnimationFrame(countdownAnimationId);
             updateCountdownAnimation();
         }
 
         function hideCountdown() {
-            silenceCountdownContainer.classList.add('hidden');
+            silenceCountdownContainer.classList.add('invisible');
             if (countdownAnimationId) cancelAnimationFrame(countdownAnimationId);
             countdownAnimationId = null;
         }
-
 
         async function startListening() {
             try {
@@ -245,12 +258,12 @@
                         if (silenceTimeout) {
                             clearTimeout(silenceTimeout);
                             silenceTimeout = null;
-                            hideCountdown(); // Skryjeme odpočet, když se začne mluvit
+                            hideCountdown();
                         }
                         if (!isRecording) startRecording();
                     } else {
                         if (isRecording && !silenceTimeout) {
-                            showCountdown(); // Zobrazíme odpočet při začátku ticha
+                            showCountdown();
                             silenceTimeout = setTimeout(() => {
                                 stopRecording();
                                 silenceTimeout = null;
@@ -260,7 +273,11 @@
                 };
                 
                 isListening = true;
-                toggleButton.textContent = 'Přestat poslouchat';
+                playButton.disabled = true;
+                playButton.classList.replace('bg-green-500', 'bg-gray-300');
+                playButton.classList.replace('text-white', 'text-gray-500');
+
+                toggleButton.textContent = 'Zastavit';
                 toggleButton.classList.replace('bg-blue-600', 'bg-red-600');
                 toggleButton.classList.replace('hover:bg-blue-700', 'hover:bg-red-700');
                 errorMessage.classList.add('hidden');
@@ -285,37 +302,56 @@
             isRecording = false;
             hideCountdown();
             updateStatus('Zpracovávám...', 'dot-green');
-            playRecordedAudio();
+            
+            // Sestavíme a uložíme buffer, poté ho přehrajeme
+            const processedBuffer = processAndGetFinalBuffer();
+            if(processedBuffer) {
+                lastRecordingBuffer = processedBuffer;
+                playBuffer(lastRecordingBuffer);
+                playButton.disabled = false; // Povolíme tlačítko pro přehrání
+                playButton.classList.replace('bg-gray-300', 'bg-green-500');
+                playButton.classList.replace('text-gray-500', 'text-white');
+            }
         }
 
-        async function playRecordedAudio() {
-            if (recordingBuffer.length === 0) {
-                if(isListening) updateStatus('Poslouchám...', 'dot-blue');
-                return;
+        function processAndGetFinalBuffer() {
+            if (recordingBuffer.length === 0) return null;
+            
+            const orderedPreRoll = new Float32Array(preRollBuffer.length);
+            const firstPart = preRollBuffer.subarray(preRollBufferWriteIndex);
+            const secondPart = preRollBuffer.subarray(0, preRollBufferWriteIndex);
+            orderedPreRoll.set(firstPart, 0);
+            orderedPreRoll.set(secondPart, firstPart.length);
+
+            let mainRecordingLength = 0;
+            for(const buffer of recordingBuffer) mainRecordingLength += buffer.length;
+
+            const finalBufferData = new Float32Array(orderedPreRoll.length + mainRecordingLength);
+            finalBufferData.set(orderedPreRoll, 0);
+            let offset = orderedPreRoll.length;
+            for(const buffer of recordingBuffer) {
+                finalBufferData.set(buffer, offset);
+                offset += buffer.length;
+            }
+            
+            const fadeSamples = Math.floor(audioContext.sampleRate * (FADE_DURATION_MS / 1000));
+            
+            for (let i = 0; i < fadeSamples && i < finalBufferData.length; i++) {
+                finalBufferData[i] *= (i / fadeSamples);
+            }
+            for (let i = 0; i < fadeSamples && i < finalBufferData.length; i++) {
+                finalBufferData[finalBufferData.length - 1 - i] *= (i / fadeSamples);
             }
 
+            return finalBufferData;
+        }
+
+        async function playBuffer(bufferData) {
             try {
                 await ensureAudioContextIsRunning();
-
-                const orderedPreRoll = new Float32Array(preRollBuffer.length);
-                const firstPart = preRollBuffer.subarray(preRollBufferWriteIndex);
-                const secondPart = preRollBuffer.subarray(0, preRollBufferWriteIndex);
-                orderedPreRoll.set(firstPart, 0);
-                orderedPreRoll.set(secondPart, firstPart.length);
-
-                let mainRecordingLength = 0;
-                for(const buffer of recordingBuffer) mainRecordingLength += buffer.length;
-
-                const finalBufferData = new Float32Array(orderedPreRoll.length + mainRecordingLength);
-                finalBufferData.set(orderedPreRoll, 0);
-                let offset = orderedPreRoll.length;
-                for(const buffer of recordingBuffer) {
-                    finalBufferData.set(buffer, offset);
-                    offset += buffer.length;
-                }
                 
-                const audioBuffer = audioContext.createBuffer(1, finalBufferData.length, audioContext.sampleRate);
-                audioBuffer.copyToChannel(finalBufferData, 0);
+                const audioBuffer = audioContext.createBuffer(1, bufferData.length, audioContext.sampleRate);
+                audioBuffer.copyToChannel(bufferData, 0);
 
                 const source = audioContext.createBufferSource();
                 source.buffer = audioBuffer;
@@ -330,12 +366,16 @@
                 source.onended = () => {
                     if(isListening) {
                         updateStatus('Poslouchám...', 'dot-blue');
+                    } else if (lastRecordingBuffer) {
+                         updateStatus('Nahrávka připravena', 'dot-green');
+                    } else {
+                         updateStatus('Připraven', 'dot-gray');
                     }
                 };
             } catch (e) {
-                console.error("Chyba při přehrávání zvuku:", e);
-                showError("Chyba při zpracování zvuku.");
-                if(isListening) updateStatus('Poslouchám...', 'dot-blue');
+                 console.error("Chyba při přehrávání zvuku:", e);
+                 showError("Chyba při zpracování zvuku.");
+                 updateStatus('Chyba', 'dot-red');
             }
         }
 
@@ -349,10 +389,7 @@
             }
             hideCountdown();
             
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-            
+            if (stream) stream.getTracks().forEach(track => track.stop());
             if (audioNodes.microphone) audioNodes.microphone.disconnect();
             if (audioNodes.analyser) audioNodes.analyser.disconnect();
             if (audioNodes.javascriptNode) {
@@ -366,7 +403,13 @@
             toggleButton.textContent = 'Začít poslouchat';
             toggleButton.classList.replace('bg-red-600', 'bg-blue-600');
             toggleButton.classList.replace('hover:bg-red-700', 'hover:bg-blue-700');
-            updateStatus('Připraven', 'dot-gray');
+            
+            if (lastRecordingBuffer) {
+                updateStatus('Nahrávka připravena', 'dot-green');
+            } else {
+                updateStatus('Připraven', 'dot-gray');
+            }
+
             volumeLevel.style.width = '0%';
         }
 

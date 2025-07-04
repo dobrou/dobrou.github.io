@@ -2,9 +2,8 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hroch Skáče po Mráčcích</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <style>
         body {
             margin: 0;
@@ -18,9 +17,6 @@
             font-family: 'Arial', sans-serif;
             color: #fff;
             text-align: center;
-            -webkit-user-select: none; /* Safari */
-            -ms-user-select: none; /* IE 10+ */
-            user-select: none; /* Standard */
         }
         #gameContainer {
             border: 5px solid #fff;
@@ -28,14 +24,10 @@
             box-shadow: 0 10px 20px rgba(0,0,0,0.2);
             overflow: hidden;
             position: relative;
-            width: 800px;
-            height: 600px;
         }
         canvas {
             display: block;
             background: #87CEEB;
-            width: 100%;
-            height: 100%;
         }
         #ui-container {
             position: absolute;
@@ -44,29 +36,40 @@
             right: 10px;
             display: flex;
             justify-content: space-between;
-            font-size: 24px;
+            font-size: 20px;
             font-weight: bold;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            z-index: 10;
         }
-        #message-box {
+        #player2-ui {
+            text-align: right;
+        }
+        #gamepad-status {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        .message-box {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background-color: rgba(0, 0, 0, 0.7);
+            background-color: rgba(0, 0, 0, 0.75);
             padding: 40px;
             border-radius: 15px;
-            display: none; /* Skryto ve výchozím stavu */
+            display: flex; 
             flex-direction: column;
             align-items: center;
-            z-index: 20;
+            z-index: 10;
         }
-        #message-box h2 {
+        .message-box h2 {
             margin: 0 0 20px 0;
             font-size: 36px;
         }
-        #restart-button {
+        .button {
             padding: 15px 30px;
             font-size: 20px;
             color: #333;
@@ -75,171 +78,107 @@
             border-radius: 10px;
             cursor: pointer;
             transition: background-color 0.3s, transform 0.2s;
+            margin: 5px;
         }
-        #restart-button:hover {
+        .button:hover {
             background-color: #ddd;
             transform: scale(1.05);
-        }
-        #mobile-controls {
-            position: absolute;
-            bottom: 20px;
-            width: 100%;
-            display: none; /* Skryto na desktopu */
-            justify-content: space-around;
-            align-items: center;
-            z-index: 10;
-        }
-        .control-btn {
-            width: 70px;
-            height: 70px;
-            background: rgba(255, 255, 255, 0.5);
-            border: 2px solid rgba(255, 255, 255, 0.8);
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 30px;
-            font-weight: bold;
-            color: #333;
-            cursor: pointer;
-        }
-        .control-btn#jump-btn {
-            width: 90px;
-            height: 90px;
-            font-size: 20px;
-        }
-         /* Media query pro menší obrazovky */
-        @media (max-width: 820px) {
-            #gameContainer {
-                width: 100vw;
-                height: calc(100vh - 100px);
-                border: none;
-                border-radius: 0;
-            }
-            #instructions {
-                display: none;
-            }
-            #mobile-controls {
-                display: flex;
-            }
         }
     </style>
 </head>
 <body>
 
     <h1>Hroch Skáče po Mráčcích</h1>
-    <p id="instructions">Použij šipky pro pohyb a mezerník pro skok. Vyhni se příšerám!</p>
+    <p>Hráč 1: Šipky + Mezerník | Hráč 2 se připojí pomocí A, W, D nebo gamepadu</p>
 
     <div id="gameContainer">
-        <canvas id="gameCanvas"></canvas>
-        <div id="ui-container">
-            <div id="health-display">Zdraví: 100</div>
-            <div id="score-display">Skóre: 0</div>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div id="ui-container" style="display: none;">
+            <div id="player1-ui">
+                <div>Hráč 1</div>
+                <div id="health1-display">Zdraví: 100</div>
+                <div id="score1-display">Skóre: 0</div>
+            </div>
+            <div id="player2-ui" style="display: none;">
+                <div>Hráč 2</div>
+                <div id="health2-display">Zdraví: 100</div>
+                <div id="score2-display">Skóre: 0</div>
+            </div>
         </div>
-        <div id="message-box">
-            <h2 id="game-over-text">Sežraly ti nohu!</h2>
-            <button id="restart-button">Hrát znovu</button>
+
+        <div id="game-over-box" class="message-box" style="display: none;">
+            <h2 id="game-over-text">Konec hry!</h2>
+            <button id="restart-button" class="button">Hrát znovu</button>
         </div>
-        <div id="mobile-controls">
-            <div class="control-btn" id="left-btn">◀</div>
-            <div class="control-btn" id="jump-btn">SKOK</div>
-            <div class="control-btn" id="right-btn">▶</div>
-        </div>
+
+        <div id="gamepad-status"></div>
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        
-        // Přizpůsobení velikosti canvasu kontejneru
-        function resizeCanvas() {
-            const container = document.getElementById('gameContainer');
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
 
-        const healthDisplay = document.getElementById('health-display');
-        const scoreDisplay = document.getElementById('score-display');
-        const messageBox = document.getElementById('message-box');
+        // UI prvky
+        const uiContainer = document.getElementById('ui-container');
+        const player1UI = {
+            health: document.getElementById('health1-display'),
+            score: document.getElementById('score1-display')
+        };
+        const player2UI = {
+            container: document.getElementById('player2-ui'),
+            health: document.getElementById('health2-display'),
+            score: document.getElementById('score2-display')
+        };
+        const gameOverBox = document.getElementById('game-over-box');
         const restartButton = document.getElementById('restart-button');
         const gameOverText = document.getElementById('game-over-text');
+        const gamepadStatus = document.getElementById('gamepad-status');
 
-        // Nastavení hry
+        // Herní stav
         let gravity = 0.5;
-        let score = 0;
-        let health = 100;
         let gameOver = false;
-        let gameStarted = false;
-        let audioInitialized = false;
-
-        // --- ZVUKY ---
-        let music, jumpSound, hitSound, gameOverSound;
+        let gameMode = 1;
+        let animationFrameId;
         
-        function setupAudio() {
-             music = new Tone.Loop(time => {
-                const synth = new Tone.Synth().toDestination();
-                synth.triggerAttackRelease("C3", "8n", time);
-                synth.triggerAttackRelease("G3", "8n", time + 0.5);
-                synth.triggerAttackRelease("A3", "8n", time + 1);
-            }, "1n").start(0);
-
-            jumpSound = new Tone.Synth({
-                oscillator: { type: 'sine' },
-                envelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.1 }
-            }).toDestination();
-            
-             hitSound = new Tone.Synth({
-                oscillator: { type: 'square' },
-                envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.1 }
-            }).toDestination();
-            
-            gameOverSound = new Tone.PluckSynth().toDestination();
-        }
-        
-        async function startAudio() {
-            if (!audioInitialized) {
-                await Tone.start();
-                setupAudio();
-                audioInitialized = true;
-                console.log("Audio context started");
-            }
-        }
-        
-
-        // Hráč (Hroch)
-        const player = {
-            x: canvas.width / 2 - 25,
-            y: canvas.height - 60,
-            width: 50,
-            height: 40,
-            dx: 0,
-            dy: 0,
-            speed: 5,
-            jumpPower: -12,
-            onGround: false,
-            hasLostLeg: false
-        };
-
-        // Klávesy
-        const keys = {
-            right: false,
-            left: false,
-            space: false
-        };
+        // Hráči a ovládání
+        let players = [];
+        const keys = {};
 
         // Pole pro mraky a příšery
         let clouds = [];
         let monsters = [];
 
-        // --- FUNKCE KRESLENÍ ---
+        // --- TVORBA HRÁČŮ ---
+        function createPlayer(id, color, keyMap, xOffset) {
+            return {
+                id: id,
+                x: canvas.width / 2 - 25 + xOffset,
+                y: canvas.height - 60,
+                width: 50,
+                height: 40,
+                dx: 0,
+                dy: 0,
+                speed: 5,
+                jumpPower: -12,
+                onGround: false,
+                hasLostLeg: false,
+                health: 100,
+                score: 0,
+                color: color,
+                keyMap: keyMap,
+                gamepadIndex: null
+            };
+        }
 
-        function drawPlayer() {
-            ctx.fillStyle = '#a17a65'; // Hroší barva
+        // --- FUNKCE KRESLENÍ ---
+        function drawPlayer(player) {
+            if (player.hasLostLeg) {
+                ctx.globalAlpha = 0.5;
+            }
+            ctx.fillStyle = player.color;
             ctx.fillRect(player.x, player.y, player.width, player.height);
             
-            // Oči
             ctx.fillStyle = 'white';
             ctx.fillRect(player.x + 10, player.y + 10, 8, 8);
             ctx.fillRect(player.x + 32, player.y + 10, 8, 8);
@@ -248,19 +187,15 @@
             ctx.fillRect(player.x + 34, player.y + 12, 4, 4);
 
             if (player.hasLostLeg) {
-                ctx.fillStyle = '#d32f2f';
-                ctx.fillRect(player.x, player.y + player.height - 5, player.width, 5);
-                gameOverText.textContent = "Sežraly ti nohu!";
+                 ctx.fillStyle = '#d32f2f';
+                 ctx.fillRect(player.x, player.y + player.height - 5, player.width, 5);
             }
+            ctx.globalAlpha = 1.0;
         }
 
         function drawClouds() {
             ctx.fillStyle = '#FFFFFF';
-            clouds.forEach(cloud => {
-                ctx.beginPath();
-                ctx.rect(cloud.x, cloud.y, cloud.width, cloud.height);
-                ctx.fill();
-            });
+            clouds.forEach(cloud => ctx.fillRect(cloud.x, cloud.y, cloud.width, cloud.height));
         }
 
         function drawMonsters() {
@@ -276,249 +211,248 @@
         }
         
         // --- FUNKCE AKTUALIZACE ---
+        function handleInput() {
+            const connectedGamepads = navigator.getGamepads();
+            players.forEach(player => {
+                let moveLeft = keys[player.keyMap.left] || false;
+                let moveRight = keys[player.keyMap.right] || false;
+                let jump = keys[player.keyMap.jump] || false;
 
-        function updatePlayer() {
+                if (player.gamepadIndex !== null && connectedGamepads[player.gamepadIndex]) {
+                    const gamepad = connectedGamepads[player.gamepadIndex];
+                    const horizontalAxis = gamepad.axes[0];
+                    moveLeft = moveLeft || horizontalAxis < -0.5 || gamepad.buttons[14].pressed;
+                    moveRight = moveRight || horizontalAxis > 0.5 || gamepad.buttons[15].pressed;
+                    jump = jump || gamepad.buttons[0].pressed;
+                }
+
+                if (player.hasLostLeg) return;
+                if (moveRight) player.dx = player.speed;
+                else if (moveLeft) player.dx = -player.speed;
+                else player.dx = 0;
+                if (jump && player.onGround) {
+                    player.dy = player.jumpPower;
+                    player.onGround = false;
+                }
+            });
+        }
+
+        function updatePlayer(player) {
             if (player.hasLostLeg) {
                 player.dx = 0;
-            } else {
-                 if (keys.right) player.dx = player.speed;
-                 else if (keys.left) player.dx = -player.speed;
-                 else player.dx = 0;
+                if (player.onGround) player.dy = 0;
             }
-
-            if (keys.space && player.onGround) {
-                player.dy = player.jumpPower;
-                player.onGround = false;
-                if(audioInitialized) jumpSound.triggerAttackRelease("C5", "8n");
-            }
-
+            
             player.dy += gravity;
             player.x += player.dx;
             player.y += player.dy;
             player.onGround = false;
 
-            if (player.y + player.height > canvas.height) {
-                player.y = canvas.height - player.height;
-                player.dy = 0;
-                player.onGround = true;
-            }
-
             if (player.x < 0) player.x = 0;
             if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+
+            if (player.y > canvas.height && !player.hasLostLeg) {
+                 player.health = 0;
+                 player.hasLostLeg = true;
+                 checkGameOver();
+            }
         }
 
         function updateUI() {
-            healthDisplay.textContent = `Zdraví: ${Math.max(0, Math.floor(health))}`;
-            scoreDisplay.textContent = `Skóre: ${score}`;
+            player1UI.health.textContent = `Zdraví: ${Math.max(0, Math.floor(players[0].health))}`;
+            player1UI.score.textContent = `Skóre: ${players[0].score}`;
+            if (gameMode === 2) {
+                player2UI.health.textContent = `Zdraví: ${Math.max(0, Math.floor(players[1].health))}`;
+                player2UI.score.textContent = `Skóre: ${players[1].score}`;
+            }
         }
         
         // --- TVORBA PRVKŮ ---
-
         function createInitialClouds() {
             clouds = [];
-            clouds.push({ x: canvas.width / 2 - 75, y: canvas.height - 40, width: 150, height: 20 });
-
+            clouds.push({ x: canvas.width / 2 - 75, y: canvas.height - 20, width: 150, height: 20 });
             for (let i = 0; i < 10; i++) {
-                let y = (canvas.height - 120) - (i * 75); // Snížená vertikální mezera
-                 if (y < 0) continue;
-                clouds.push({
-                    x: Math.random() * (canvas.width - 120),
-                    y: y,
-                    width: 120 + Math.random() * 50,
-                    height: 20
-                });
+                let y = (canvas.height - 100) - (i * 80);
+                if (y < 0) continue;
+                clouds.push({ x: Math.random() * (canvas.width - 120), y: y, width: 120 + Math.random() * 50, height: 20 });
             }
         }
         
-        function manageClouds() {
+        function manageCloudsAndScrolling() {
+            const activePlayers = players.filter(p => !p.hasLostLeg);
+            if (activePlayers.length === 0) return;
+
+            const highestPlayer = activePlayers.reduce((prev, current) => (prev.y < current.y) ? prev : current);
+
             let scrollThreshold = canvas.height / 2.5;
-            if (player.y < scrollThreshold) {
-                let scrollSpeed = Math.abs(player.dy) > 1 ? Math.abs(player.dy) : 1; 
-                
-                player.y += scrollSpeed;
-                
-                clouds.forEach(cloud => { cloud.y += scrollSpeed; });
-                monsters.forEach(monster => { monster.y += scrollSpeed; });
-                
-                score += Math.floor(scrollSpeed);
-
+            if (highestPlayer.y < scrollThreshold) {
+                let scrollSpeed = Math.abs(highestPlayer.dy);
+                players.forEach(p => p.y += scrollSpeed);
+                clouds.forEach(cloud => cloud.y += scrollSpeed);
+                monsters.forEach(monster => monster.y += scrollSpeed);
+                highestPlayer.score += Math.floor(scrollSpeed);
                 clouds = clouds.filter(cloud => cloud.y < canvas.height);
-
-                if (clouds.length > 0 && clouds[clouds.length - 1].y > -10) {
-                     clouds.push({
-                        x: Math.random() * (canvas.width - 120),
-                        y: -50, // Dále od sebe, aby se to stihlo vygenerovat
-                        width: 100 + Math.random() * 50,
-                        height: 20
-                    });
+                if (clouds.length > 0 && clouds[clouds.length - 1].y > 50) {
+                     clouds.push({ x: Math.random() * (canvas.width - 120), y: -20, width: 100 + Math.random() * 50, height: 20 });
                 }
-            }
-
-            if(player.y > canvas.height + 50) { // +50 pro malou prodlevu
-                health = 0;
-                player.hasLostLeg = true;
-                gameOverText.textContent = "Spadl jsi dolů!";
-                endGame();
             }
         }
 
         function spawnMonsters() {
-            if (Math.random() < 0.015 && clouds.length > 2 && gameStarted) {
+            if (Math.random() < 0.018 && clouds.length > 2) {
                 const cloudIndex = Math.floor(Math.random() * (clouds.length - 1)) + 1;
                 const cloud = clouds[cloudIndex];
-
-                if (cloud && cloud.y > 0 && cloud.y < canvas.height - 50) {
-                    monsters.push({
-                        x: cloud.x + (cloud.width / 2) - 12.5,
-                        y: cloud.y - 25,
-                        width: 25,
-                        height: 25
-                    });
+                if (cloud && cloud.y > 0) {
+                    monsters.push({ x: cloud.x + (cloud.width / 2) - 12.5, y: cloud.y - 25, width: 25, height: 25 });
                 }
             }
         }
 
-
         // --- KOLIZE ---
+        function checkCollisions(player) {
+            if (player.hasLostLeg) return;
 
-        function checkCollisions() {
+            let onAnyCloud = false;
             clouds.forEach(cloud => {
-                if (player.dy > 0 &&
-                    player.x < cloud.x + cloud.width &&
-                    player.x + player.width > cloud.x &&
-                    player.y + player.height > cloud.y &&
-                    player.y + player.height < cloud.y + cloud.height + player.dy)
-                {
+                if (player.dy > 0 && player.x < cloud.x + cloud.width && player.x + player.width > cloud.x && player.y + player.height > cloud.y && player.y + player.height < cloud.y + cloud.height + player.dy) {
                     player.dy = 0;
                     player.y = cloud.y - player.height;
-                    player.onGround = true;
+                    onAnyCloud = true;
                 }
             });
+            player.onGround = onAnyCloud;
 
             monsters.forEach((monster, index) => {
-                if (
-                    player.x < monster.x + monster.width &&
-                    player.x + player.width > monster.x &&
-                    player.y < monster.y + monster.height &&
-                    player.y + player.height > monster.y
-                ) {
+                if (player.x < monster.x + monster.width && player.x + player.width > monster.x && player.y < monster.y + monster.height && player.y + player.height > monster.y) {
                     monsters.splice(index, 1);
-                    health -= 25;
-                    if(audioInitialized) hitSound.triggerAttackRelease("G2", "8n");
-                    if (health <= 0) {
-                        health = 0;
+                    player.health -= 34; // Trochu těžší
+                    if (player.health <= 0) {
+                        player.health = 0;
                         player.hasLostLeg = true;
-                        endGame();
+                        checkGameOver();
                     }
                 }
             });
         }
         
         // --- HERNÍ SMYČKA A STAV ---
-        
-        function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        function checkGameOver() {
+            const allLost = players.every(p => p.hasLostLeg);
+            if (allLost) {
+                gameOver = true;
+                gameOverText.textContent = "Konec hry!";
+                gameOverBox.style.display = 'flex';
+            }
         }
         
-        function endGame() {
-            if (gameOver) return; // Ukončit pouze jednou
-            gameOver = true;
-            gameStarted = false;
-            messageBox.style.display = 'flex';
-            if (audioInitialized) {
-                Tone.Transport.stop();
-                gameOverSound.triggerAttackRelease("C3", "1n");
+        function tryActivateTwoPlayerMode() {
+            if (gameMode !== 1) return;
+            let secondPlayerInputDetected = false;
+
+            if (keys['KeyA'] || keys['KeyD'] || keys['KeyW']) {
+                secondPlayerInputDetected = true;
+            }
+
+            const connectedGamepads = navigator.getGamepads();
+            if (connectedGamepads.length > 1) {
+                for (let i = 0; i < connectedGamepads.length; i++) {
+                    if (players[0] && i === players[0].gamepadIndex) continue;
+                    const gp = connectedGamepads[i];
+                    if (gp && (gp.buttons.some(b => b.pressed) || gp.axes.some(a => Math.abs(a) > 0.5))) {
+                        secondPlayerInputDetected = true;
+                        break;
+                    }
+                }
+            }
+
+            if (secondPlayerInputDetected) {
+                gameMode = 2;
+                players.push(createPlayer(2, '#795548', { left: 'KeyA', right: 'KeyD', jump: 'KeyW' }, 40));
+                player2UI.container.style.display = 'block';
+                assignGamepads();
             }
         }
 
-        function resetGame() {
+        function startGame() {
+            gameMode = 1;
+            players = [createPlayer(1, '#a17a65', { left: 'ArrowLeft', right: 'ArrowRight', jump: 'Space' }, 0)];
+            
             gameOver = false;
-            gameStarted = true;
-            health = 100;
-            score = 0;
-            player.x = canvas.width / 2 - 25;
-            player.y = canvas.height - 100;
-            player.dy = 0;
-            player.hasLostLeg = false;
             monsters = [];
-            messageBox.style.display = 'none';
             createInitialClouds();
-            if(audioInitialized) Tone.Transport.start();
-            gameLoop();
-        }
-        
-        function handleFirstInteraction() {
-            if (!gameStarted) {
-                startAudio().then(() => {
-                    gameStarted = true;
-                    if(audioInitialized) Tone.Transport.start();
-                });
+            assignGamepads();
+
+            gameOverBox.style.display = 'none';
+            player2UI.container.style.display = 'none';
+            uiContainer.style.display = 'flex';
+            
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
             }
+            gameLoop();
         }
 
         function gameLoop() {
-            if (gameOver) return;
-            requestAnimationFrame(gameLoop);
-            
-            clearCanvas();
-
-            if (!gameStarted) {
-                 ctx.fillStyle = "black";
-                 ctx.font = "30px Arial";
-                 ctx.textAlign = "center";
-                 ctx.fillText("Stiskni SKOK pro start", canvas.width / 2, canvas.height / 2);
-
-                 if(keys.space) {
-                    handleFirstInteraction();
-                 }
-            } else {
-                updatePlayer();
-                manageClouds();
-                spawnMonsters();
-                checkCollisions();
-            
-                drawClouds();
-                drawMonsters();
-                drawPlayer();
-                updateUI();
+            if (gameOver) {
+                return;
             }
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            tryActivateTwoPlayerMode();
+            handleInput();
+            
+            players.forEach(p => updatePlayer(p));
+            manageCloudsAndScrolling();
+            spawnMonsters();
+            players.forEach(p => checkCollisions(p));
+            
+            drawClouds();
+            drawMonsters();
+            players.forEach(p => drawPlayer(p));
+            updateUI();
+
+            animationFrameId = requestAnimationFrame(gameLoop);
         }
 
         // --- POSLUCHAČE UDÁLOSTÍ ---
+        document.addEventListener('keydown', (e) => { keys[e.code] = true; });
+        document.addEventListener('keyup', (e) => { keys[e.code] = false; });
+        restartButton.addEventListener('click', startGame);
 
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'ArrowRight') keys.right = true;
-            if (e.code === 'ArrowLeft') keys.left = true;
-            if (e.code === 'Space') keys.space = true;
-        });
+        // Gamepad
+        function assignGamepads() {
+            const connectedGamepads = navigator.getGamepads();
+            let assignedCount = 0;
+            players.forEach(p => p.gamepadIndex = null);
 
-        document.addEventListener('keyup', (e) => {
-            if (e.code === 'ArrowRight') keys.right = false;
-            if (e.code === 'ArrowLeft') keys.left = false;
-            if (e.code === 'Space') keys.space = false;
-        });
+            for(let i = 0; i < connectedGamepads.length; i++) {
+                if(connectedGamepads[i] && assignedCount < players.length) {
+                    players[assignedCount].gamepadIndex = i;
+                    assignedCount++;
+                }
+            }
+            updateGamepadStatus();
+        }
 
-        // Mobilní ovládání
-        const leftBtn = document.getElementById('left-btn');
-        const rightBtn = document.getElementById('right-btn');
-        const jumpBtn = document.getElementById('jump-btn');
+        function updateGamepadStatus() {
+            let statusText = [];
+            players.forEach(p => {
+                if (p.gamepadIndex !== null) {
+                    const gp = navigator.getGamepads()[p.gamepadIndex];
+                    if (gp) {
+                        statusText.push(`Hráč ${p.id}: ${gp.id.substring(0, 20)}...`);
+                    }
+                }
+            });
+            gamepadStatus.innerHTML = statusText.join('<br>');
+        }
 
-        leftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys.left = true; });
-        leftBtn.addEventListener('touchend', (e) => { e.preventDefault(); keys.left = false; });
-        rightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys.right = true; });
-        rightBtn.addEventListener('touchend', (e) => { e.preventDefault(); keys.right = false; });
-        jumpBtn.addEventListener('touchstart', (e) => { 
-            e.preventDefault(); 
-            keys.space = true;
-            if(!gameStarted) handleFirstInteraction();
-        });
-        jumpBtn.addEventListener('touchend', (e) => { e.preventDefault(); keys.space = false; });
-
-        restartButton.addEventListener('click', resetGame);
+        window.addEventListener("gamepadconnected", assignGamepads);
+        window.addEventListener("gamepaddisconnected", assignGamepads);
         
         // --- INICIALIZACE ---
-        createInitialClouds();
-        gameLoop();
+        startGame();
 
     </script>
 </body>

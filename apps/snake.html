@@ -23,6 +23,18 @@
             background-color: #1e1e1e; /* Slightly lighter dark for the play area */
         }
 
+        /* Score display styling */
+        .score-display {
+            position: absolute;
+            top: 20px;
+            font-size: 2rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        #score1 { left: 20px; color: #3498db; }
+        #score2 { right: 20px; color: #e67e22; display: none; }
+
+
         /* Common style for overlay screens */
         .overlay {
             position: absolute;
@@ -55,10 +67,6 @@
              color: #e74c3c; /* Red color for game over text */
         }
         
-        #startScreen h1 {
-            color: #3498db; /* Blue color for start screen */
-        }
-
         /* Button styling */
         .overlay button {
             background-color: #2ecc71; /* Green button */
@@ -79,18 +87,15 @@
 <body>
     <!-- The canvas where the game will be drawn -->
     <canvas id="gameCanvas"></canvas>
-
-    <!-- Start Screen -->
-    <div id="startScreen" class="overlay">
-        <h1>Snake</h1>
-        <p>Tap to turn. Eat the apples.</p>
-        <button id="startButton">Start Game</button>
-    </div>
+    
+    <!-- Score Displays -->
+    <div id="score1" class="score-display">P1: 0</div>
+    <div id="score2" class="score-display">P2: 0</div>
 
     <!-- Game Over screen -->
     <div id="gameOverScreen" class="overlay" style="display: none;">
         <h1>Game Over</h1>
-        <p>Your Score: <span id="finalScore">0</span></p>
+        <p id="finalScoreText"></p>
         <button id="restartButton">Play Again</button>
     </div>
 
@@ -98,13 +103,12 @@
         // --- Game Setup ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const startScreen = document.getElementById('startScreen');
         const gameOverScreen = document.getElementById('gameOverScreen');
-        const startButton = document.getElementById('startButton');
         const restartButton = document.getElementById('restartButton');
-        const finalScoreElement = document.getElementById('finalScore');
+        const score1Element = document.getElementById('score1');
+        const score2Element = document.getElementById('score2');
+        const finalScoreTextElement = document.getElementById('finalScoreText');
 
-        // Function to set canvas size correctly for mobile browsers
         function resizeCanvas() {
             canvas.width = document.documentElement.clientWidth;
             canvas.height = document.documentElement.clientHeight;
@@ -112,15 +116,12 @@
         
         // --- Game Constants and Variables ---
         const gridSize = 20;
-        let snake = [];
+        let players = [];
         let apple = {};
-        let dx = gridSize;
-        let dy = 0;
-        let changingDirection = false;
-        let score = 0;
         let gameSpeed = 100;
         let particles = [];
         let gameActive = false;
+        let gamepadLoopId = null;
 
         // --- Game Functions ---
 
@@ -129,10 +130,8 @@
             const particleCount = 15;
             for (let i = 0; i < particleCount; i++) {
                 particles.push({
-                    x: x + gridSize / 2,
-                    y: y + gridSize / 2,
-                    dx: (Math.random() - 0.5) * 6,
-                    dy: (Math.random() - 0.5) * 6,
+                    x: x + gridSize / 2, y: y + gridSize / 2,
+                    dx: (Math.random() - 0.5) * 6, dy: (Math.random() - 0.5) * 6,
                     life: 20
                 });
             }
@@ -156,9 +155,13 @@
             }
         }
 
-        /** Efficiently places an apple on a random grid location that is not occupied by the snake. */
+        /** Efficiently places an apple on a random grid location that is not occupied by any snake. */
         function spawnApple() {
-            const snakeCoordinates = new Set(snake.map(segment => `${segment.x},${segment.y}`));
+            const allSnakeCoordinates = new Set();
+            players.forEach(p => {
+                if (p) p.snake.forEach(segment => allSnakeCoordinates.add(`${segment.x},${segment.y}`));
+            });
+
             const availableSpots = [];
             const cols = Math.floor(canvas.width / gridSize);
             const rows = Math.floor(canvas.height / gridSize);
@@ -166,13 +169,13 @@
                 for (let y = 0; y < rows; y++) {
                     const gridX = x * gridSize;
                     const gridY = y * gridSize;
-                    if (!snakeCoordinates.has(`${gridX},${gridY}`)) {
+                    if (!allSnakeCoordinates.has(`${gridX},${gridY}`)) {
                         availableSpots.push({ x: gridX, y: gridY });
                     }
                 }
             }
             if (availableSpots.length === 0) {
-                endGame(true); // Player wins
+                endGame(true);
                 return;
             }
             const newApplePosition = availableSpots[Math.floor(Math.random() * availableSpots.length)];
@@ -187,13 +190,14 @@
                 return;
             }
             
-            changingDirection = false;
+            players.forEach(p => { if(p) p.changingDirection = false; });
+
             window.gameLoopTimeout = setTimeout(() => {
                 clearCanvas();
                 drawApple();
-                moveSnake();
+                players.forEach(p => { if(p) moveSnake(p); });
                 updateAndDrawParticles();
-                drawSnake();
+                players.forEach(p => { if(p) drawSnake(p); });
                 gameLoop();
             }, gameSpeed);
         }
@@ -203,7 +207,13 @@
             gameActive = false;
             clearTimeout(window.gameLoopTimeout);
             gameOverScreen.style.display = 'flex';
-            finalScoreElement.textContent = isWinner ? `WINNER! ${score}` : score;
+            if (isWinner) {
+                finalScoreTextElement.textContent = `WINNER! P1: ${players[0].score}`;
+            } else if (players.length > 1 && players[1]) {
+                finalScoreTextElement.textContent = `P1: ${players[0].score} | P2: ${players[1].score}`;
+            } else if (players[0]) {
+                finalScoreTextElement.textContent = `Your Score: ${players[0].score}`;
+            }
         }
 
         /** Clears the canvas for the next frame. */
@@ -212,11 +222,11 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        /** Draws the snake on the canvas. */
-        function drawSnake() {
+        /** Draws a single snake on the canvas. */
+        function drawSnake(player) {
             if (!gameActive) return;
-            snake.forEach((segment, index) => {
-                ctx.fillStyle = index === 0 ? '#3498db' : '#2980b9';
+            player.snake.forEach((segment, index) => {
+                ctx.fillStyle = index === 0 ? player.headColor : player.bodyColor;
                 ctx.strokeStyle = '#1e1e1e';
                 ctx.fillRect(segment.x, segment.y, gridSize, gridSize);
                 ctx.strokeRect(segment.x, segment.y, gridSize, gridSize);
@@ -232,141 +242,205 @@
             ctx.strokeRect(apple.x, apple.y, gridSize, gridSize);
         }
 
-        /** Updates the snake's position, handles wall bouncing, and checks for apple consumption. */
-        function moveSnake() {
-            const nextHead = { x: snake[0].x + dx, y: snake[0].y + dy };
-            const hitLeftWall = nextHead.x < 0;
-            const hitRightWall = nextHead.x >= canvas.width;
-            const hitTopWall = nextHead.y < 0;
-            const hitBottomWall = nextHead.y >= canvas.height;
+        /** Updates a snake's position, handles wall bouncing, and checks for apple consumption. */
+        function moveSnake(player) {
+            const nextHead = { x: player.snake[0].x + player.dx, y: player.snake[0].y + player.dy };
+            const hitWall = nextHead.x < 0 || nextHead.x >= canvas.width || nextHead.y < 0 || nextHead.y >= canvas.height;
 
-            if (hitLeftWall || hitRightWall || hitTopWall || hitBottomWall) {
-                if (snake.length > 1) { snake.pop(); }
-                createExplosion(snake[0].x, snake[0].y);
-                snake.reverse();
-                if (snake.length > 1) {
-                    dx = snake[0].x - snake[1].x;
-                    dy = snake[0].y - snake[1].y;
+            if (hitWall) {
+                if (player.snake.length > 1) { player.snake.pop(); }
+                createExplosion(player.snake[0].x, player.snake[0].y);
+                player.snake.reverse();
+                if (player.snake.length > 1) {
+                    player.dx = player.snake[0].x - player.snake[1].x;
+                    player.dy = player.snake[0].y - player.snake[1].y;
                 } else {
-                    dx = -dx;
-                    dy = -dy;
+                    player.dx = -player.dx;
+                    player.dy = -player.dy;
                 }
             }
             
-            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
-            snake.unshift(head);
+            const head = { x: player.snake[0].x + player.dx, y: player.snake[0].y + player.dy };
+            player.snake.unshift(head);
 
-            if (snake[0].x === apple.x && snake[0].y === apple.y) {
-                score += 10;
+            if (head.x === apple.x && head.y === apple.y) {
+                player.score += 10;
+                updateScores();
                 spawnApple();
                 if(gameSpeed > 50) gameSpeed -= 2;
             } else {
-                snake.pop();
+                player.snake.pop();
             }
         }
 
-        /** Checks for game over condition (self-collision only). */
+        /** Checks for game over conditions (self-collision, player-collision). */
         function isGameOver() {
-            for (let i = 4; i < snake.length; i++) {
-                if (snake[i].x === snake[0].x && snake[i].y === snake[0].y) {
-                    return true;
+            for (const player of players) {
+                if (!player) continue;
+                const head = player.snake[0];
+                // Check self collision
+                for (let i = 4; i < player.snake.length; i++) {
+                    if (player.snake[i].x === head.x && player.snake[i].y === head.y) return true;
+                }
+                // Check collision with other players
+                for (const otherPlayer of players) {
+                    if (!otherPlayer || player === otherPlayer) continue;
+                    for (const segment of otherPlayer.snake) {
+                        if (segment.x === head.x && segment.y === head.y) return true;
+                    }
                 }
             }
             return false;
         }
 
-        /** Handles keyboard input for absolute direction changes. */
+        /** Handles keyboard input for Player 1. */
         function handleKeyDown(event) {
-            if (changingDirection) return;
-            const LEFT_KEY = 37;
-            const RIGHT_KEY = 39;
-            const UP_KEY = 38;
-            const DOWN_KEY = 40;
+            const player = players[0];
+            if (!gameActive || !player || player.changingDirection) return;
+            
+            const LEFT_KEY = 37, RIGHT_KEY = 39, UP_KEY = 38, DOWN_KEY = 40;
             const keyPressed = event.keyCode;
-            const goingUp = dy === -gridSize;
-            const goingDown = dy === gridSize;
-            const goingRight = dx === gridSize;
-            const goingLeft = dx === -gridSize;
+            const goingUp = player.dy === -gridSize, goingDown = player.dy === gridSize;
+            const goingRight = player.dx === gridSize, goingLeft = player.dx === -gridSize;
 
-            if (keyPressed === LEFT_KEY && !goingRight) { dx = -gridSize; dy = 0; changingDirection = true; }
-            if (keyPressed === UP_KEY && !goingDown) { dx = 0; dy = -gridSize; changingDirection = true; }
-            if (keyPressed === RIGHT_KEY && !goingLeft) { dx = gridSize; dy = 0; changingDirection = true; }
-            if (keyPressed === DOWN_KEY && !goingUp) { dx = 0; dy = gridSize; changingDirection = true; }
+            if (keyPressed === LEFT_KEY && !goingRight) { player.dx = -gridSize; player.dy = 0; player.changingDirection = true; }
+            if (keyPressed === UP_KEY && !goingDown) { player.dx = 0; player.dy = -gridSize; player.changingDirection = true; }
+            if (keyPressed === RIGHT_KEY && !goingLeft) { player.dx = gridSize; player.dy = 0; player.changingDirection = true; }
+            if (keyPressed === DOWN_KEY && !goingUp) { player.dx = 0; player.dy = gridSize; player.changingDirection = true; }
         }
 
-        /** Turns the snake left or right relative to its current direction. */
-        function turn(direction) {
-            if (changingDirection) return;
-            const currentDx = dx;
-            const currentDy = dy;
+        /** Turns a snake left or right relative to its current direction. */
+        function turn(player, direction) {
+            if (!player || player.changingDirection) return;
+            const { dx, dy } = player;
             if (direction === 'left') {
-                if (currentDx > 0) { dx = 0; dy = -gridSize; } else if (currentDx < 0) { dx = 0; dy = gridSize; } else if (currentDy > 0) { dx = gridSize; dy = 0; } else if (currentDy < 0) { dx = -gridSize; dy = 0; }
+                if (dx > 0) { player.dx = 0; player.dy = -gridSize; } else if (dx < 0) { player.dx = 0; player.dy = gridSize; } else if (dy > 0) { player.dx = gridSize; player.dy = 0; } else if (dy < 0) { player.dx = -gridSize; player.dy = 0; }
             } else if (direction === 'right') {
-                if (currentDx > 0) { dx = 0; dy = gridSize; } else if (currentDx < 0) { dx = 0; dy = -gridSize; } else if (currentDy > 0) { dx = -gridSize; dy = 0; } else if (currentDy < 0) { dx = gridSize; dy = 0; }
+                if (dx > 0) { player.dx = 0; player.dy = gridSize; } else if (dx < 0) { player.dx = 0; player.dy = -gridSize; } else if (dy > 0) { player.dx = -gridSize; player.dy = 0; } else if (dy < 0) { player.dx = gridSize; player.dy = 0; }
             }
-            changingDirection = true;
+            player.changingDirection = true;
         }
         
         /** Resets the game to its initial state. */
         function init() {
             resizeCanvas(); 
-            snake = [{ x: Math.floor(canvas.width / 2 / gridSize) * gridSize, y: Math.floor(canvas.height / 2 / gridSize) * gridSize }];
-            dx = gridSize;
-            dy = 0;
-            score = 0;
+            players = [createPlayer(1)];
             gameSpeed = 100;
             particles = [];
             gameActive = true;
+            updateScores();
+            score2Element.style.display = 'none';
             gameOverScreen.style.display = 'none';
             spawnApple();
             clearTimeout(window.gameLoopTimeout); 
             gameLoop();
+        }
+        
+        function createPlayer(playerNum) {
+            const isP1 = playerNum === 1;
+            const startX = isP1 ? Math.floor(canvas.width / 4 / gridSize) * gridSize : Math.floor(canvas.width * 3 / 4 / gridSize) * gridSize;
+            return {
+                id: playerNum,
+                snake: [{ x: startX, y: Math.floor(canvas.height / 2 / gridSize) * gridSize }],
+                dx: isP1 ? gridSize : -gridSize,
+                dy: 0,
+                score: 0,
+                changingDirection: false,
+                headColor: isP1 ? '#3498db' : '#e67e22',
+                bodyColor: isP1 ? '#2980b9' : '#d35400',
+                gamepadIndex: null
+            };
+        }
+
+        function updateScores() {
+            if (players[0]) score1Element.textContent = `P1: ${players[0].score}`;
+            if (players[1]) score2Element.textContent = `P2: ${players[1].score}`;
         }
 
         /** Handles window resize events. */
         function handleResize() {
             resizeCanvas();
             if (gameActive) {
-                const head = snake[0];
-                if (head.x >= canvas.width || head.y >= canvas.height) {
-                    endGame();
-                }
-                else if ((apple.x && apple.x >= canvas.width) || (apple.y && apple.y >= canvas.height)) {
-                    spawnApple();
-                }
+                players.forEach(p => {
+                    if (p && p.snake[0].x >= canvas.width || p.snake[0].y >= canvas.height) endGame();
+                });
+                if ((apple.x && apple.x >= canvas.width) || (apple.y && apple.y >= canvas.height)) spawnApple();
             }
             clearCanvas();
             updateAndDrawParticles();
             drawApple();
-            drawSnake();
+            players.forEach(p => { if(p) drawSnake(p); });
         }
         
-        /** Starts the game and calls init. */
-        function startGame() {
-            startScreen.style.display = 'none';
-            // Fullscreen calls removed
-            init();
-        }
+        // --- Gamepad Logic ---
+        function gamepadLoop() {
+            const gamepads = navigator.getGamepads();
+            if (!gamepads) return;
 
+            for (let i = 0; i < gamepads.length; i++) {
+                const gp = gamepads[i];
+                if (!gp) continue;
+
+                // Find if a player is already using this gamepad
+                const playerUsingGamepad = players.find(p => p && p.gamepadIndex === i);
+                
+                // Player 2 join logic: if game is active, in 1-player mode, and an unassigned gamepad presses start
+                if (gameActive && !playerUsingGamepad && players.length === 1 && gp.buttons[9] && gp.buttons[9].pressed) {
+                    if (!players[1]) { // Ensure P2 doesn't already exist
+                        const p2 = createPlayer(2);
+                        p2.gamepadIndex = i;
+                        players[1] = p2;
+                        score2Element.style.display = 'block';
+                    }
+                }
+
+                // Assign first detected active gamepad to P1 if they don't have one
+                if (players[0] && players[0].gamepadIndex === null && !players.find(p => p && p.gamepadIndex === i)) {
+                    // Check for any button press to assign P1
+                    if (gp.buttons.some(b => b.pressed)) {
+                        players[0].gamepadIndex = i;
+                    }
+                }
+
+                // Control assigned player
+                const player = players.find(p => p && p.gamepadIndex === i);
+                if (player && !player.changingDirection) {
+                    const dpadUp = gp.buttons[12].pressed;
+                    const dpadDown = gp.buttons[13].pressed;
+                    const dpadLeft = gp.buttons[14].pressed;
+                    const dpadRight = gp.buttons[15].pressed;
+
+                    const goingUp = player.dy === -gridSize, goingDown = player.dy === gridSize;
+                    const goingRight = player.dx === gridSize, goingLeft = player.dx === -gridSize;
+
+                    if (dpadLeft && !goingRight) { player.dx = -gridSize; player.dy = 0; player.changingDirection = true; }
+                    else if (dpadUp && !goingDown) { player.dx = 0; player.dy = -gridSize; player.changingDirection = true; }
+                    else if (dpadRight && !goingLeft) { player.dx = gridSize; player.dy = 0; player.changingDirection = true; }
+                    else if (dpadDown && !goingUp) { player.dx = 0; player.dy = gridSize; player.changingDirection = true; }
+                }
+            }
+            gamepadLoopId = requestAnimationFrame(gamepadLoop);
+        }
+        
         // --- Event Listeners ---
         window.addEventListener('resize', handleResize);
         document.addEventListener('keydown', handleKeyDown);
-        startButton.addEventListener('click', startGame);
         restartButton.addEventListener('click', init);
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.addEventListener('mousedown', e => {
-            if (!gameActive) return;
-            if (e.button === 0) { turn('left'); } else if (e.button === 2) { turn('right'); }
+            if (!gameActive || !players[0]) return;
+            if (e.button === 0) { turn(players[0], 'left'); } else if (e.button === 2) { turn(players[0], 'right'); }
         });
         document.addEventListener('touchstart', e => {
-            if (!gameActive) return;
+            if (!gameActive || !players[0]) return;
             e.preventDefault();
             const touchX = e.changedTouches[0].clientX;
-            if (touchX < window.innerWidth / 2) { turn('left'); } else { turn('right'); }
+            if (touchX < window.innerWidth / 2) { turn(players[0], 'left'); } else { turn(players[0], 'right'); }
         }, { passive: false });
         
-        // Initial setup
-        resizeCanvas();
+        // --- Initial setup ---
+        init();
+        gamepadLoop();
 
     </script>
 </body>
