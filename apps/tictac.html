@@ -270,7 +270,7 @@
             // Input State
             let gamepadIndex;
             let focusIndex = 0;
-            let isFocusVisible = false; // FIX: Controls visibility of custom focus
+            let isFocusVisible = false;
             let lastInputTime = 0;
             const INPUT_COOLDOWN = 150; // ms
 
@@ -287,7 +287,7 @@
                 isGameActive = true;
                 isOpponentThinking = false;
                 focusIndex = 0;
-                isFocusVisible = false; // FIX: Reset focus visibility on new game
+                isFocusVisible = false;
 
                 boardElement.innerHTML = '';
                 boardElement.classList.remove('thinking');
@@ -299,14 +299,19 @@
                     cell.innerHTML = '&nbsp;'; 
                     cell.setAttribute('role', 'gridcell');
                     cell.setAttribute('aria-label', `Cell ${index + 1}`);
-                    cell.setAttribute('tabindex', '0');
+                    cell.setAttribute('tabindex', '-1'); // Cells are not directly focusable
                     boardElement.appendChild(cell);
                     cells.push(cell);
                 });
+
+                // FIX: Attach cell-specific listeners here, after they are created
+                cells.forEach(cell => {
+                    cell.addEventListener('click', handleCellClick);
+                });
+
                 updateFocus();
                 updateStatus(`Player ${currentPlayer}'s turn`);
                 updateModeButtons();
-                addEventListeners();
             }
             
             function updateModeButtons() {
@@ -315,39 +320,35 @@
                 pvcButton.classList.toggle('active', gameMode === 'pvc');
             }
 
-            function addEventListeners() {
-                cells.forEach(cell => {
-                    cell.addEventListener('click', handleCellClick);
-                    cell.addEventListener('keydown', handleCellKeyDown);
-                });
-                resetButton.addEventListener('click', () => initializeGame());
-                pvpButton.addEventListener('click', () => initializeGame('pvp'));
-                pvaButton.addEventListener('click', () => initializeGame('pva'));
-                pvcButton.addEventListener('click', () => initializeGame('pvc'));
-            }
-
             function handleCellClick(event) {
                 if (isOpponentThinking) return;
                 const clickedCell = event.target;
                 const cellIndex = parseInt(clickedCell.dataset.index);
+                
+                // Update focus to clicked cell
+                focusIndex = cellIndex;
+                isFocusVisible = true;
+                updateFocus();
+
                 makeMove(cellIndex);
             }
 
-            function handleCellKeyDown(event) {
+            // FIX: This is now a global handler for keyboard input
+            function handleGlobalKeyDown(event) {
                 if (isOpponentThinking) return;
                 const key = event.key;
                 
                 // Action keys
                 if (key === 'Enter' || key === ' ') {
                     event.preventDefault();
-                    makeMove(focusIndex); // Use the custom focus index
+                    makeMove(focusIndex);
                     return;
                 }
 
                 if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) return;
                 
                 event.preventDefault();
-                isFocusVisible = true; // FIX: Show focus on first keyboard navigation
+                isFocusVisible = true;
                 let newFocusIndex = focusIndex;
 
                 switch (key) {
@@ -375,7 +376,6 @@
                 cell.classList.add(currentPlayer);
                 cell.style.cursor = 'not-allowed';
                 cell.setAttribute('aria-label', `Cell ${index + 1} marked as ${currentPlayer}`);
-                cell.removeAttribute('tabindex');
             }
 
             function checkResult() {
@@ -466,6 +466,8 @@
             function setupGamepad() {
                 window.addEventListener("gamepadconnected", (e) => {
                     gamepadIndex = e.gamepad.index;
+                    isFocusVisible = true;
+                    updateFocus();
                     updateStatus("Gamepad connected!");
                     setTimeout(() => updateStatus(`Player ${currentPlayer}'s turn`), 1500);
                     gamepadLoop();
@@ -523,7 +525,7 @@
                 }
 
                 if (moved) {
-                    isFocusVisible = true; // FIX: Show focus on first gamepad navigation
+                    isFocusVisible = true;
                     if (newFocusIndex >= 0 && newFocusIndex < 9) {
                         focusIndex = newFocusIndex;
                         updateFocus();
@@ -541,7 +543,6 @@
 
             function updateFocus() {
                 cells.forEach((cell, index) => {
-                    // FIX: Use a single class and check visibility flag
                     cell.classList.toggle('focus-visible', isFocusVisible && index === focusIndex);
                 });
             }
@@ -693,6 +694,14 @@
                 }, 3000);
             }
 
+            // --- Single-Time Event Listener Setup ---
+            // FIX: Add global listeners once, outside of the re-initialization function
+            document.addEventListener('keydown', handleGlobalKeyDown);
+            resetButton.addEventListener('click', () => initializeGame());
+            pvpButton.addEventListener('click', () => initializeGame('pvp'));
+            pvaButton.addEventListener('click', () => initializeGame('pva'));
+            pvcButton.addEventListener('click', () => initializeGame('pvc'));
+            
             // Start the game!
             initializeGame('pvp');
             setupGamepad();
