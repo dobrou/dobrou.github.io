@@ -104,40 +104,40 @@
     </div>
 
     <script>
-        const canvas = document.getElementById('game-canvas');
-        const ctx = canvas.getContext('2d');
-        const scoresContainer = document.getElementById('scores-container');
-        const gameOverModal = document.getElementById('game-over-modal');
-        const gameOverTitle = document.getElementById('game-over-title');
-        const finalScoreEl = document.getElementById('final-score');
-        const restartButton = document.getElementById('restart-button');
+        var canvas = document.getElementById('game-canvas');
+        var ctx = canvas.getContext('2d');
+        var scoresContainer = document.getElementById('scores-container');
+        var gameOverModal = document.getElementById('game-over-modal');
+        var gameOverTitle = document.getElementById('game-over-title');
+        var finalScoreEl = document.getElementById('final-score');
+        var restartButton = document.getElementById('restart-button');
 
-        let players, foods, gameInterval, particles, grid;
-        const MAX_PLAYERS = 4;
-        const GRID_SIZE = 24;
-        const SNAKE_RADIUS = 6;
-        const FOOD_RADIUS = 5;
-        const SNAKE_SPEED = 1.5;
+        var players, foods, gameInterval, particles, grid;
+        var MAX_PLAYERS = 4;
+        var GRID_SIZE = 24;
+        var SNAKE_RADIUS = 6;
+        var FOOD_RADIUS = 5;
+        var SNAKE_SPEED = 1.5;
 
-        const keysPressed = {};
-        let pointerTurnDirection = 0;
-        const assignedControls = new Set();
-        const playerColors = [
+        var keysPressed = {};
+        var pointerTurnDirection = 0;
+        var assignedControls = new Set();
+        var playerColors = [
             { head: '--p1-head-color', body: '--p1-body-color' },
             { head: '--p2-head-color', body: '--p2-body-color' },
             { head: '--p3-head-color', body: '--p3-body-color' },
             { head: '--p4-head-color', body: '--p4-body-color' },
         ];
 
-        const foodTypes = {
+        var foodTypes = {
             normal: { type: 'normal' }, golden: { type: 'golden' },
             rotten: { type: 'rotten' }, blue: { type: 'blue' }
         };
         
-        const baseTurnRate = 0.07;
+        var baseTurnRate = 0.07;
 
         function setup() {
-            const canvasSize = canvas.getBoundingClientRect().width;
+            var canvasSize = canvas.getBoundingClientRect().width;
             canvas.width = canvasSize;
             canvas.height = canvasSize * 0.75;
             
@@ -146,9 +146,15 @@
             players = [];
             assignedControls.clear();
             
-            const gridWidth = Math.ceil(canvas.width / GRID_SIZE);
-            const gridHeight = Math.ceil(canvas.height / GRID_SIZE);
-            grid = Array(gridWidth).fill(null).map(() => Array(gridHeight).fill(null));
+            var gridWidth = Math.ceil(canvas.width / GRID_SIZE);
+            var gridHeight = Math.ceil(canvas.height / GRID_SIZE);
+            grid = [];
+            for (var i = 0; i < gridWidth; i++) {
+                grid[i] = [];
+                for (var j = 0; j < gridHeight; j++) {
+                    grid[i][j] = null;
+                }
+            }
             
             addNewPlayer();
 
@@ -161,8 +167,8 @@
         
         function addNewPlayer() {
             if (players.length >= MAX_PLAYERS) return null;
-            const playerIndex = players.length;
-            const player = {
+            var playerIndex = players.length;
+            var player = {
                 id: playerIndex + 1,
                 snake: [],
                 score: 0,
@@ -174,9 +180,9 @@
                 spawnTimer: 30,
             };
 
-            const startX = (canvas.width / (MAX_PLAYERS + 1)) * (playerIndex + 1);
-            const startY = canvas.height / 2;
-            for (let i = 0; i < 10; i++) {
+            var startX = (canvas.width / (MAX_PLAYERS + 1)) * (playerIndex + 1);
+            var startY = canvas.height / 2;
+            for (var i = 0; i < 10; i++) {
                 player.snake.push({ x: startX - i * SNAKE_SPEED, y: startY });
             }
             players.push(player);
@@ -188,7 +194,7 @@
             handleInputs();
             updateGrid();
             
-            players.forEach(player => {
+            players.forEach(function(player) {
                 if (player.active) {
                     updateSnake(player);
                 }
@@ -199,17 +205,17 @@
         }
         
         function updateGrid() {
-            for(let i = 0; i < grid.length; i++) {
-                for(let j = 0; j < grid[i].length; j++) {
+            for(var i = 0; i < grid.length; i++) {
+                for(var j = 0; j < grid[i].length; j++) {
                     grid[i][j] = null;
                 }
             }
             
-            players.forEach(player => {
+            players.forEach(function(player) {
                 if (!player.active) return;
-                player.snake.forEach((segment, index) => {
-                    const gridX = Math.floor(segment.x / GRID_SIZE);
-                    const gridY = Math.floor(segment.y / GRID_SIZE);
+                player.snake.forEach(function(segment, index) {
+                    var gridX = Math.floor(segment.x / GRID_SIZE);
+                    var gridY = Math.floor(segment.y / GRID_SIZE);
                     if (gridX >= 0 && gridX < grid.length && gridY >= 0 && gridY < grid[0].length) {
                         if (!grid[gridX][gridY]) grid[gridX][gridY] = [];
                         grid[gridX][gridY].push({ playerId: player.id, segmentIndex: index });
@@ -219,49 +225,57 @@
         }
 
         function checkCollisions() {
-            const activePlayers = players.filter(p => p.active);
-            activePlayers.forEach(player => {
+            var activePlayers = players.filter(function(p) { return p.active; });
+            activePlayers.forEach(function(player, i) {
                 if (player.spawnTimer > 0) return;
 
-                const head = player.snake[0];
-                const gridX = Math.floor(head.x / GRID_SIZE);
-                const gridY = Math.floor(head.y / GRID_SIZE);
+                var head = player.snake[0];
+                var gridX = Math.floor(head.x / GRID_SIZE);
+                var gridY = Math.floor(head.y / GRID_SIZE);
 
                 if (gridX < 0 || gridX >= grid.length || gridY < 0 || gridY >= grid[0].length) {
                     return; 
                 }
 
-                for (let i = -1; i <= 1; i++) {
-                    for (let j = -1; j <= 1; j++) {
-                        const checkX = gridX + i;
-                        const checkY = gridY + j;
+                for (var i_cell = -1; i_cell <= 1; i_cell++) {
+                    for (var j_cell = -1; j_cell <= 1; j_cell++) {
+                        var checkX = gridX + i_cell;
+                        var checkY = gridY + j_cell;
 
                         if (checkX >= 0 && checkX < grid.length && checkY >= 0 && checkY < grid[0].length) {
-                            const cell = grid[checkX][checkY];
+                            var cell = grid[checkX][checkY];
                             if (cell) {
-                                for (const occupant of cell) {
-                                    const otherPlayer = players.find(p => p.id === occupant.playerId);
+                                for (var k = 0; k < cell.length; k++) {
+                                    var occupant = cell[k];
+                                    var otherPlayer = null;
+                                    for(var p_idx = 0; p_idx < players.length; p_idx++) {
+                                        if(players[p_idx].id === occupant.playerId) {
+                                            otherPlayer = players[p_idx];
+                                            break;
+                                        }
+                                    }
+
                                     if (!otherPlayer || !otherPlayer.active) continue;
 
-                                    const otherSegment = otherPlayer.snake[occupant.segmentIndex];
+                                    var otherSegment = otherPlayer.snake[occupant.segmentIndex];
                                     if (!otherSegment) continue;
 
-                                    const distance = Math.hypot(head.x - otherSegment.x, head.y - otherSegment.y);
+                                    var distance = Math.hypot(head.x - otherSegment.x, head.y - otherSegment.y);
 
                                     if (occupant.playerId === player.id) {
                                         if (occupant.segmentIndex > 5 && distance < SNAKE_RADIUS) {
-                                            console.log(`Game Over Trigger: Player ${player.id} self-collided with segment ${occupant.segmentIndex}.`, `Distance: ${distance.toFixed(2)}`, `Head: (${head.x.toFixed(2)}, ${head.y.toFixed(2)})`, `Segment: (${otherSegment.x.toFixed(2)}, ${otherSegment.y.toFixed(2)})`);
+                                            console.log("Game Over Trigger: Player " + player.id + " self-collided with segment " + occupant.segmentIndex + ".");
                                             player.active = false;
                                             return;
                                         }
                                     } else {
                                         if (otherPlayer.spawnTimer === 0 && distance < SNAKE_RADIUS * 2) {
                                             if (occupant.segmentIndex === 0) {
-                                                console.log(`Game Over Trigger: Head-on collision between P${player.id} and P${otherPlayer.id}. Dist: ${distance.toFixed(2)}`);
+                                                console.log("Game Over Trigger: Head-on collision between P" + player.id + " and P" + otherPlayer.id + ".");
                                                 player.active = false;
                                                 otherPlayer.active = false;
                                             } else {
-                                                console.log(`Game Over Trigger: Player ${player.id} hit Player ${otherPlayer.id}'s body. Dist: ${distance.toFixed(2)}`);
+                                                console.log("Game Over Trigger: Player " + player.id + " hit Player " + otherPlayer.id + "'s body.");
                                                 player.active = false;
                                             }
                                             return;
@@ -274,7 +288,7 @@
                 }
             });
 
-            const remainingPlayers = players.filter(p => p.active);
+            var remainingPlayers = players.filter(function(p) { return p.active; });
             if (players.length > 1 && remainingPlayers.length <= 1) {
                 gameOver(remainingPlayers[0]);
             } else if (players.length === 1 && remainingPlayers.length === 0) {
@@ -288,7 +302,14 @@
                 player.spawnTimer--;
             }
             player.angle += player.turnSpeed;
-            const head = { ...player.snake[0] };
+            
+            var head = {};
+            for (var key in player.snake[0]) {
+                if (player.snake[0].hasOwnProperty(key)) {
+                    head[key] = player.snake[0][key];
+                }
+            }
+
             head.x += SNAKE_SPEED * Math.cos(player.angle);
             head.y += SNAKE_SPEED * Math.sin(player.angle);
 
@@ -299,9 +320,9 @@
 
             player.snake.unshift(head);
             
-            let foodEaten = false;
-            for (let i = foods.length - 1; i >= 0; i--) {
-                const food = foods[i];
+            var foodEaten = false;
+            for (var i = foods.length - 1; i >= 0; i--) {
+                var food = foods[i];
                 if (Math.hypot(head.x - food.x, head.y - food.y) < SNAKE_RADIUS + FOOD_RADIUS) {
                     handleFoodEaten(food.type, player);
                     foods.splice(i, 1);
@@ -317,25 +338,25 @@
             ctx.fillStyle = '#1a1a1a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             drawFoods();
-            players.forEach(player => {
+            players.forEach(function(player) {
                 if (player.active) drawSnake(player);
             });
             drawParticles();
         }
 
         function drawFoods() {
-            foods.forEach(food => {
+            foods.forEach(function(food) {
                 ctx.beginPath();
                 ctx.arc(food.x, food.y, FOOD_RADIUS, 0, 2 * Math.PI);
-                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(`--food-${food.type}-color`);
+                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--food-' + food.type + '-color');
                 ctx.fill();
             });
         }
 
         function drawSnake(player) {
-            const headColor = getComputedStyle(document.documentElement).getPropertyValue(player.colors.head);
-            const bodyColor = getComputedStyle(document.documentElement).getPropertyValue(player.colors.body);
-            player.snake.forEach((segment, index) => {
+            var headColor = getComputedStyle(document.documentElement).getPropertyValue(player.colors.head);
+            var bodyColor = getComputedStyle(document.documentElement).getPropertyValue(player.colors.body);
+            player.snake.forEach(function(segment, index) {
                 ctx.beginPath();
                 ctx.arc(segment.x, segment.y, SNAKE_RADIUS, 0, 2 * Math.PI);
                 ctx.fillStyle = index === 0 ? headColor : bodyColor;
@@ -344,8 +365,8 @@
         }
         
         function drawParticles() {
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
+            for (var i = particles.length - 1; i >= 0; i--) {
+                var p = particles[i];
                 p.x += p.vx; p.y += p.vy; p.life -= 1;
                 if (p.life <= 0) particles.splice(i, 1);
                 else {
@@ -360,7 +381,7 @@
         }
 
         function initializeFoods() {
-            for (let i=0; i<4; i++) spawnFood('normal');
+            for (var i=0; i<4; i++) spawnFood('normal');
             spawnFood('golden'); spawnFood('rotten'); spawnFood('blue');
         }
 
@@ -377,16 +398,25 @@
                 case 'normal': player.score++; break;
                 case 'golden':
                     player.score = (player.score + 1) * 2;
-                    const len = player.snake.length;
-                    for(let i = 0; i < len; i++) player.snake.push({...player.snake[player.snake.length - 1]});
+                    var len = player.snake.length;
+                    for(var i = 0; i < len; i++) {
+                        var lastSegment = player.snake[player.snake.length - 1];
+                        var newSegment = {};
+                        for (var key in lastSegment) {
+                           if (lastSegment.hasOwnProperty(key)) {
+                               newSegment[key] = lastSegment[key];
+                           }
+                        }
+                        player.snake.push(newSegment);
+                    }
                     break;
                 case 'rotten':
                     player.score = Math.floor(player.score / 2);
-                    const rottenLen = Math.max(3, Math.floor(player.snake.length / 2));
+                    var rottenLen = Math.max(3, Math.floor(player.snake.length / 2));
                     while (player.snake.length > rottenLen) player.snake.pop();
                     break;
                 case 'blue':
-                    const blueLen = Math.max(3, Math.floor(player.snake.length / 2));
+                    var blueLen = Math.max(3, Math.floor(player.snake.length / 2));
                     while (player.snake.length > blueLen) player.snake.pop();
                     break;
             }
@@ -394,31 +424,31 @@
         }
         
         function handleWallCollision(head, player) {
-            const impactX = Math.max(0, Math.min(canvas.width, head.x));
-            const impactY = Math.max(0, Math.min(canvas.height, head.y));
+            var impactX = Math.max(0, Math.min(canvas.width, head.x));
+            var impactY = Math.max(0, Math.min(canvas.height, head.y));
             createExplosion(impactX, impactY);
             player.score = Math.max(0, player.score - 1);
             updateScoresUI();
             player.snake.reverse();
-            const newHead = player.snake[0], newSecond = player.snake[1];
+            var newHead = player.snake[0], newSecond = player.snake[1];
             if (newHead && newSecond) player.angle = Math.atan2(newHead.y - newSecond.y, newHead.x - newSecond.x);
         }
 
         function gameOver(winner) {
             clearInterval(gameInterval);
-            console.log('Game Over. Final Winner:', winner ? `Player ${winner.id}` : 'None/Draw');
+            console.log('Game Over. Final Winner:', winner ? 'Player ' + winner.id : 'None/Draw');
             if (!winner) {
                 gameOverTitle.textContent = players.length > 1 ? 'DRAW!' : 'GAME OVER';
-                let scoreText = '';
-                players.forEach(p => {
-                    scoreText += `P${p.id}: ${p.score}  `;
+                var scoreText = '';
+                players.forEach(function(p) {
+                    scoreText += 'P' + p.id + ': ' + p.score + '  ';
                 });
                 finalScoreEl.textContent = scoreText;
             } else {
-                gameOverTitle.textContent = `PLAYER ${winner.id} WINS!`;
-                let scoreText = '';
-                players.forEach(p => {
-                    scoreText += `P${p.id}: ${p.score}  `;
+                gameOverTitle.textContent = 'PLAYER ' + winner.id + ' WINS!';
+                var scoreText = '';
+                players.forEach(function(p) {
+                    scoreText += 'P' + p.id + ': ' + p.score + '  ';
                 });
                 finalScoreEl.textContent = scoreText;
             }
@@ -427,12 +457,12 @@
 
         function updateScoresUI() {
             scoresContainer.innerHTML = '';
-            players.forEach(player => {
-                const scoreEl = document.createElement('div');
-                scoreEl.id = `score-board-p${player.id}`;
+            players.forEach(function(player) {
+                var scoreEl = document.createElement('div');
+                scoreEl.id = 'score-board-p' + player.id;
                 scoreEl.className = 'score-board';
                 scoreEl.style.color = getComputedStyle(document.documentElement).getPropertyValue(player.colors.head);
-                scoreEl.textContent = `P${player.id}: ${player.score}`;
+                scoreEl.textContent = 'P' + player.id + ': ' + player.score;
                 scoresContainer.appendChild(scoreEl);
             });
         }
@@ -440,10 +470,22 @@
         function checkAndAssignControl(controlId, turnValue) {
             if (turnValue === 0) return;
             if (assignedControls.has(controlId)) {
-                const player = players.find(p => p.control === controlId);
+                var player = null;
+                for(var i = 0; i < players.length; i++) {
+                    if(players[i].control === controlId) {
+                        player = players[i];
+                        break;
+                    }
+                }
                 if (player) player.turnSpeed = turnValue * baseTurnRate;
             } else {
-                let player = players.find(p => p.control === null);
+                var player = null;
+                for(var i = 0; i < players.length; i++) {
+                    if(players[i].control === null) {
+                        player = players[i];
+                        break;
+                    }
+                }
                 if (!player) player = addNewPlayer();
                 if (player) {
                     player.control = controlId;
@@ -454,55 +496,57 @@
         }
 
         function handleInputs() {
-            players.forEach(p => p.turnSpeed = 0);
+            players.forEach(function(p) { p.turnSpeed = 0; });
             
             checkAndAssignControl('pointer', pointerTurnDirection);
             checkAndAssignControl('arrows', keysPressed['ArrowRight'] ? 1 : (keysPressed['ArrowLeft'] ? -1 : 0));
             checkAndAssignControl('ad', keysPressed['d'] ? 1 : (keysPressed['a'] ? -1 : 0));
 
-            navigator.getGamepads().forEach((gp, i) => {
-                if (!gp) return;
-                checkAndAssignControl(`gp${i}-ls`, gp.axes[0]);
-                checkAndAssignControl(`gp${i}-rs`, gp.axes[2]);
-                checkAndAssignControl(`gp${i}-dpad`, gp.buttons[15].pressed ? 1 : (gp.buttons[14].pressed ? -1 : 0));
-                const rightTurn = gp.buttons[0].pressed || gp.buttons[1].pressed;
-                const leftTurn = gp.buttons[2].pressed || gp.buttons[3].pressed;
-                checkAndAssignControl(`gp${i}-face`, rightTurn ? 1 : (leftTurn ? -1 : 0));
-            });
+            var gamepads = navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads() : []);
+            for (var i = 0; i < gamepads.length; i++) {
+                var gp = gamepads[i];
+                if (!gp) continue;
+                checkAndAssignControl('gp' + i + '-ls', gp.axes[0]);
+                checkAndAssignControl('gp' + i + '-rs', gp.axes[2]);
+                checkAndAssignControl('gp' + i + '-dpad', gp.buttons[15].pressed ? 1 : (gp.buttons[14].pressed ? -1 : 0));
+                var rightTurn = gp.buttons[0].pressed || gp.buttons[1].pressed;
+                var leftTurn = gp.buttons[2].pressed || gp.buttons[3].pressed;
+                checkAndAssignControl('gp' + i + '-face', rightTurn ? 1 : (leftTurn ? -1 : 0));
+            }
         }
 
         function createExplosion(x, y) {
-            for (let i = 0; i < 20; i++) {
+            for (var i = 0; i < 20; i++) {
                 particles.push({
-                    x, y, vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3,
+                    x: x, y: y, vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3,
                     life: Math.random() * 60, size: Math.random() * 2 + 1
                 });
             }
         }
 
         // Event Listeners
-        document.addEventListener('keydown', e => {
-            if (['ArrowLeft', 'ArrowRight', 'a', 'd'].includes(e.key)) e.preventDefault();
+        document.addEventListener('keydown', function(e) {
+            if (['ArrowLeft', 'ArrowRight', 'a', 'd'].indexOf(e.key) > -1) e.preventDefault();
             keysPressed[e.key] = true;
         });
-        document.addEventListener('keyup', e => {
-            if (['ArrowLeft', 'ArrowRight', 'a', 'd'].includes(e.key)) e.preventDefault();
+        document.addEventListener('keyup', function(e) {
+            if (['ArrowLeft', 'ArrowRight', 'a', 'd'].indexOf(e.key) > -1) e.preventDefault();
             keysPressed[e.key] = false;
         });
-        window.addEventListener('mousedown', e => {
+        window.addEventListener('mousedown', function(e) {
             e.preventDefault();
             pointerTurnDirection = (e.button === 0) ? -1 : 1;
         });
-        window.addEventListener('mouseup', e => { e.preventDefault(); pointerTurnDirection = 0; });
-        window.addEventListener('contextmenu', e => e.preventDefault());
-        window.addEventListener('touchstart', e => {
+        window.addEventListener('mouseup', function(e) { e.preventDefault(); pointerTurnDirection = 0; });
+        window.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+        window.addEventListener('touchstart', function(e) {
             e.preventDefault();
-            const touch = e.touches[0];
+            var touch = e.touches[0];
             pointerTurnDirection = (touch.clientX < window.innerWidth / 2) ? -1 : 1;
         }, { passive: false });
-        window.addEventListener('touchend', e => { e.preventDefault(); pointerTurnDirection = 0; });
+        window.addEventListener('touchend', function(e) { e.preventDefault(); pointerTurnDirection = 0; });
         restartButton.addEventListener('click', setup);
-        restartButton.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); setup(); });
+        restartButton.addEventListener('touchstart', function(e) { e.preventDefault(); e.stopPropagation(); setup(); });
         window.addEventListener('resize', setup);
         window.onload = setup;
     </script>
