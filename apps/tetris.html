@@ -177,7 +177,7 @@
             max-height: 200px;
             overflow-y: auto;
             z-index: 1001;
-            display: none; /* Hidden by default, show for debugging */
+            display: block; /* Show by default for debugging */
             white-space: pre-wrap; /* Preserve whitespace and wrap */
         }
 
@@ -577,18 +577,25 @@
                     this.currentPiece.y--;
                     this.mergePiece();
                     this.clearLines();
-                    this.currentPiece = this.nextPiece;
-                    this.nextPiece = this.getRandomPiece();
-                    this.drawNextPiece(); // Draw next piece immediately after getting it
-
+                    this.currentPiece = this.getRandomPiece(); // Get new piece first
+                    
+                    // Check for Game Over after getting the new piece
                     if (this.checkCollision(this.currentPiece)) {
                         this.gameOver = true;
                         showMessage(`Player ${this.playerIndex + 1} Game Over!`, `Your score: ${this.score}`);
                         console.error(`Player ${this.playerIndex + 1} Game Over detected on new piece spawn.`);
-                        this.ctx.clearRect(0, 0, this.gameCanvas.width, this.gameCanvas.height); // Clear main board on game over
-                        this.nextCtx.clearRect(0, 0, this.nextPieceCanvas.width, this.nextPieceCanvas.height); // Clear next piece on game over
+                        
+                        // --- Game Over Actions ---
+                        this.ctx.clearRect(0, 0, this.gameCanvas.width, this.gameCanvas.height); // Clear main board
+                        this.nextCtx.clearRect(0, 0, this.nextPieceCanvas.width, this.nextPieceCanvas.height); // Clear next piece preview
+                        this.currentPiece = null; // Ensure no piece is drawn
+                        this.nextPiece = null; // Ensure no next piece is generated/drawn
+                        // --- End Game Over Actions ---
+                        
                         return; // Stop further processing for this player
                     }
+                    this.nextPiece = this.getRandomPiece(); // Get NEXT piece for preview
+                    this.drawNextPiece(); // Only draw if not game over
                 }
                 this.lastDropTime = currentTime;
                 this.lastActionTime = currentTime; // Update action time for manual drops
@@ -604,18 +611,25 @@
                 }
                 this.mergePiece();
                 this.clearLines();
-                this.currentPiece = this.nextPiece;
-                this.nextPiece = this.getRandomPiece();
-                this.drawNextPiece(); // Draw next piece immediately after getting it
+                this.currentPiece = this.getRandomPiece(); // Get new piece first
 
+                // Check for Game Over after getting the new piece
                 if (this.checkCollision(this.currentPiece)) {
                     this.gameOver = true;
                     showMessage(`Player ${this.playerIndex + 1} Game Over!`, `Your score: ${this.score}`);
                     console.error(`Player ${this.playerIndex + 1} Game Over detected on hard drop.`);
-                    this.ctx.clearRect(0, 0, this.gameCanvas.width, this.gameCanvas.height); // Clear main board on game over
-                    this.nextCtx.clearRect(0, 0, this.nextPieceCanvas.width, this.nextPieceCanvas.height); // Clear next piece on game over
+
+                    // --- Game Over Actions ---
+                    this.ctx.clearRect(0, 0, this.gameCanvas.width, this.gameCanvas.height); // Clear main board
+                    this.nextCtx.clearRect(0, 0, this.nextPieceCanvas.width, this.nextPieceCanvas.height); // Clear next piece preview
+                    this.currentPiece = null; // Ensure no piece is drawn
+                    this.nextPiece = null; // Ensure no next piece is generated/drawn
+                    // --- End Game Over Actions ---
+
                     return; // Stop further processing for this player
                 }
+                this.nextPiece = this.getRandomPiece(); // Get NEXT piece for preview
+                this.drawNextPiece(); // Only draw if not game over
                 this.lastDropTime = currentTime;
                 this.lastActionTime = currentTime;
             }
@@ -651,6 +665,7 @@
 
         // --- Game Loop ---
         let gameLoopTimeoutId = null;
+        let gamepadPollIntervalId = null; // New: dedicated interval for gamepad polling
 
         function update() {
             let allGamesOver = true;
@@ -667,7 +682,7 @@
 
                 gameState.ctx.clearRect(0, 0, gameState.gameCanvas.width, gameState.gameCanvas.height);
                 gameState.drawBoard();
-                if (gameState.currentPiece) {
+                if (gameState.currentPiece) { // Only draw current piece if it exists
                     gameState.drawPiece(gameState.currentPiece, gameState.ctx);
                 }
             });
@@ -678,6 +693,12 @@
                 clearTimeout(gameLoopTimeoutId);
                 gameLoopTimeoutId = null;
                 console.log("All games over. Game loop stopped.");
+                // Stop gamepad polling when all games are over
+                if (gamepadPollIntervalId) {
+                    clearInterval(gamepadPollIntervalId);
+                    gamepadPollIntervalId = null;
+                    console.log("Gamepad polling stopped.");
+                }
             }
         }
 
@@ -890,6 +911,12 @@
                 gameLoopTimeoutId = null;
                 console.log("Cleared previous game loop timeout.");
             }
+            // Clear previous gamepad polling interval
+            if (gamepadPollIntervalId) {
+                clearInterval(gamepadPollIntervalId);
+                gamepadPollIntervalId = null;
+                console.log("Cleared previous gamepad polling interval.");
+            }
 
             const player1BoardContainer = document.getElementById('player1-board-container');
             const player2BoardContainer = document.getElementById('player2-board-container');
@@ -972,6 +999,12 @@
             if (!gameLoopTimeoutId) {
                 gameLoopTimeoutId = setTimeout(update, 1000 / 60); // Aim for ~60 FPS
                 console.log("Game loop started with setTimeout.");
+            }
+
+            // Start dedicated gamepad polling
+            if (!gamepadPollIntervalId) {
+                gamepadPollIntervalId = setInterval(pollGamepads, 100); // Poll every 100ms
+                console.log("Gamepad polling started with setInterval.");
             }
 
             wasdUsedForPlayer2 = false;
