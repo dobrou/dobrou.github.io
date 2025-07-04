@@ -33,27 +33,39 @@
         }
 
         #game-container {
-            width: 100%; max-width: 800px; display: flex; flex-direction: column;
-            align-items: center; padding: 1rem; box-sizing: border-box;
-        }
-
-        #scores-container {
-            display: flex; justify-content: space-around; flex-wrap: wrap;
-            width: 100%; font-size: 1.5rem; margin-bottom: 1rem;
-        }
-        
-        .score-board {
-            padding: 0 10px;
+            width: 100%; height: 100%;
+            position: relative; /* Context for absolute positioning of overlays */
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         #game-canvas {
             background-color: #1a1a1a; border: 2px solid var(--border-color);
-            border-radius: 8px; width: 100%; aspect-ratio: 4 / 3;
-            max-width: 100%; cursor: pointer;
+            border-radius: 8px; 
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
         }
 
         #instructions {
-            margin-top: 1rem; font-size: 0.9rem; color: #aaa;
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            padding: 5px 15px;
+            z-index: 5;
+            font-size: 0.9rem; 
+            color: #aaa;
+            pointer-events: none;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            transition: opacity 0.5s ease-out;
+        }
+        
+        .hidden {
+            opacity: 0;
         }
         
         .modal {
@@ -89,15 +101,14 @@
 </head>
 <body>
     <div id="game-container">
-        <div id="scores-container"></div>
         <canvas id="game-canvas"></canvas>
         <div id="instructions">
-            <strong>Controls:</strong> Gamepads, Arrow Keys, AD Keys, Click/Tap
+            <strong>Ovládání:</strong> Gamepad, Šipky, AD, Klik/Ťuk
         </div>
     </div>
     <div id="game-over-modal" class="modal">
         <div id="game-over-box">
-            <h2 id="game-over-title">GAME OVER</h2>
+            <h2 id="game-over-title">KONEC HRY</h2>
             <p id="final-score"></p>
             <button id="restart-button" class="modal-button">RESTART</button>
         </div>
@@ -106,13 +117,13 @@
     <script>
         var canvas = document.getElementById('game-canvas');
         var ctx = canvas.getContext('2d');
-        var scoresContainer = document.getElementById('scores-container');
+        var instructions = document.getElementById('instructions');
         var gameOverModal = document.getElementById('game-over-modal');
         var gameOverTitle = document.getElementById('game-over-title');
         var finalScoreEl = document.getElementById('final-score');
         var restartButton = document.getElementById('restart-button');
 
-        var players, foods, gameInterval, particles, grid, gameOverLoopId;
+        var players, foods, gameInterval, particles, grid, gameOverLoopId, instructionsTimeoutId;
         var MAX_PLAYERS = 4;
         var GRID_SIZE = 24;
         var SNAKE_RADIUS = 6;
@@ -137,9 +148,15 @@
         var baseTurnRate = 0.07;
 
         function setup() {
-            var canvasSize = canvas.getBoundingClientRect().width;
-            canvas.width = canvasSize;
-            canvas.height = canvasSize * 0.75;
+            var container = document.getElementById('game-container');
+            var containerWidth = container.clientWidth;
+            var containerHeight = container.clientHeight;
+
+            canvas.width = containerWidth;
+            canvas.height = containerHeight;
+            
+            canvas.style.width = containerWidth + 'px';
+            canvas.style.height = containerHeight + 'px';
             
             particles = [];
             foods = [];
@@ -165,6 +182,13 @@
             if (gameOverLoopId) cancelAnimationFrame(gameOverLoopId);
             document.removeEventListener('keydown', handleRestartKey);
 
+            // Instructions visibility logic
+            if (instructionsTimeoutId) clearTimeout(instructionsTimeoutId);
+            instructions.classList.remove('hidden');
+            instructionsTimeoutId = setTimeout(function() {
+                instructions.classList.add('hidden');
+            }, 30000); // 30 seconds
+
             gameInterval = setInterval(gameLoop, 1000 / 60);
         }
         
@@ -189,7 +213,6 @@
                 player.snake.push({ x: startX - i * SNAKE_SPEED, y: startY });
             }
             players.push(player);
-            updateScoresUI();
             return player;
         }
 
@@ -337,11 +360,22 @@
         function draw() {
             ctx.fillStyle = '#1a1a1a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+            drawScores();
             drawFoods();
             players.forEach(function(player) {
                 if (player.active) drawSnake(player);
             });
             drawParticles();
+        }
+
+        function drawScores() {
+            ctx.font = '1.5rem Orbitron';
+            ctx.textAlign = 'center';
+            var scoreSpacing = canvas.width / (players.length + 1);
+            players.forEach(function(player, index) {
+                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(player.colors.head);
+                ctx.fillText('P' + player.id + ': ' + player.score, scoreSpacing * (index + 1), 30);
+            });
         }
 
         function drawFoods() {
@@ -420,7 +454,6 @@
                     while (player.snake.length > blueLen) player.snake.pop();
                     break;
             }
-            updateScoresUI();
         }
         
         function handleWallCollision(head, player) {
@@ -428,7 +461,6 @@
             var impactY = Math.max(0, Math.min(canvas.height, head.y));
             createExplosion(impactX, impactY);
             player.score = Math.max(0, player.score - 1);
-            updateScoresUI();
             player.snake.reverse();
             var newHead = player.snake[0], newSecond = player.snake[1];
             if (newHead && newSecond) player.angle = Math.atan2(newHead.y - newSecond.y, newHead.x - newSecond.x);
@@ -438,14 +470,14 @@
             clearInterval(gameInterval);
             console.log('Game Over. Final Winner:', winner ? 'Player ' + winner.id : 'None/Draw');
             if (!winner) {
-                gameOverTitle.textContent = players.length > 1 ? 'DRAW!' : 'GAME OVER';
+                gameOverTitle.textContent = players.length > 1 ? 'REMIZA!' : 'KONEC HRY';
                 var scoreText = '';
                 players.forEach(function(p) {
                     scoreText += 'P' + p.id + ': ' + p.score + '  ';
                 });
                 finalScoreEl.textContent = scoreText;
             } else {
-                gameOverTitle.textContent = 'PLAYER ' + winner.id + ' WINS!';
+                gameOverTitle.textContent = 'HRÁČ ' + winner.id + ' VYHRÁL!';
                 var scoreText = '';
                 players.forEach(function(p) {
                     scoreText += 'P' + p.id + ': ' + p.score + '  ';
@@ -476,15 +508,7 @@
         }
 
         function updateScoresUI() {
-            scoresContainer.innerHTML = '';
-            players.forEach(function(player) {
-                var scoreEl = document.createElement('div');
-                scoreEl.id = 'score-board-p' + player.id;
-                scoreEl.className = 'score-board';
-                scoreEl.style.color = getComputedStyle(document.documentElement).getPropertyValue(player.colors.head);
-                scoreEl.textContent = 'P' + player.id + ': ' + player.score;
-                scoresContainer.appendChild(scoreEl);
-            });
+            // This function is no longer needed as score is drawn on canvas
         }
         
         function checkAndAssignControl(controlId, turnValue) {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Retro Pong - Dynamic Controls</title>
+    <title>Retro Pong - Adaptive Orientation</title>
     <style>
         /* Basic reset and full-screen setup */
         body, html {
@@ -68,11 +68,12 @@
         // --- Game Configuration ---
         const PADDLE_WIDTH = 15;
         const PADDLE_HEIGHT_DEFAULT = 100;
-        const MIN_PADDLE_HEIGHT = 40;
-        const MAX_PADDLE_HEIGHT = 200;
+        const MIN_PADDLE_SIZE = 40;
+        const MAX_PADDLE_SIZE = 200;
         const BALL_RADIUS = 10;
         const PADDLE_SPEED = 8;
-        const AI_SPEED = 6;
+        const BASE_AI_SPEED = 6;
+        const BASE_BALL_SPEED = 5;
         const WINNING_SCORE = 10;
 
         let ball, player1, player2, keys, gamepads;
@@ -82,6 +83,8 @@
         let particles = [];
         let fireworks = [];
         let fireworksInterval;
+        let gameOrientation = 'horizontal';
+        let ballSpeed, aiSpeed; // Dynamic speeds
 
         // --- Control Management ---
         let player1Control = null;
@@ -94,6 +97,8 @@
             GYRO: 'Gyroscope',
             TOUCH_LEFT: 'Touch (Left)',
             TOUCH_RIGHT: 'Touch (Right)',
+            TOUCH_TOP: 'Touch (Top)',
+            TOUCH_BOTTOM: 'Touch (Bottom)',
             AI: 'Computer'
         };
 
@@ -107,149 +112,144 @@
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             const now = audioCtx.currentTime;
-            
             oscillator.connect(gainNode);
             gainNode.connect(audioCtx.destination);
             oscillator.type = 'sine';
+
+            let duration = 0.15; // default duration
 
             switch(type) {
                 case 'paddle':
                     gainNode.gain.setValueAtTime(0.3, now);
                     oscillator.frequency.setValueAtTime(440, now);
-                    gainNode.gain.linearRampToValueAtTime(0.0001, now + 0.15);
-                    oscillator.start(now);
-                    oscillator.stop(now + 0.15);
                     break;
                 case 'wall':
                     gainNode.gain.setValueAtTime(0.3, now);
                     oscillator.frequency.setValueAtTime(150, now);
-                    gainNode.gain.linearRampToValueAtTime(0.0001, now + 0.15);
-                    oscillator.start(now);
-                    oscillator.stop(now + 0.15);
                     break;
                 case 'score':
                     gainNode.gain.setValueAtTime(0.4, now);
                     oscillator.frequency.setValueAtTime(660, now);
-                    gainNode.gain.linearRampToValueAtTime(0.0001, now + 0.15);
-                    oscillator.start(now);
-                    oscillator.stop(now + 0.15);
                     break;
-                case 'win': // Calm fanfare sound
+                case 'win':
+                    duration = 0.8;
                     gainNode.gain.setValueAtTime(0.5, now);
                     oscillator.frequency.setValueAtTime(261.63, now); // C4
-                    oscillator.frequency.linearRampToValueAtTime(329.63, now + 0.2); // E4
-                    oscillator.frequency.linearRampToValueAtTime(392.00, now + 0.4); // G4
                     oscillator.frequency.linearRampToValueAtTime(523.25, now + 0.6); // C5
-                    gainNode.gain.linearRampToValueAtTime(0.0001, now + 0.8);
-                    oscillator.start(now);
-                    oscillator.stop(now + 0.8);
                     break;
+            }
+            
+            gainNode.gain.linearRampToValueAtTime(0.0001, now + duration);
+            oscillator.start(now);
+            oscillator.stop(now + duration);
+        }
+
+        // --- Game Objects & Setup ---
+        function checkOrientation() {
+            const oldOrientation = gameOrientation;
+            gameOrientation = window.innerWidth > window.innerHeight ? 'horizontal' : 'vertical';
+            if (oldOrientation !== gameOrientation && oldOrientation !== null) {
+                init(); // Re-initialize if orientation changes
             }
         }
 
-        // --- Game Objects ---
-        function createBall() { return { x: canvas.width / 2, y: canvas.height / 2, radius: BALL_RADIUS, speed: 7, dx: 5, dy: 5 }; }
-        function createPaddle(x) { return { x: x, y: canvas.height / 2 - PADDLE_HEIGHT_DEFAULT / 2, width: PADDLE_WIDTH, height: PADDLE_HEIGHT_DEFAULT, speed: PADDLE_SPEED, dy: 0 }; }
-
-        // --- Initialization ---
+        function createPaddle(playerIndex) {
+            const paddle = { speed: PADDLE_SPEED, dx: 0, dy: 0 };
+            if (gameOrientation === 'horizontal') {
+                paddle.x = playerIndex === 1 ? 30 : canvas.width - 30 - PADDLE_WIDTH;
+                paddle.y = canvas.height / 2 - PADDLE_HEIGHT_DEFAULT / 2;
+                paddle.width = PADDLE_WIDTH;
+                paddle.height = PADDLE_HEIGHT_DEFAULT;
+            } else { // vertical
+                paddle.x = canvas.width / 2 - PADDLE_HEIGHT_DEFAULT / 2;
+                paddle.y = playerIndex === 1 ? 30 : canvas.height - 30 - PADDLE_WIDTH;
+                paddle.width = PADDLE_HEIGHT_DEFAULT;
+                paddle.height = PADDLE_WIDTH;
+            }
+            return paddle;
+        }
+        
         function init() {
             gameOver = false;
             winnerOverlay.style.display = 'none';
             clearInterval(fireworksInterval);
             fireworks = [];
             particles = [];
-            
             player1Control = null;
             player2Control = null;
-
+            
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+            checkOrientation();
 
-            ball = createBall();
-            player1 = createPaddle(30);
-            player2 = createPaddle(canvas.width - 30 - PADDLE_WIDTH);
+            // --- Dynamic Speed Calculation ---
+            // This factor ensures the game slows down on small screens but does not speed up on large ones.
+            const referenceDimension = 800; // A baseline screen size for normal speed
+            const speedFactor = Math.min(1.0, Math.max(0.45, Math.min(canvas.width, canvas.height) / referenceDimension));
+            
+            ballSpeed = BASE_BALL_SPEED * speedFactor;
+            aiSpeed = BASE_AI_SPEED * speedFactor;
+            // --- End of Dynamic Speed Calculation ---
+
+            ball = { x: canvas.width / 2, y: canvas.height / 2, radius: BALL_RADIUS, dx: ballSpeed, dy: ballSpeed };
+            player1 = createPaddle(1);
+            player2 = createPaddle(2);
             
             keys = {};
             gamepads = {};
             scores = { p1: 0, p2: 0 };
 
-            requestAnimationFrame(gameLoop);
+            if (!gameOver) requestAnimationFrame(gameLoop);
         }
         
         // --- Event Listeners ---
         function addEventListeners() {
-            document.addEventListener('keydown', (e) => {
-                keys[e.key.toLowerCase()] = true;
-                detectControl(e.key.toLowerCase());
-            });
-            document.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
-
-            window.addEventListener("gamepadconnected", (e) => gamepads[e.gamepad.index] = e.gamepad);
-            window.addEventListener("gamepaddisconnected", (e) => delete gamepads[e.gamepad.index]);
-
-            window.addEventListener('resize', () => {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-                player2.x = canvas.width - 30 - PADDLE_WIDTH;
-            });
-            
-            // Gyroscope Listener
-            if ('DeviceOrientationEvent' in window) {
-                window.addEventListener('deviceorientation', (e) => {
-                    if (e.gamma !== null) {
-                        assignControl(controlTypes.GYRO);
-                        handleGyro(e.gamma);
-                    }
-                });
-            }
-            
-            // Touch Listeners
-            canvas.addEventListener('touchstart', handleTouch);
-            canvas.addEventListener('touchmove', handleTouch);
-
-            const startListener = (e) => {
-                setupAudio();
-                if (gameOver) {
-                    e.preventDefault();
-                    init();
-                }
-            };
+            document.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; detectControl(e.key.toLowerCase()); });
+            document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+            window.addEventListener("gamepadconnected", e => gamepads[e.gamepad.index] = e.gamepad);
+            window.addEventListener("gamepaddisconnected", e => delete gamepads[e.gamepad.index]);
+            window.addEventListener('resize', init); // Re-init on resize handles orientation change
+            if ('DeviceOrientationEvent' in window) window.addEventListener('deviceorientation', e => { if(e.gamma !== null) { assignControl(controlTypes.GYRO); handleGyro(e); } });
+            canvas.addEventListener('touchstart', handleTouch, { passive: false });
+            canvas.addEventListener('touchmove', handleTouch, { passive: false });
+            const startListener = e => { setupAudio(); if (gameOver) { e.preventDefault(); init(); } };
             document.body.addEventListener('click', startListener);
-            document.body.addEventListener('touchend', startListener); // Also use touchend for restart
+            document.body.addEventListener('touchend', startListener);
         }
         
-        // --- Touch Handling ---
+        // --- Input Handling ---
         function handleTouch(e) {
-            e.preventDefault(); // Prevent scrolling
+            e.preventDefault();
             for (const touch of e.touches) {
-                if (touch.clientX < canvas.width / 2) {
-                    // Left side of screen
-                    assignControl(controlTypes.TOUCH_LEFT);
-                    if (player1Control === controlTypes.TOUCH_LEFT) {
-                        player1.y = touch.clientY - player1.height / 2;
-                    } else if (player2Control === controlTypes.TOUCH_LEFT) {
-                        player2.y = touch.clientY - player2.height / 2;
-                    }
-                } else {
-                    // Right side of screen
-                    assignControl(controlTypes.TOUCH_RIGHT);
-                     if (player1Control === controlTypes.TOUCH_RIGHT) {
-                        player1.y = touch.clientY - player1.height / 2;
-                    } else if (player2Control === controlTypes.TOUCH_RIGHT) {
-                        player2.y = touch.clientY - player2.height / 2;
-                    }
+                if (gameOrientation === 'horizontal') {
+                    const side = touch.clientX < canvas.width / 2 ? controlTypes.TOUCH_LEFT : controlTypes.TOUCH_RIGHT;
+                    assignControl(side);
+                    const paddle = (player1Control === side) ? player1 : player2;
+                    if (paddle) paddle.y = touch.clientY - paddle.height / 2;
+                } else { // vertical
+                    const side = touch.clientY < canvas.height / 2 ? controlTypes.TOUCH_TOP : controlTypes.TOUCH_BOTTOM;
+                    assignControl(side);
+                    const paddle = (player1Control === side) ? player1 : player2;
+                    if (paddle) paddle.x = touch.clientX - paddle.width / 2;
                 }
             }
         }
 
-
-        // --- Control Assignment Logic ---
-        function assignControl(type) {
-            if (!player1Control) {
-                player1Control = type;
-            } else if (!player2Control && player1Control !== type) {
-                player2Control = type;
+        function handleGyro(e) {
+            const paddle = (player1Control === controlTypes.GYRO) ? player1 : player2;
+            if (!paddle) return;
+            if (gameOrientation === 'horizontal') {
+                let tilt = Math.max(-60, Math.min(60, e.gamma)); // left-right
+                paddle.y = ((tilt + 60) / 120) * (canvas.height - paddle.height);
+            } else {
+                let tilt = Math.max(-60, Math.min(60, e.beta)); // front-back
+                paddle.x = ((tilt + 60) / 120) * (canvas.width - paddle.width);
             }
+        }
+
+        function assignControl(type) {
+            if (!player1Control) player1Control = type;
+            else if (!player2Control && player1Control !== type) player2Control = type;
         }
 
         function detectControl(key) {
@@ -257,154 +257,116 @@
             else if (['arrowup', 'arrowdown'].includes(key)) assignControl(controlTypes.KEYBOARD_ARROWS);
         }
 
-        // --- Game Logic Update ---
+        function getPlayerVelocity(control, gamepads) {
+            switch (control) {
+                case controlTypes.KEYBOARD_WS: return (keys['w'] ? -PADDLE_SPEED : (keys['s'] ? PADDLE_SPEED : 0));
+                case controlTypes.KEYBOARD_ARROWS: return (keys['arrowup'] ? -PADDLE_SPEED : (keys['arrowdown'] ? PADDLE_SPEED : 0));
+                case controlTypes.GAMEPAD_0: if (gamepads[0]) { const axis = gamepads[0].axes[1]; if (Math.abs(axis) > 0.1) return axis * PADDLE_SPEED; } return 0;
+                case controlTypes.GAMEPAD_1: if (gamepads[1]) { const axis = gamepads[1].axes[1]; if (Math.abs(axis) > 0.1) return axis * PADDLE_SPEED; } return 0;
+                default: return 0;
+            }
+        }
+        
+        function handlePaddleSizeChange(player, control, gamepads) {
+            let change = 0;
+            const sizeTarget = gameOrientation === 'horizontal' ? 'height' : 'width';
+            switch(control) {
+                case controlTypes.KEYBOARD_WS: if(keys['a']) change = -5; if(keys['d']) change = 5; break;
+                case controlTypes.KEYBOARD_ARROWS: if(keys['j']) change = -5; if(keys['l']) change = 5; break;
+                case controlTypes.GAMEPAD_0: if(gamepads[0]?.buttons[14]?.pressed) change = -5; if(gamepads[0]?.buttons[15]?.pressed) change = 5; break;
+                case controlTypes.GAMEPAD_1: if(gamepads[1]?.buttons[14]?.pressed) change = -5; if(gamepads[1]?.buttons[15]?.pressed) change = 5; break;
+            }
+            if (change !== 0) {
+                player[sizeTarget] += change;
+                player[sizeTarget] = Math.max(MIN_PADDLE_SIZE, Math.min(MAX_PADDLE_SIZE, player[sizeTarget]));
+            }
+        }
+        
+        // --- Game Logic ---
         function update() {
-            handleInput();
+            const connectedGamepads = navigator.getGamepads();
+            if (connectedGamepads[0]) assignControl(controlTypes.GAMEPAD_0);
+            if (connectedGamepads[1]) assignControl(controlTypes.GAMEPAD_1);
+            
+            const p1Vel = getPlayerVelocity(player1Control, connectedGamepads);
+            const p2Vel = getPlayerVelocity(player2Control, connectedGamepads);
+
+            if (gameOrientation === 'horizontal') { player1.dy = p1Vel; player2.dy = p2Vel; } 
+            else { player1.dx = p1Vel; player2.dx = p2Vel; }
+
+            handlePaddleSizeChange(player1, player1Control, connectedGamepads);
+            handlePaddleSizeChange(player2, player2Control, connectedGamepads);
+
             movePaddles();
             moveBall();
             handleCollisions();
             updateParticles();
         }
 
-        function handleInput() {
-            const connectedGamepads = navigator.getGamepads();
-            if (connectedGamepads[0]) assignControl(controlTypes.GAMEPAD_0);
-            if (connectedGamepads[1]) assignControl(controlTypes.GAMEPAD_1);
-
-            player1.dy = getPlayerMovement(player1Control, connectedGamepads);
-            player2.dy = getPlayerMovement(player2Control, connectedGamepads);
-            
-            handlePaddleSizeChange(player1, player1Control, connectedGamepads);
-            handlePaddleSizeChange(player2, player2Control, connectedGamepads);
-        }
-        
-        function handlePaddleSizeChange(player, control, gamepads) {
-            let change = 0;
-            switch(control) {
-                case controlTypes.KEYBOARD_WS:
-                    if(keys['a']) change = -5;
-                    if(keys['d']) change = 5;
-                    break;
-                case controlTypes.KEYBOARD_ARROWS:
-                    if(keys['j']) change = -5;
-                    if(keys['l']) change = 5;
-                    break;
-                case controlTypes.GAMEPAD_0:
-                    if(gamepads[0]?.buttons[14]?.pressed) change = -5;
-                    if(gamepads[0]?.buttons[15]?.pressed) change = 5;
-                    break;
-                case controlTypes.GAMEPAD_1:
-                    if(gamepads[1]?.buttons[14]?.pressed) change = -5;
-                    if(gamepads[1]?.buttons[15]?.pressed) change = 5;
-                    break;
-            }
-            if (change !== 0) {
-                player.height += change;
-                player.height = Math.max(MIN_PADDLE_HEIGHT, Math.min(MAX_PADDLE_HEIGHT, player.height));
-            }
-        }
-
-        function getPlayerMovement(control, gamepads) {
-            switch (control) {
-                case controlTypes.KEYBOARD_WS:
-                    if (keys['w']) return -PADDLE_SPEED;
-                    if (keys['s']) return PADDLE_SPEED;
-                    return 0;
-                case controlTypes.KEYBOARD_ARROWS:
-                    if (keys['arrowup']) return -PADDLE_SPEED;
-                    if (keys['arrowdown']) return PADDLE_SPEED;
-                    return 0;
-                case controlTypes.GAMEPAD_0:
-                    if (gamepads[0]) {
-                        const axis = gamepads[0].axes[1];
-                        if (Math.abs(axis) > 0.1) return axis * PADDLE_SPEED;
-                    }
-                    return 0;
-                case controlTypes.GAMEPAD_1:
-                    if (gamepads[1]) {
-                        const axis = gamepads[1].axes[1];
-                        if (Math.abs(axis) > 0.1) return axis * PADDLE_SPEED;
-                    }
-                    return 0;
-                // Gyro and Touch are handled directly, not via velocity
-                case controlTypes.GYRO: 
-                case controlTypes.TOUCH_LEFT:
-                case controlTypes.TOUCH_RIGHT:
-                    return 0;
-                default: return 0;
-            }
-        }
-
-        function handleGyro(gamma) {
-            const paddle = (player1Control === controlTypes.GYRO) ? player1 : player2;
-            if (!paddle) return;
-            let tilt = Math.max(-60, Math.min(60, gamma));
-            const targetY = ((tilt + 60) / 120) * (canvas.height - paddle.height);
-            paddle.y = targetY;
-        }
-
         function movePaddles() {
-            // Only move via dy if not controlled by Gyro or Touch
-            if (![controlTypes.GYRO, controlTypes.TOUCH_LEFT, controlTypes.TOUCH_RIGHT].includes(player1Control)) {
-                 player1.y += player1.dy;
-            }
-            if (![controlTypes.GYRO, controlTypes.TOUCH_LEFT, controlTypes.TOUCH_RIGHT].includes(player2Control)) {
-                 player2.y += player2.dy;
-            }
+            const isP1Manual = ![controlTypes.GYRO, controlTypes.TOUCH_LEFT, controlTypes.TOUCH_RIGHT, controlTypes.TOUCH_TOP, controlTypes.TOUCH_BOTTOM].includes(player1Control);
+            const isP2Manual = ![controlTypes.GYRO, controlTypes.TOUCH_LEFT, controlTypes.TOUCH_RIGHT, controlTypes.TOUCH_TOP, controlTypes.TOUCH_BOTTOM].includes(player2Control);
 
-            // Clamp P1
-            player1.y = Math.max(0, Math.min(canvas.height - player1.height, player1.y));
-
-            // AI logic for P2 if no human control
-            if (!player2Control) {
-                const paddleCenter = player2.y + player2.height / 2;
-                if (paddleCenter < ball.y - 35) player2.y += AI_SPEED;
-                else if (paddleCenter > ball.y + 35) player2.y -= AI_SPEED;
+            if (gameOrientation === 'horizontal') {
+                if (isP1Manual) player1.y += player1.dy;
+                if (isP2Manual) player2.y += player2.dy;
+                player1.y = Math.max(0, Math.min(canvas.height - player1.height, player1.y));
+                if (!player2Control) { // AI
+                    const p2Center = player2.y + player2.height / 2;
+                    if (p2Center < ball.y - 20) player2.y += aiSpeed; else if (p2Center > ball.y + 20) player2.y -= aiSpeed;
+                }
+                player2.y = Math.max(0, Math.min(canvas.height - player2.height, player2.y));
+            } else { // vertical
+                if (isP1Manual) player1.x += player1.dx;
+                if (isP2Manual) player2.x += player2.dx;
+                player1.x = Math.max(0, Math.min(canvas.width - player1.width, player1.x));
+                if (!player2Control) { // AI
+                    const p2Center = player2.x + player2.width / 2;
+                    if (p2Center < ball.x - 20) player2.x += aiSpeed; else if (p2Center > ball.x + 20) player2.x -= aiSpeed;
+                }
+                player2.x = Math.max(0, Math.min(canvas.width - player2.width, player2.x));
             }
-            
-            // Clamp P2
-            player2.y = Math.max(0, Math.min(canvas.height - player2.height, player2.y));
         }
 
         function moveBall() {
             ball.x += ball.dx;
             ball.y += ball.dy;
-
-            if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) {
-                ball.dy *= -1;
-                playSound('wall');
-            }
-
-            if (ball.x + ball.radius > canvas.width) {
-                scores.p1++; playSound('score'); checkWin(); resetBall();
-            }
-            if (ball.x - ball.radius < 0) {
-                scores.p2++; playSound('score'); checkWin(); resetBall();
+            if (gameOrientation === 'horizontal') {
+                if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) { ball.dy *= -1; playSound('wall'); }
+                if (ball.x > canvas.width) { scores.p1++; playSound('score'); checkWin(); resetBall(); }
+                if (ball.x < 0) { scores.p2++; playSound('score'); checkWin(); resetBall(); }
+            } else { // vertical
+                if (ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) { ball.dx *= -1; playSound('wall'); }
+                if (ball.y > canvas.height) { scores.p1++; playSound('score'); checkWin(); resetBall(); }
+                if (ball.y < 0) { scores.p2++; playSound('score'); checkWin(); resetBall(); }
             }
         }
         
         function handleCollisions() {
-            const hitPlayer1 = ball.dx < 0 && ball.x - ball.radius < player1.x + player1.width && ball.y > player1.y && ball.y < player1.y + player1.height;
-            const hitPlayer2 = ball.dx > 0 && ball.x + ball.radius > player2.x && ball.y > player2.y && ball.y < player2.y + player2.height;
-            
-            if (hitPlayer1 || hitPlayer2) {
-                playSound('paddle');
-                createSparkles(ball.x, ball.y);
-                ball.dx *= -1.02;
-                let paddle = hitPlayer1 ? player1 : player2;
-                let deltaY = ball.y - (paddle.y + paddle.height / 2);
-                ball.dy = deltaY * 0.25;
+            if (gameOrientation === 'horizontal') {
+                const hitP1 = ball.dx < 0 && ball.x - ball.radius < player1.x + player1.width && ball.y > player1.y && ball.y < player1.y + player1.height;
+                const hitP2 = ball.dx > 0 && ball.x + ball.radius > player2.x && ball.y > player2.y && ball.y < player2.y + player2.height;
+                if (hitP1 || hitP2) {
+                    ball.dx *= -1.02;
+                    let paddle = hitP1 ? player1 : player2;
+                    ball.dy = (ball.y - (paddle.y + paddle.height / 2)) * 0.25;
+                    playSound('paddle'); createSparkles(ball.x, ball.y);
+                }
+            } else { // vertical
+                const hitP1 = ball.dy < 0 && ball.y - ball.radius < player1.y + player1.height && ball.x > player1.x && ball.x < player1.x + player1.width;
+                const hitP2 = ball.dy > 0 && ball.y + ball.radius > player2.y && ball.x > player2.x && ball.x < player2.x + player2.width;
+                if (hitP1 || hitP2) {
+                    ball.dy *= -1.02;
+                    let paddle = hitP1 ? player1 : player2;
+                    ball.dx = (ball.x - (paddle.x + paddle.width / 2)) * 0.25;
+                    playSound('paddle'); createSparkles(ball.x, ball.y);
+                }
             }
         }
         
         function checkWin() {
-            if (scores.p1 >= WINNING_SCORE) {
-                winnerText.textContent = "Player 1 Wins!";
-                endGame();
-            } else if (scores.p2 >= WINNING_SCORE) {
-                winnerText.textContent = (player2Control ? "Player 2" : "Computer") + " Wins!";
-                endGame();
-            }
+            if (scores.p1 >= WINNING_SCORE) { winnerText.textContent = "Player 1 Wins!"; endGame(); } 
+            else if (scores.p2 >= WINNING_SCORE) { winnerText.textContent = (player2Control ? "Player 2" : "Computer") + " Wins!"; endGame(); }
         }
         
         function endGame() {
@@ -421,98 +383,26 @@
             if (gameOver) return;
             ball.x = canvas.width / 2;
             ball.y = canvas.height / 2;
-            ball.dx = 5 * (ball.dx > 0 ? -1 : 1);
-            ball.dy = 5 * (Math.random() > 0.5 ? 1 : -1);
+            ball.dx = ballSpeed * (Math.random() > 0.5 ? 1 : -1);
+            ball.dy = ballSpeed * (Math.random() > 0.5 ? 1 : -1);
         }
 
-        // --- Particle Effects ---
-        function createSparkles(x, y) {
-            for (let i = 0; i < 15; i++) {
-                particles.push({
-                    x: x, y: y,
-                    dx: (Math.random() - 0.5) * 4,
-                    dy: (Math.random() - 0.5) * 4,
-                    size: Math.random() * 3 + 1,
-                    life: 30
-                });
-            }
-        }
-        
-        function createFirework() {
-            const x = Math.random() * canvas.width;
-            const y = Math.random() * canvas.height / 2;
-            const hue = Math.random() * 360;
-            for (let i = 0; i < 50; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const speed = Math.random() * 5 + 2;
-                fireworks.push({
-                    x: x, y: y,
-                    dx: Math.cos(angle) * speed,
-                    dy: Math.sin(angle) * speed,
-                    size: Math.random() * 3 + 1,
-                    life: 60 + Math.random() * 20,
-                    color: `hsl(${hue}, 100%, 50%)`
-                });
-            }
-        }
-
-        function updateParticles() {
-            for (let i = particles.length - 1; i >= 0; i--) {
-                let p = particles[i];
-                p.x += p.dx;
-                p.y += p.dy;
-                p.life--;
-                if (p.life <= 0) particles.splice(i, 1);
-            }
-        }
-        
-        function updateFireworks() {
-             for (let i = fireworks.length - 1; i >= 0; i--) {
-                let p = fireworks[i];
-                p.x += p.dx;
-                p.y += p.dy;
-                p.dy += 0.1; // Gravity
-                p.life--;
-                if (p.life <= 0) fireworks.splice(i, 1);
-            }
-        }
-
-        // --- Drawing ---
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawNet();
-            drawRect(player1.x, player1.y, player1.width, player1.height, '#fff');
-            drawRect(player2.x, player2.y, player2.width, player2.height, '#fff');
-            drawCircle(ball.x, ball.y, ball.radius, '#fff');
-            drawParticles();
-            drawScores();
-        }
-        
-        function drawParticles() {
-            particles.forEach(p => {
-                ctx.fillStyle = `rgba(255, 255, 255, ${p.life / 30})`;
-                ctx.fillRect(p.x, p.y, p.size, p.size);
-            });
-        }
-        
-        function drawFireworks() {
-            fireworks.forEach(p => {
-                ctx.globalAlpha = p.life / 80;
-                ctx.fillStyle = p.color;
-                ctx.fillRect(p.x, p.y, p.size, p.size);
-                ctx.globalAlpha = 1.0;
-            });
-        }
-
-        function drawRect(x, y, w, h, color) { ctx.fillStyle = color; ctx.fillRect(x, y, w, h); }
-        function drawCircle(x, y, r, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+        // --- Particle Effects & Drawing ---
+        function createSparkles(x, y) { for (let i = 0; i < 15; i++) particles.push({ x, y, dx: (Math.random()-0.5)*4, dy: (Math.random()-0.5)*4, size: Math.random()*3+1, life: 30 }); }
+        function updateParticles() { for (let i = particles.length - 1; i >= 0; i--) { let p = particles[i]; p.x += p.dx; p.y += p.dy; p.life--; if (p.life <= 0) particles.splice(i, 1); } }
+        function drawParticles() { particles.forEach(p => { ctx.fillStyle = `rgba(255, 255, 255, ${p.life / 30})`; ctx.fillRect(p.x, p.y, p.size, p.size); }); }
+        function createFirework() { const x=Math.random()*canvas.width, y=Math.random()*canvas.height/2, h=Math.random()*360; for(let i=0;i<50;i++){ const a=Math.random()*Math.PI*2, s=Math.random()*5+2; fireworks.push({x,y,dx:Math.cos(a)*s,dy:Math.sin(a)*s,size:Math.random()*3+1,life:60+Math.random()*20,color:`hsl(${h},100%,50%)`});}}
+        function updateFireworks() { for (let i = fireworks.length - 1; i >= 0; i--) { let p = fireworks[i]; p.x += p.dx; p.y += p.dy; p.dy += 0.1; p.life--; if (p.life <= 0) fireworks.splice(i, 1); } }
+        function drawFireworks() { fireworks.forEach(p => { ctx.globalAlpha = p.life / 80; ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, p.size, p.size); }); ctx.globalAlpha = 1.0; }
+        function drawRect(x, y, w, h) { ctx.fillStyle = '#fff'; ctx.fillRect(x, y, w, h); }
+        function drawCircle(x, y, r) { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
         function drawNet() {
             ctx.beginPath();
             ctx.setLineDash([10, 15]);
-            ctx.moveTo(canvas.width / 2, 0);
-            ctx.lineTo(canvas.width / 2, canvas.height);
             ctx.strokeStyle = '#555';
             ctx.lineWidth = 4;
+            if (gameOrientation === 'horizontal') { ctx.moveTo(canvas.width / 2, 0); ctx.lineTo(canvas.width / 2, canvas.height); } 
+            else { ctx.moveTo(0, canvas.height / 2); ctx.lineTo(canvas.width, canvas.height / 2); }
             ctx.stroke();
             ctx.setLineDash([]);
         }
@@ -520,29 +410,29 @@
             ctx.font = '50px "Courier New", Courier, monospace';
             ctx.fillStyle = '#fff';
             ctx.textAlign = 'center';
-            ctx.fillText(scores.p1, canvas.width / 4, 60);
-            ctx.fillText(scores.p2, 3 * canvas.width / 4, 60);
+            if (gameOrientation === 'horizontal') {
+                ctx.fillText(scores.p1, canvas.width / 4, 60);
+                ctx.fillText(scores.p2, 3 * canvas.width / 4, 60);
+            } else {
+                ctx.fillText(scores.p1, 60, canvas.height / 4);
+                ctx.fillText(scores.p2, 60, 3 * canvas.height / 4);
+            }
+        }
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawNet();
+            drawRect(player1.x, player1.y, player1.width, player1.height);
+            drawRect(player2.x, player2.y, player2.width, player2.height);
+            drawCircle(ball.x, ball.y, ball.radius);
+            drawParticles();
+            drawScores();
         }
 
         // --- Game Loops ---
-        function gameLoop() {
-            if (!gameOver) {
-                update();
-                draw();
-                requestAnimationFrame(gameLoop);
-            }
-        }
-        
-        function overlayLoop() {
-            if (gameOver) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                updateFireworks();
-                drawFireworks();
-                requestAnimationFrame(overlayLoop);
-            }
-        }
+        function gameLoop() { if (!gameOver) { update(); draw(); requestAnimationFrame(gameLoop); } }
+        function overlayLoop() { if (gameOver) { ctx.clearRect(0, 0, canvas.width, canvas.height); updateFireworks(); drawFireworks(); requestAnimationFrame(overlayLoop); } }
 
-        // --- Start the game ---
+        // --- Start ---
         addEventListeners();
         init();
     </script>
