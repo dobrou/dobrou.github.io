@@ -182,12 +182,11 @@
             if (gameOverLoopId) cancelAnimationFrame(gameOverLoopId);
             document.removeEventListener('keydown', handleRestartKey);
 
-            // Instructions visibility logic
             if (instructionsTimeoutId) clearTimeout(instructionsTimeoutId);
             instructions.classList.remove('hidden');
             instructionsTimeoutId = setTimeout(function() {
                 instructions.classList.add('hidden');
-            }, 30000); // 30 seconds
+            }, 30000);
 
             gameInterval = setInterval(gameLoop, 1000 / 60);
         }
@@ -347,7 +346,7 @@
             for (var i = foods.length - 1; i >= 0; i--) {
                 var food = foods[i];
                 if (Math.hypot(head.x - food.x, head.y - food.y) < SNAKE_RADIUS + FOOD_RADIUS) {
-                    handleFoodEaten(food.type, player);
+                    handleFoodEaten(food, player);
                     foods.splice(i, 1);
                     spawnFood(food.type);
                     foodEaten = true;
@@ -427,7 +426,9 @@
             });
         }
 
-        function handleFoodEaten(type, player) {
+        function handleFoodEaten(food, player) {
+            createSparkles(food.x, food.y);
+            var type = food.type;
             switch(type) {
                 case 'normal': player.score++; break;
                 case 'golden':
@@ -468,7 +469,6 @@
 
         function gameOver(winner) {
             clearInterval(gameInterval);
-            console.log('Game Over. Final Winner:', winner ? 'Player ' + winner.id : 'None/Draw');
             if (!winner) {
                 gameOverTitle.textContent = players.length > 1 ? 'REMIZA!' : 'KONEC HRY';
                 var scoreText = '';
@@ -564,6 +564,19 @@
                 particles.push({
                     x: x, y: y, vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3,
                     life: Math.random() * 60, size: Math.random() * 2 + 1
+                });
+            }
+        }
+
+        function createSparkles(x, y) {
+            for (var i = 0; i < 15; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() * -1.5) - 0.5,
+                    life: Math.random() * 40 + 20,
+                    size: Math.random() * 2 + 1
                 });
             }
         }

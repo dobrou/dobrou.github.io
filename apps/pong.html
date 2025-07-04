@@ -84,7 +84,7 @@
         let fireworks = [];
         let fireworksInterval;
         let gameOrientation = 'horizontal';
-        let ballSpeed, aiSpeed; // Dynamic speeds
+        let ballSpeed, aiSpeed, bounceFactor; // Dynamic game parameters
 
         // --- Control Management ---
         let player1Control = null;
@@ -104,6 +104,7 @@
 
         // --- Sound Generation ---
         function setupAudio() {
+            // Creates the AudioContext. This must be done after a user interaction on mobile.
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
         
@@ -182,14 +183,16 @@
             canvas.height = window.innerHeight;
             checkOrientation();
 
-            // --- Dynamic Speed Calculation ---
-            // This factor ensures the game slows down on small screens but does not speed up on large ones.
+            // --- Dynamic Parameter Calculation ---
             const referenceDimension = 800; // A baseline screen size for normal speed
             const speedFactor = Math.min(1.0, Math.max(0.45, Math.min(canvas.width, canvas.height) / referenceDimension));
             
             ballSpeed = BASE_BALL_SPEED * speedFactor;
             aiSpeed = BASE_AI_SPEED * speedFactor;
-            // --- End of Dynamic Speed Calculation ---
+            
+            // Změkčení odrazů na výšku, kde je pálka relativně větší
+            bounceFactor = gameOrientation === 'horizontal' ? 0.25 : 0.15;
+            // --- End of Dynamic Parameter Calculation ---
 
             ball = { x: canvas.width / 2, y: canvas.height / 2, radius: BALL_RADIUS, dx: ballSpeed, dy: ballSpeed };
             player1 = createPaddle(1);
@@ -212,13 +215,15 @@
             if ('DeviceOrientationEvent' in window) window.addEventListener('deviceorientation', e => { if(e.gamma !== null) { assignControl(controlTypes.GYRO); handleGyro(e); } });
             canvas.addEventListener('touchstart', handleTouch, { passive: false });
             canvas.addEventListener('touchmove', handleTouch, { passive: false });
-            const startListener = e => { setupAudio(); if (gameOver) { e.preventDefault(); init(); } };
+            const startListener = e => { if (gameOver) { e.preventDefault(); init(); } };
             document.body.addEventListener('click', startListener);
             document.body.addEventListener('touchend', startListener);
         }
         
         // --- Input Handling ---
         function handleTouch(e) {
+            // Okamžitá inicializace zvuku při prvním dotyku
+            setupAudio();
             e.preventDefault();
             for (const touch of e.touches) {
                 if (gameOrientation === 'horizontal') {
@@ -236,6 +241,7 @@
         }
 
         function handleGyro(e) {
+            setupAudio(); // Also init audio on gyro movement
             const paddle = (player1Control === controlTypes.GYRO) ? player1 : player2;
             if (!paddle) return;
             if (gameOrientation === 'horizontal') {
@@ -248,6 +254,7 @@
         }
 
         function assignControl(type) {
+            setupAudio(); // Init audio on any control assignment
             if (!player1Control) player1Control = type;
             else if (!player2Control && player1Control !== type) player2Control = type;
         }
@@ -349,7 +356,7 @@
                 if (hitP1 || hitP2) {
                     ball.dx *= -1.02;
                     let paddle = hitP1 ? player1 : player2;
-                    ball.dy = (ball.y - (paddle.y + paddle.height / 2)) * 0.25;
+                    ball.dy = (ball.y - (paddle.y + paddle.height / 2)) * bounceFactor;
                     playSound('paddle'); createSparkles(ball.x, ball.y);
                 }
             } else { // vertical
@@ -358,7 +365,7 @@
                 if (hitP1 || hitP2) {
                     ball.dy *= -1.02;
                     let paddle = hitP1 ? player1 : player2;
-                    ball.dx = (ball.x - (paddle.x + paddle.width / 2)) * 0.25;
+                    ball.dx = (ball.x - (paddle.x + paddle.width / 2)) * bounceFactor;
                     playSound('paddle'); createSparkles(ball.x, ball.y);
                 }
             }
