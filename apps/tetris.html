@@ -625,6 +625,7 @@
                 for (let i = 0; i < currentPads.length && i < gameInstances.length; i++) {
                     const pad = currentPads[i];
                     if (pad && gameInstances[i] && !gameInstances[i].gameOver) {
+                        // Initialize previous state for this gamepad if it doesn't exist
                         if (!prevGamepadStates[i]) {
                             prevGamepadStates[i] = { buttons: pad.buttons.map(b => b.pressed) };
                             console.log(`Initialized prevGamepadStates for pad ${i}.`);
@@ -632,15 +633,27 @@
 
                         const gameState = gameInstances[i];
 
+                        // Check buttons for "just pressed"
                         pad.buttons.forEach((button, buttonIndex) => {
-                            if (button.pressed && !prevGamepadStates[i].buttons[buttonIndex]) {
-                                console.log(`Gamepad ${i} button ${buttonIndex} pressed.`);
-                                handleGamepadInput(gameState, buttonIndex);
+                            // Ensure buttonIndex is valid for prevGamepadStates
+                            if (buttonIndex < prevGamepadStates[i].buttons.length) {
+                                if (button.pressed && !prevGamepadStates[i].buttons[buttonIndex]) {
+                                    console.log(`Gamepad ${i} button ${buttonIndex} pressed. Value: ${button.value}, Touched: ${button.touched}`);
+                                    handleGamepadInput(gameState, buttonIndex);
+                                }
+                            } else {
+                                // Handle case where a new button appears (shouldn't happen often, but for robustness)
+                                if (button.pressed) {
+                                    console.log(`Gamepad ${i} new button ${buttonIndex} pressed. Value: ${button.value}, Touched: ${button.touched}`);
+                                    handleGamepadInput(gameState, buttonIndex);
+                                }
                             }
                         });
 
+                        // Update previous state for next frame
                         prevGamepadStates[i].buttons = pad.buttons.map(b => b.pressed);
 
+                        // Check axes for continuous movement
                         const axisThreshold = 0.5;
                         if (pad.axes[0] < -axisThreshold) { gameState.moveLeft(); }
                         else if (pad.axes[0] > axisThreshold) { gameState.moveRight(); }
@@ -653,13 +666,35 @@
         }
 
         function handleGamepadInput(gameState, buttonIndex) {
-            console.log(`Handling gamepad input for Player ${gameState.playerIndex + 1}, button: ${buttonIndex}`);
+            console.log(`Player ${gameState.playerIndex + 1} - Gamepad button ${buttonIndex} triggered action.`);
             switch (buttonIndex) {
-                case 0: case 1: case 12: gameState.rotate(); break;
-                case 13: gameState.softDrop(); break;
-                case 14: gameState.moveLeft(); break;
-                case 15: gameState.moveRight(); break;
-                case 2: case 3: case 7: gameState.hardDrop(); break;
+                case 0: // A (Xbox), Cross (PS)
+                case 1: // B (Xbox), Circle (PS)
+                case 12: // D-pad Up
+                    gameState.rotate();
+                    console.log(`  -> Rotate`);
+                    break;
+                case 13: // D-pad Down
+                    gameState.softDrop();
+                    console.log(`  -> Soft Drop`);
+                    break;
+                case 14: // D-pad Left
+                    gameState.moveLeft();
+                    console.log(`  -> Move Left`);
+                    break;
+                case 15: // D-pad Right
+                    gameState.moveRight();
+                    console.log(`  -> Move Right`);
+                    break;
+                case 2: // X (Xbox), Square (PS)
+                case 3: // Y (Xbox), Triangle (PS)
+                case 7: // Right Trigger
+                    gameState.hardDrop();
+                    console.log(`  -> Hard Drop`);
+                    break;
+                default:
+                    console.log(`  -> Unmapped button: ${buttonIndex}`);
+                    break;
             }
         }
 
@@ -745,6 +780,7 @@
             }
 
             gameInstances = []; // Reset game instances
+            prevGamepadStates = {}; // *** CRUCIAL FIX: Reset gamepad states on game initialization ***
 
             // Initialize Player 1
             const gameCanvas0 = document.getElementById('gameCanvas-0');
