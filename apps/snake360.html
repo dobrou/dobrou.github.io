@@ -13,189 +13,129 @@
             --text-color: #eeeeee;
             --border-color: #333333;
             --particle-color: #ffffff;
-            /* Player 1 Colors */
-            --p1-head-color: #00ff99;
-            --p1-body-color: #00cc7a;
-            /* Player 2 Colors */
-            --p2-head-color: #ff6347; /* tomato */
-            --p2-body-color: #cd5c5c; /* indianred */
+            /* Player Colors */
+            --p1-head-color: #00ff99; --p1-body-color: #00cc7a;
+            --p2-head-color: #ff6347; --p2-body-color: #cd5c5c;
+            --p3-head-color: #1e90ff; --p3-body-color: #4682b4;
+            --p4-head-color: #da70d6; --p4-body-color: #ba55d3;
             /* Food Colors */
-            --food-normal-color: #adff2f; /* greenyellow */
-            --food-golden-color: #ffd700; /* gold */
-            --food-rotten-color: #8b4513; /* saddlebrown */
-            --food-blue-color: #00bfff;   /* deepskyblue */
+            --food-normal-color: #adff2f;
+            --food-golden-color: #ffd700;
+            --food-rotten-color: #8b4513;
+            --food-blue-color: #00bfff;
         }
 
         html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            width: 100%;
-            overflow: hidden;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: 'Orbitron', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            overflow: hidden; background-color: var(--bg-color); color: var(--text-color);
+            font-family: 'Orbitron', sans-serif; display: flex;
+            justify-content: center; align-items: center; text-align: center;
         }
 
         #game-container {
-            width: 100%;
-            max-width: 800px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 1rem;
-            box-sizing: border-box;
+            width: 100%; max-width: 800px; display: flex; flex-direction: column;
+            align-items: center; padding: 1rem; box-sizing: border-box;
         }
 
         #scores-container {
-            display: flex;
-            justify-content: space-around;
-            width: 100%;
-            font-size: 2rem;
-            margin-bottom: 1rem;
+            display: flex; justify-content: space-around; flex-wrap: wrap;
+            width: 100%; font-size: 1.5rem; margin-bottom: 1rem;
         }
-
-        #score-board-p2 {
-            display: none; /* Hidden by default */
-            color: var(--p2-head-color);
+        
+        .score-board {
+            padding: 0 10px;
         }
-         #score-board-p1 {
-            color: var(--p1-head-color);
-        }
-
 
         #game-canvas {
-            background-color: #1a1a1a;
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            width: 100%;
-            aspect-ratio: 4 / 3;
-            max-width: 100%;
-            cursor: pointer;
+            background-color: #1a1a1a; border: 2px solid var(--border-color);
+            border-radius: 8px; width: 100%; aspect-ratio: 4 / 3;
+            max-width: 100%; cursor: pointer;
         }
 
         #instructions {
-            margin-top: 1rem;
-            font-size: 0.9rem;
-            color: #aaa;
+            margin-top: 1rem; font-size: 0.9rem; color: #aaa;
         }
         
-        /* Modal Styles */
         .modal {
-            display: none; /* Hidden by default, shown with JS */
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            z-index: 10;
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); justify-content: center;
+            align-items: center; flex-direction: column; z-index: 10;
         }
 
         .modal-box {
-            background-color: #2a2a2a;
-            padding: 40px;
-            border-radius: 10px;
-            border: 2px solid var(--border-color);
-            text-align: center;
-            max-width: 90%;
+            background-color: #2a2a2a; padding: 40px; border-radius: 10px;
+            border: 2px solid var(--border-color); text-align: center; max-width: 90%;
         }
 
         .modal-box h2 {
-            margin-top: 0;
-            font-size: 2.5rem;
+            margin-top: 0; font-size: 2.5rem;
         }
         
         .modal-box p {
-            font-size: 1rem;
-            margin: 20px 0;
-            line-height: 1.5;
+            font-size: 1rem; margin: 20px 0; line-height: 1.5;
         }
 
         .modal-button {
-            padding: 15px 30px;
-            font-size: 1.2rem;
-            background-color: var(--p1-head-color);
-            color: var(--bg-color);
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-family: 'Orbitron', sans-serif;
-            transition: background-color 0.3s;
+            padding: 15px 30px; font-size: 1.2rem; background-color: #00ff99;
+            color: var(--bg-color); border: none; border-radius: 5px; cursor: pointer;
+            font-family: 'Orbitron', sans-serif; transition: background-color 0.3s;
         }
         
         .modal-button:hover {
-            background-color: var(--p1-body-color);
+            background-color: #00cc7a;
         }
 
     </style>
 </head>
 <body>
-
     <div id="game-container">
-        <div id="scores-container">
-            <div id="score-board-p1">P1: 0</div>
-            <div id="score-board-p2">P2: 0</div>
-        </div>
+        <div id="scores-container"></div>
         <canvas id="game-canvas"></canvas>
         <div id="instructions">
-            <strong>Controls:</strong> Gamepad, Arrow Keys/AD, Click/Tap
+            <strong>Controls:</strong> Gamepads, Arrow Keys, AD Keys, Click/Tap
         </div>
     </div>
-    
     <div id="game-over-modal" class="modal">
-        <div id="game-over-box" class="modal-box">
+        <div id="game-over-box">
             <h2 id="game-over-title">GAME OVER</h2>
-            <p id="final-score">YOUR SCORE: 0</p>
+            <p id="final-score"></p>
             <button id="restart-button" class="modal-button">RESTART</button>
         </div>
     </div>
 
-
     <script>
-        // --- DOM Elements ---
         const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d');
-        const scoreBoardP1 = document.getElementById('score-board-p1');
-        const scoreBoardP2 = document.getElementById('score-board-p2');
+        const scoresContainer = document.getElementById('scores-container');
         const gameOverModal = document.getElementById('game-over-modal');
         const gameOverTitle = document.getElementById('game-over-title');
         const finalScoreEl = document.getElementById('final-score');
         const restartButton = document.getElementById('restart-button');
 
-        // --- Game State Variables ---
-        let snake, snake2, foods, score, score2, angle, angle2, turnSpeed, turnSpeed2, gameInterval, particles;
-        let isTwoPlayerMode = false;
-        
-        // Input state variables
-        const keysPressed = {};
-        let pointerTurnDirection = 0; // For mouse/touch
-        // FIX: Add persistent gamepad index tracking
-        let p1GamepadIndex = null;
-        let p2GamepadIndex = null;
+        let players, foods, gameInterval, particles, grid;
+        const MAX_PLAYERS = 4;
+        const GRID_SIZE = 24;
+        const SNAKE_RADIUS = 6;
+        const FOOD_RADIUS = 5;
+        const SNAKE_SPEED = 1.5;
 
-        // --- Game Constants ---
-        const snakeRadius = 6;
-        const foodRadius = 5;
-        const speed = 1.5; 
-        const initialLength = 10; 
-        const baseTurnRate = 0.07;
+        const keysPressed = {};
+        let pointerTurnDirection = 0;
+        const assignedControls = new Set();
+        const playerColors = [
+            { head: '--p1-head-color', body: '--p1-body-color' },
+            { head: '--p2-head-color', body: '--p2-body-color' },
+            { head: '--p3-head-color', body: '--p3-body-color' },
+            { head: '--p4-head-color', body: '--p4-body-color' },
+        ];
 
         const foodTypes = {
-            normal: { color: getComputedStyle(document.documentElement).getPropertyValue('--food-normal-color'), type: 'normal' },
-            golden: { color: getComputedStyle(document.documentElement).getPropertyValue('--food-golden-color'), type: 'golden' },
-            rotten: { color: getComputedStyle(document.documentElement).getPropertyValue('--food-rotten-color'), type: 'rotten' },
-            blue:   { color: getComputedStyle(document.documentElement).getPropertyValue('--food-blue-color'), type: 'blue' }
+            normal: { type: 'normal' }, golden: { type: 'golden' },
+            rotten: { type: 'rotten' }, blue: { type: 'blue' }
         };
+        
+        const baseTurnRate = 0.07;
 
-        // --- Game Setup ---
         function setup() {
             const canvasSize = canvas.getBoundingClientRect().width;
             canvas.width = canvasSize;
@@ -203,95 +143,166 @@
             
             particles = [];
             foods = [];
-            isTwoPlayerMode = false;
-            // Reset gamepad assignments
-            p1GamepadIndex = null;
-            p2GamepadIndex = null;
-
-            // Player 1 setup
-            snake = [];
-            const startX1 = canvas.width / 4;
-            const startY1 = canvas.height / 2;
-            for (let i = 0; i < initialLength; i++) snake.push({ x: startX1 - i * speed, y: startY1 });
-            score = 0;
-            angle = 0;
-            turnSpeed = 0;
-            scoreBoardP1.textContent = 'P1: 0';
+            players = [];
+            assignedControls.clear();
             
-            // Player 2 reset
-            snake2 = null;
-            score2 = 0;
-            angle2 = Math.PI;
-            turnSpeed2 = 0;
-            scoreBoardP2.style.display = 'none';
+            const gridWidth = Math.ceil(canvas.width / GRID_SIZE);
+            const gridHeight = Math.ceil(canvas.height / GRID_SIZE);
+            grid = Array(gridWidth).fill(null).map(() => Array(gridHeight).fill(null));
+            
+            addNewPlayer();
 
             initializeFoods();
             
             gameOverModal.style.display = 'none';
-
             if (gameInterval) clearInterval(gameInterval);
             gameInterval = setInterval(gameLoop, 1000 / 60);
         }
-
-        function activateTwoPlayerMode() {
-            if (isTwoPlayerMode) return;
-            isTwoPlayerMode = true;
-
-            snake2 = [];
-            const startX2 = canvas.width * 3 / 4;
-            const startY2 = canvas.height / 2;
-            for (let i = 0; i < initialLength; i++) snake2.push({ x: startX2 + i * speed, y: startY2 });
-            score2 = 0;
-            angle2 = Math.PI;
-            turnSpeed2 = 0;
-            scoreBoardP2.textContent = 'P2: 0';
-            scoreBoardP2.style.display = 'block';
-        }
         
-        // --- Game Loop ---
-        function gameLoop() {
-            handleInputs(); // Centralized input handling
-            
-            updateSnake(snake, 'p1');
+        function addNewPlayer() {
+            if (players.length >= MAX_PLAYERS) return null;
+            const playerIndex = players.length;
+            const player = {
+                id: playerIndex + 1,
+                snake: [],
+                score: 0,
+                angle: (playerIndex % 2 === 0) ? 0 : Math.PI,
+                turnSpeed: 0,
+                control: null,
+                colors: playerColors[playerIndex],
+                active: true,
+                spawnTimer: 30,
+            };
 
-            if(isTwoPlayerMode) {
-                updateSnake(snake2, 'p2');
-                checkSnakeCollisions();
+            const startX = (canvas.width / (MAX_PLAYERS + 1)) * (playerIndex + 1);
+            const startY = canvas.height / 2;
+            for (let i = 0; i < 10; i++) {
+                player.snake.push({ x: startX - i * SNAKE_SPEED, y: startY });
             }
+            players.push(player);
+            updateScoresUI();
+            return player;
+        }
 
+        function gameLoop() {
+            handleInputs();
+            updateGrid();
+            
+            players.forEach(player => {
+                if (player.active) {
+                    updateSnake(player);
+                }
+            });
+
+            checkCollisions();
             draw();
         }
-
-        function updateSnake(s, player) {
-            let currentAngle = player === 'p1' ? angle : angle2;
-            let currentTurnSpeed = player === 'p1' ? turnSpeed : turnSpeed2;
-            
-            currentAngle += currentTurnSpeed;
-            
-            if (player === 'p1') angle = currentAngle;
-            else angle2 = currentAngle;
-            
-            const head = { ...s[0] };
-            head.x += speed * Math.cos(currentAngle);
-            head.y += speed * Math.sin(currentAngle);
-
-            if (head.x < 0 || head.x > canvas.width || head.y < 0 || head.y > canvas.height) {
-                handleWallCollision(head, s, player);
-                return; 
-            }
-
-            for (let i = 4; i < s.length; i++) {
-                if (Math.hypot(head.x - s[i].x, s[i].y) < snakeRadius) {
-                    return gameOver(player === 'p1' ? 'p2' : 'p1');
+        
+        function updateGrid() {
+            for(let i = 0; i < grid.length; i++) {
+                for(let j = 0; j < grid[i].length; j++) {
+                    grid[i][j] = null;
                 }
             }
+            
+            players.forEach(player => {
+                if (!player.active) return;
+                player.snake.forEach((segment, index) => {
+                    const gridX = Math.floor(segment.x / GRID_SIZE);
+                    const gridY = Math.floor(segment.y / GRID_SIZE);
+                    if (gridX >= 0 && gridX < grid.length && gridY >= 0 && gridY < grid[0].length) {
+                        if (!grid[gridX][gridY]) grid[gridX][gridY] = [];
+                        grid[gridX][gridY].push({ playerId: player.id, segmentIndex: index });
+                    }
+                });
+            });
+        }
 
-            s.unshift(head);
+        function checkCollisions() {
+            const activePlayers = players.filter(p => p.active);
+            activePlayers.forEach(player => {
+                if (player.spawnTimer > 0) return;
+
+                const head = player.snake[0];
+                const gridX = Math.floor(head.x / GRID_SIZE);
+                const gridY = Math.floor(head.y / GRID_SIZE);
+
+                if (gridX < 0 || gridX >= grid.length || gridY < 0 || gridY >= grid[0].length) {
+                    return; 
+                }
+
+                for (let i = -1; i <= 1; i++) {
+                    for (let j = -1; j <= 1; j++) {
+                        const checkX = gridX + i;
+                        const checkY = gridY + j;
+
+                        if (checkX >= 0 && checkX < grid.length && checkY >= 0 && checkY < grid[0].length) {
+                            const cell = grid[checkX][checkY];
+                            if (cell) {
+                                for (const occupant of cell) {
+                                    const otherPlayer = players.find(p => p.id === occupant.playerId);
+                                    if (!otherPlayer || !otherPlayer.active) continue;
+
+                                    const otherSegment = otherPlayer.snake[occupant.segmentIndex];
+                                    if (!otherSegment) continue;
+
+                                    const distance = Math.hypot(head.x - otherSegment.x, head.y - otherSegment.y);
+
+                                    if (occupant.playerId === player.id) {
+                                        if (occupant.segmentIndex > 5 && distance < SNAKE_RADIUS) {
+                                            console.log(`Game Over Trigger: Player ${player.id} self-collided with segment ${occupant.segmentIndex}.`, `Distance: ${distance.toFixed(2)}`, `Head: (${head.x.toFixed(2)}, ${head.y.toFixed(2)})`, `Segment: (${otherSegment.x.toFixed(2)}, ${otherSegment.y.toFixed(2)})`);
+                                            player.active = false;
+                                            return;
+                                        }
+                                    } else {
+                                        if (otherPlayer.spawnTimer === 0 && distance < SNAKE_RADIUS * 2) {
+                                            if (occupant.segmentIndex === 0) {
+                                                console.log(`Game Over Trigger: Head-on collision between P${player.id} and P${otherPlayer.id}. Dist: ${distance.toFixed(2)}`);
+                                                player.active = false;
+                                                otherPlayer.active = false;
+                                            } else {
+                                                console.log(`Game Over Trigger: Player ${player.id} hit Player ${otherPlayer.id}'s body. Dist: ${distance.toFixed(2)}`);
+                                                player.active = false;
+                                            }
+                                            return;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const remainingPlayers = players.filter(p => p.active);
+            if (players.length > 1 && remainingPlayers.length <= 1) {
+                gameOver(remainingPlayers[0]);
+            } else if (players.length === 1 && remainingPlayers.length === 0) {
+                 gameOver(null);
+            }
+        }
+
+
+        function updateSnake(player) {
+            if (player.spawnTimer > 0) {
+                player.spawnTimer--;
+            }
+            player.angle += player.turnSpeed;
+            const head = { ...player.snake[0] };
+            head.x += SNAKE_SPEED * Math.cos(player.angle);
+            head.y += SNAKE_SPEED * Math.sin(player.angle);
+
+            if (head.x < 0 || head.x > canvas.width || head.y < 0 || head.y > canvas.height) {
+                handleWallCollision(head, player);
+                return;
+            }
+
+            player.snake.unshift(head);
             
             let foodEaten = false;
             for (let i = foods.length - 1; i >= 0; i--) {
                 const food = foods[i];
-                if (Math.hypot(head.x - food.x, head.y - food.y) < snakeRadius + foodRadius) {
+                if (Math.hypot(head.x - food.x, head.y - food.y) < SNAKE_RADIUS + FOOD_RADIUS) {
                     handleFoodEaten(food.type, player);
                     foods.splice(i, 1);
                     spawnFood(food.type);
@@ -299,59 +310,34 @@
                     break;
                 }
             }
-
-            if (!foodEaten) {
-                s.pop();
-            }
+            if (!foodEaten) player.snake.pop();
         }
 
-        function checkSnakeCollisions() {
-            if (!snake || !snake2) return;
-            const head1 = snake[0];
-            const head2 = snake2[0];
-
-            if (Math.hypot(head1.x - head2.x, head1.y - head2.y) < snakeRadius * 2) {
-                return gameOver('draw');
-            }
-
-            for (let i = 1; i < snake2.length; i++) {
-                if (Math.hypot(head1.x - snake2[i].x, head1.y - snake2[i].y) < snakeRadius) {
-                    return gameOver('p2');
-                }
-            }
-            
-            for (let i = 1; i < snake.length; i++) {
-                if (Math.hypot(head2.x - snake[i].x, head2.y - snake[i].y) < snakeRadius) {
-                    return gameOver('p1');
-                }
-            }
-        }
-
-        // --- Drawing Functions ---
         function draw() {
             ctx.fillStyle = '#1a1a1a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             drawFoods();
-            if (snake) drawSnake(snake, 'p1');
-            if (isTwoPlayerMode && snake2) drawSnake(snake2, 'p2');
+            players.forEach(player => {
+                if (player.active) drawSnake(player);
+            });
             drawParticles();
         }
 
         function drawFoods() {
             foods.forEach(food => {
                 ctx.beginPath();
-                ctx.arc(food.x, food.y, foodRadius, 0, 2 * Math.PI);
-                ctx.fillStyle = food.color;
+                ctx.arc(food.x, food.y, FOOD_RADIUS, 0, 2 * Math.PI);
+                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(`--food-${food.type}-color`);
                 ctx.fill();
             });
         }
 
-        function drawSnake(s, player) {
-            const headColor = getComputedStyle(document.documentElement).getPropertyValue(player === 'p1' ? '--p1-head-color' : '--p2-head-color');
-            const bodyColor = getComputedStyle(document.documentElement).getPropertyValue(player === 'p1' ? '--p1-body-color' : '--p2-body-color');
-            s.forEach((segment, index) => {
+        function drawSnake(player) {
+            const headColor = getComputedStyle(document.documentElement).getPropertyValue(player.colors.head);
+            const bodyColor = getComputedStyle(document.documentElement).getPropertyValue(player.colors.body);
+            player.snake.forEach((segment, index) => {
                 ctx.beginPath();
-                ctx.arc(segment.x, segment.y, snakeRadius, 0, 2 * Math.PI);
+                ctx.arc(segment.x, segment.y, SNAKE_RADIUS, 0, 2 * Math.PI);
                 ctx.fillStyle = index === 0 ? headColor : bodyColor;
                 ctx.fill();
             });
@@ -366,197 +352,159 @@
                     ctx.globalAlpha = p.life / 60;
                     ctx.beginPath();
                     ctx.arc(p.x, p.y, p.size, 0, 2 * Math.PI);
-                    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--particle-color');
+                    ctx.fillStyle = 'var(--particle-color)';
                     ctx.fill();
                     ctx.globalAlpha = 1.0;
                 }
             }
         }
 
-        // --- Utility & Game Logic Functions ---
         function initializeFoods() {
             for (let i=0; i<4; i++) spawnFood('normal');
-            spawnFood('golden');
-            spawnFood('rotten');
-            spawnFood('blue');
+            spawnFood('golden'); spawnFood('rotten'); spawnFood('blue');
         }
 
         function spawnFood(type) {
-            const foodTemplate = foodTypes[type];
             foods.push({
-                x: Math.random() * (canvas.width - foodRadius * 4) + foodRadius * 2,
-                y: Math.random() * (canvas.height - foodRadius * 4) + foodRadius * 2,
-                ...foodTemplate
+                x: Math.random() * (canvas.width - 20) + 10,
+                y: Math.random() * (canvas.height - 20) + 10,
+                type: type
             });
         }
 
         function handleFoodEaten(type, player) {
-            let targetSnake = player === 'p1' ? snake : snake2;
-            let currentScore = player === 'p1' ? score : score2;
-            
             switch(type) {
-                case 'normal': currentScore++; break;
+                case 'normal': player.score++; break;
                 case 'golden':
-                    currentScore = (currentScore + 1) * 2;
-                    const len = targetSnake.length;
-                    for(let i = 0; i < len; i++) targetSnake.push({...targetSnake[targetSnake.length - 1]});
+                    player.score = (player.score + 1) * 2;
+                    const len = player.snake.length;
+                    for(let i = 0; i < len; i++) player.snake.push({...player.snake[player.snake.length - 1]});
                     break;
                 case 'rotten':
-                    currentScore = Math.floor(currentScore / 2);
-                    const rottenLen = Math.max(3, Math.floor(targetSnake.length / 2));
-                    while (targetSnake.length > rottenLen) targetSnake.pop();
+                    player.score = Math.floor(player.score / 2);
+                    const rottenLen = Math.max(3, Math.floor(player.snake.length / 2));
+                    while (player.snake.length > rottenLen) player.snake.pop();
                     break;
                 case 'blue':
-                    const blueLen = Math.max(3, Math.floor(targetSnake.length / 2));
-                    while (targetSnake.length > blueLen) targetSnake.pop();
+                    const blueLen = Math.max(3, Math.floor(player.snake.length / 2));
+                    while (player.snake.length > blueLen) player.snake.pop();
                     break;
             }
-            
-            if (player === 'p1') {
-                score = currentScore;
-                scoreBoardP1.textContent = 'P1: ' + score;
+            updateScoresUI();
+        }
+        
+        function handleWallCollision(head, player) {
+            const impactX = Math.max(0, Math.min(canvas.width, head.x));
+            const impactY = Math.max(0, Math.min(canvas.height, head.y));
+            createExplosion(impactX, impactY);
+            player.score = Math.max(0, player.score - 1);
+            updateScoresUI();
+            player.snake.reverse();
+            const newHead = player.snake[0], newSecond = player.snake[1];
+            if (newHead && newSecond) player.angle = Math.atan2(newHead.y - newSecond.y, newHead.x - newSecond.x);
+        }
+
+        function gameOver(winner) {
+            clearInterval(gameInterval);
+            console.log('Game Over. Final Winner:', winner ? `Player ${winner.id}` : 'None/Draw');
+            if (!winner) {
+                gameOverTitle.textContent = players.length > 1 ? 'DRAW!' : 'GAME OVER';
+                let scoreText = '';
+                players.forEach(p => {
+                    scoreText += `P${p.id}: ${p.score}  `;
+                });
+                finalScoreEl.textContent = scoreText;
             } else {
-                score2 = currentScore;
-                scoreBoardP2.textContent = 'P2: ' + score2;
+                gameOverTitle.textContent = `PLAYER ${winner.id} WINS!`;
+                let scoreText = '';
+                players.forEach(p => {
+                    scoreText += `P${p.id}: ${p.score}  `;
+                });
+                finalScoreEl.textContent = scoreText;
             }
+            gameOverModal.style.display = 'flex';
+        }
+
+        function updateScoresUI() {
+            scoresContainer.innerHTML = '';
+            players.forEach(player => {
+                const scoreEl = document.createElement('div');
+                scoreEl.id = `score-board-p${player.id}`;
+                scoreEl.className = 'score-board';
+                scoreEl.style.color = getComputedStyle(document.documentElement).getPropertyValue(player.colors.head);
+                scoreEl.textContent = `P${player.id}: ${player.score}`;
+                scoresContainer.appendChild(scoreEl);
+            });
+        }
+        
+        function checkAndAssignControl(controlId, turnValue) {
+            if (turnValue === 0) return;
+            if (assignedControls.has(controlId)) {
+                const player = players.find(p => p.control === controlId);
+                if (player) player.turnSpeed = turnValue * baseTurnRate;
+            } else {
+                let player = players.find(p => p.control === null);
+                if (!player) player = addNewPlayer();
+                if (player) {
+                    player.control = controlId;
+                    assignedControls.add(controlId);
+                    player.turnSpeed = turnValue * baseTurnRate;
+                }
+            }
+        }
+
+        function handleInputs() {
+            players.forEach(p => p.turnSpeed = 0);
+            
+            checkAndAssignControl('pointer', pointerTurnDirection);
+            checkAndAssignControl('arrows', keysPressed['ArrowRight'] ? 1 : (keysPressed['ArrowLeft'] ? -1 : 0));
+            checkAndAssignControl('ad', keysPressed['d'] ? 1 : (keysPressed['a'] ? -1 : 0));
+
+            navigator.getGamepads().forEach((gp, i) => {
+                if (!gp) return;
+                checkAndAssignControl(`gp${i}-ls`, gp.axes[0]);
+                checkAndAssignControl(`gp${i}-rs`, gp.axes[2]);
+                checkAndAssignControl(`gp${i}-dpad`, gp.buttons[15].pressed ? 1 : (gp.buttons[14].pressed ? -1 : 0));
+                const rightTurn = gp.buttons[0].pressed || gp.buttons[1].pressed;
+                const leftTurn = gp.buttons[2].pressed || gp.buttons[3].pressed;
+                checkAndAssignControl(`gp${i}-face`, rightTurn ? 1 : (leftTurn ? -1 : 0));
+            });
         }
 
         function createExplosion(x, y) {
             for (let i = 0; i < 20; i++) {
                 particles.push({
-                    x, y,
-                    vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3,
+                    x, y, vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3,
                     life: Math.random() * 60, size: Math.random() * 2 + 1
                 });
             }
         }
-        
-        function handleWallCollision(head, s, player) {
-            const impactX = Math.max(0, Math.min(canvas.width, head.x));
-            const impactY = Math.max(0, Math.min(canvas.height, head.y));
-            createExplosion(impactX, impactY);
-            
-            if (player === 'p1') {
-                score = Math.max(0, score - 1);
-                scoreBoardP1.textContent = 'P1: ' + score;
-                s.reverse();
-                const newHead = s[0], newSecond = s[1];
-                if (newHead && newSecond) angle = Math.atan2(newHead.y - newSecond.y, newHead.x - newSecond.x);
-            } else {
-                score2 = Math.max(0, score2 - 1);
-                scoreBoardP2.textContent = 'P2: ' + score2;
-                s.reverse();
-                const newHead = s[0], newSecond = s[1];
-                if (newHead && newSecond) angle2 = Math.atan2(newHead.y - newSecond.y, newHead.x - newSecond.x);
-            }
-        }
 
-        function gameOver(winner) {
-            clearInterval(gameInterval);
-            if (!isTwoPlayerMode) {
-                gameOverTitle.textContent = 'GAME OVER';
-                finalScoreEl.textContent = 'YOUR SCORE: ' + score;
-            } else {
-                 if (winner === 'draw') {
-                    gameOverTitle.textContent = 'DRAW!';
-                 } else {
-                    gameOverTitle.textContent = `PLAYER ${winner === 'p1' ? 1 : 2} WINS!`;
-                 }
-                 finalScoreEl.textContent = `P1: ${score} - P2: ${score2}`;
-            }
-            gameOverModal.style.display = 'flex';
-        }
-        
-        // --- Centralized Input Handling ---
-        function handleInputs() {
-            let p1GamepadTurn = 0;
-            let p2GamepadTurn = 0;
-            const gamepads = navigator.getGamepads();
-
-            // 1. Gamepad Input with persistent assignment
-            for (const gp of gamepads) {
-                if (!gp) continue;
-                const axis = gp.axes[0];
-                if (Math.abs(axis) > 0.15) { // Deadzone
-                    if (p1GamepadIndex === gp.index) {
-                        p1GamepadTurn = axis * 1.5;
-                    } else if (p2GamepadIndex === gp.index) {
-                        p2GamepadTurn = axis * 1.5;
-                    } else if (p1GamepadIndex === null) {
-                        p1GamepadIndex = gp.index;
-                        p1GamepadTurn = axis * 1.5;
-                    } else if (p2GamepadIndex === null) {
-                        p2GamepadIndex = gp.index;
-                        activateTwoPlayerMode();
-                        p2GamepadTurn = axis * 1.5;
-                    }
-                }
-            }
-
-            // 2. Keyboard Input (if no gamepad for that player)
-            let p1KeyboardTurn = 0;
-            if (keysPressed['ArrowLeft']) p1KeyboardTurn = -1;
-            else if (keysPressed['ArrowRight']) p1KeyboardTurn = 1;
-
-            let p2KeyboardTurn = 0;
-            if (keysPressed['a']) { activateTwoPlayerMode(); p2KeyboardTurn = -1; }
-            else if (keysPressed['d']) { activateTwoPlayerMode(); p2KeyboardTurn = 1; }
-
-            // 3. Prioritize inputs and set final turn speeds
-            // Gamepad > Keyboard > Mouse/Touch
-            turnSpeed = (p1GamepadTurn !== 0 ? p1GamepadTurn : (p1KeyboardTurn !== 0 ? p1KeyboardTurn : pointerTurnDirection)) * baseTurnRate;
-            if (isTwoPlayerMode) {
-                turnSpeed2 = (p2GamepadTurn !== 0 ? p2GamepadTurn : p2KeyboardTurn) * baseTurnRate;
-            }
-        }
-
-        // --- Event Listeners ---
-        window.addEventListener('gamepaddisconnected', (e) => {
-            if (e.gamepad.index === p1GamepadIndex) p1GamepadIndex = null;
-            if (e.gamepad.index === p2GamepadIndex) p2GamepadIndex = null;
-        });
-
+        // Event Listeners
         document.addEventListener('keydown', e => {
-            if (['ArrowLeft', 'ArrowRight', 'a', 'd'].includes(e.key)) {
-                e.preventDefault();
-            }
+            if (['ArrowLeft', 'ArrowRight', 'a', 'd'].includes(e.key)) e.preventDefault();
             keysPressed[e.key] = true;
         });
-
         document.addEventListener('keyup', e => {
-             if (['ArrowLeft', 'ArrowRight', 'a', 'd'].includes(e.key)) {
-                e.preventDefault();
-            }
+            if (['ArrowLeft', 'ArrowRight', 'a', 'd'].includes(e.key)) e.preventDefault();
             keysPressed[e.key] = false;
         });
-
         window.addEventListener('mousedown', e => {
             e.preventDefault();
-            if (e.button === 0) pointerTurnDirection = -1;
-            else if (e.button === 2) pointerTurnDirection = 1;
+            pointerTurnDirection = (e.button === 0) ? -1 : 1;
         });
-
         window.addEventListener('mouseup', e => { e.preventDefault(); pointerTurnDirection = 0; });
         window.addEventListener('contextmenu', e => e.preventDefault());
-
         window.addEventListener('touchstart', e => {
             e.preventDefault();
-            if (e.touches.length === 0) return;
             const touch = e.touches[0];
-            const turnDirection = (touch.clientX < window.innerWidth / 2) ? -1 : 1;
-            
-            if (touch.force > 0) pointerTurnDirection = turnDirection * (0.5 + (touch.force * 1.5));
-            else pointerTurnDirection = turnDirection;
+            pointerTurnDirection = (touch.clientX < window.innerWidth / 2) ? -1 : 1;
         }, { passive: false });
-
         window.addEventListener('touchend', e => { e.preventDefault(); pointerTurnDirection = 0; });
-
         restartButton.addEventListener('click', setup);
-        restartButton.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); setup(); });
-        
+        restartButton.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); setup(); });
         window.addEventListener('resize', setup);
         window.onload = setup;
-
     </script>
 </body>
 </html>
