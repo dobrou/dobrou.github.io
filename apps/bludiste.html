@@ -77,7 +77,8 @@
         let gridSize;
         
         // --- Herní stav ---
-        let player, player2, enemies, portal, potion, bosses, projectiles, bandage;
+        let players = [];
+        let enemies, portal, potion, bosses, projectiles, bandage, trapBowls;
         let lives = 5;
         let currentLevel = 1;
         let maze = [];
@@ -109,7 +110,7 @@
             [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1],[1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0,1,1,1],[1,0,1,0,1,0,1,0,0,0,1,0,0,0,1,0,1,0,0,0,1],[1,0,1,0,1,0,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1],[1,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,1],[1,0,1,1,1,1,1,0,1,0,1,1,1,0,1,1,1,0,1,0,1],[1,0,0,0,1,0,1,0,1,0,1,0,0,0,1,0,0,0,1,0,1],[1,1,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,1,1,0,1],[1,0,0,0,1,0,1,0,1,0,1,0,0,0,1,0,0,0,1,0,1],[1,0,1,1,1,0,1,0,1,0,1,1,1,0,1,1,1,0,1,0,1],[1,0,0,0,1,0,1,0,1,0,0,0,1,0,1,0,0,0,1,0,1],[1,1,1,0,1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,0,1],[1,0,0,0,1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1],[1,0,1,1,1,0,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1],[1,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,1],[1,0,1,0,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,1,1],[1,0,1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1],[1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,1,1,0,1],[1,0,0,0,1,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],
             [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1],[1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1],[1,0,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,0,1],[1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0,1],[1,0,1,0,1,1,1,0,1,1,1,1,1,1,1,0,1,0,1,0,1],[1,0,1,0,1,0,0,0,1,0,0,0,0,0,1,0,1,0,1,0,1],[1,0,1,0,1,0,1,1,1,0,1,1,1,0,1,0,1,0,1,0,1],[1,0,1,0,1,0,1,0,0,0,1,0,0,0,1,0,1,0,1,0,1],[1,0,1,0,1,0,1,0,1,1,1,0,1,1,1,0,1,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,0,0,1,0,0,0,1,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,1,1,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,0,0,0,1,0,0,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,0,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1],[1,0,1,0,1,0,0,0,1,0,0,0,0,0,0,0,1,0,1,0,1],[1,0,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,0,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],
             [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,1],[1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1,1,0,1],[1,1,1,1,1,0,1,0,1,0,1,0,1,0,0,0,1,0,0,0,1],[1,0,0,0,0,0,1,0,1,0,1,0,1,1,1,0,1,0,1,1,1],[1,0,1,1,1,1,1,0,1,0,1,0,0,0,1,0,1,0,1,0,1],[1,0,1,0,0,0,0,0,1,0,1,1,1,0,1,0,1,0,1,0,1],[1,0,1,0,1,1,1,1,1,0,0,0,1,0,1,0,1,0,0,0,1],[1,0,1,0,1,0,0,0,0,0,1,0,1,0,1,0,1,1,1,0,1],[1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,0,0,1,0,1],[1,0,1,0,1,0,1,0,0,0,1,0,1,0,1,1,1,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,1,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],[1,0,0,0,1,0,1,0,1,0,1,0,0,0,1,0,1,0,1,0,1],[1,1,1,1,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0,1],[1,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,1,0,0,0,1],[1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,0,1,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],
-            // Level 12 (Opravený)
+            // Level 12 (opraveno)
             [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,1,0,0,1,0,0,0,0,0,0,0,1,0,0,1,0,0,0,1],[1,0,1,0,1,0,1,1,0,1,0,1,0,1,1,1,0,1,1,0,1,0,1],[1,0,1,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,1,0,1,0,1],[1,0,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,0,1,0,1],[1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,1,0,1],[1,1,1,1,1,0,1,0,1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],[1,0,0,0,1,0,1,0,1,0,0,0,1,0,1,0,0,0,0,0,0,0,1],[1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,0,1,1,1,1,1,0,1],[1,0,1,0,0,0,1,0,0,0,0,0,1,0,1,0,1,0,0,0,1,0,1],[1,0,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,0,1],[1,0,0,0,1,0,0,0,1,0,1,0,1,0,0,0,1,0,1,0,1,0,1],[1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0,1],[1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],[1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1],[1,0,1,0,0,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,1,0,1],[1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,0,1,1,1,1,1],[1,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,1,0,0,0,0,0,1],[1,0,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,1,1,0,1,0,1],[1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,1],[1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,0,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],
             // Finální boss level
             [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,0,1,1,1,1,1,1,1,0,1,0,1,0,1,1,1,1,1,1,1,0,1],[1,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,1,0,1],[1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1,1,1,1,0,1,0,1],[1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],[1,0,1,0,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,0,1,0,1],[1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1],[1,0,1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1,1,0,1],[1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],[1,0,1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1,1,0,1],[1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1],[1,0,1,0,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,0,1,0,1],[1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],[1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1,1,1,1,0,1,0,1],[1,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,1,0,1],[1,0,1,1,1,1,1,1,1,0,1,0,1,0,1,1,1,1,1,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]
@@ -144,10 +145,11 @@
                 this.isJumping = false;
                 this.jumpDuration = 500; // ms
                 this.jumpStartTime = 0;
+                this.isTrapped = false;
             }
 
             jump() {
-                if (this.isJumping || isGameOver || currentLevel === mazeLevels.length) return;
+                if (this.isJumping || isGameOver || this.isTrapped || currentLevel === mazeLevels.length) return;
                 this.isJumping = true;
                 this.jumpStartTime = Date.now();
                 setTimeout(() => {
@@ -156,7 +158,7 @@
             }
 
             move(dx, dy) {
-                if (isGameOver || this.isJumping) return;
+                if (isGameOver || this.isJumping || this.isTrapped) return;
                 const nextX = this.x + dx;
                 const nextY = this.y + dy;
                 if (!isWall(nextX, nextY)) {
@@ -166,6 +168,12 @@
             }
         }
         
+        class TrapBowl extends GameObject {
+            constructor(x, y) {
+                super(x, y, '🥣');
+            }
+        }
+
         class Projectile extends GameObject {
             constructor(x, y, dx, dy) {
                 super(x, y, '🔥');
@@ -240,8 +248,17 @@
                 if (Date.now() - this.lastMove < this.moveDelay) return;
                 this.lastMove = Date.now();
 
-                const dx = Math.sign(player.x - this.x);
-                const dy = Math.sign(player.y - this.y);
+                let target = players[0];
+                if (players.length > 1 && players[1]) {
+                    const dist1 = Math.hypot(this.x - players[0].x, this.y - players[0].y);
+                    const dist2 = Math.hypot(this.x - players[1].x, this.y - players[1].y);
+                    if (dist2 < dist1) {
+                        target = players[1];
+                    }
+                }
+
+                const dx = Math.sign(target.x - this.x);
+                const dy = Math.sign(target.y - this.y);
                 
                 if (Math.random() > 0.5) { 
                     if (dx !== 0 && !isWall(this.x + dx, this.y)) { this.x += dx; }
@@ -323,8 +340,9 @@
                 if (isGameOver || Date.now() - this.lastShot < this.shootCooldown) return;
                 
                 this.lastShot = Date.now();
-                const dx = player.x - this.x;
-                const dy = player.y - this.y;
+                const target = players.length > 1 && Math.random() > 0.5 ? players[1] : players[0];
+                const dx = target.x - this.x;
+                const dy = target.y - this.y;
                 const distance = Math.sqrt(dx*dx + dy*dy);
                 
                 if (distance > 0) {
@@ -341,7 +359,7 @@
             return !maze[y] || maze[y][x] === undefined || maze[y][x] === 1;
         }
 
-        function isPlayerInDeadEnd() {
+        function isPlayerInDeadEnd(player) {
             if (isGameOver) return false;
             const { x, y } = player;
             const neighbors = [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }];
@@ -369,7 +387,7 @@
                 let pos;
                 do {
                     pos = getRandomEmptyTile();
-                } while (Math.abs(pos.x - player.x) < 5 && Math.abs(pos.y - player.y) < 5);
+                } while (players.some(p => Math.abs(pos.x - p.x) < 5 && Math.abs(pos.y - p.y) < 5));
                 enemy.x = pos.x;
                 enemy.y = pos.y;
             });
@@ -386,18 +404,21 @@
             canvas.width = gridSize * TILE_SIZE;
             canvas.height = gridSize * TILE_SIZE;
 
-            player = new Player(1, 1);
-            player2 = null;
+            players = [new Player(1, 1)];
             
             const pads = navigator.getGamepads();
             if (pads && pads[0] && pads[1]) {
-                player2 = new Player(1, 2);
-                player2.emoji = '🍓';
+                players.push(new Player(1, 2));
+                players[1].emoji = '🍓';
+                lives = 10;
+            } else {
+                lives = 5;
             }
             
             enemies = [];
             bosses = [];
             projectiles = [];
+            trapBowls = [];
             
             clearTimeout(escapePotionTimeout);
             clearTimeout(potionEffectTimeout);
@@ -422,7 +443,7 @@
             let portalPos;
             do {
                 portalPos = getRandomEmptyTile();
-            } while (Math.abs(portalPos.x - player.x) < gridSize / 2 && Math.abs(portalPos.y - player.y) < gridSize / 2);
+            } while (players.some(p => Math.abs(portalPos.x - p.x) < gridSize / 2 && Math.abs(portalPos.y - p.y) < gridSize / 2));
             portal = new GameObject(portalPos.x, portalPos.y, '🌀');
             
             potion = null;
@@ -431,16 +452,24 @@
                 let potionPos;
                  do {
                     potionPos = getRandomEmptyTile();
-                } while ((potionPos.x === player.x && potionPos.y === player.y) || (potionPos.x === portal.x && potionPos.y === portal.y));
+                } while ((potionPos.x === players[0].x && potionPos.y === players[0].y) || (potionPos.x === portal.x && potionPos.y === portal.y));
                 potion = new GameObject(potionPos.x, potionPos.y, '🧪');
 
                 let bandagePos;
                  do {
                     bandagePos = getRandomEmptyTile();
-                } while ((bandagePos.x === player.x && bandagePos.y === player.y) || 
+                } while ((bandagePos.x === players[0].x && bandagePos.y === players[0].y) || 
                          (bandagePos.x === portal.x && bandagePos.y === portal.y) ||
                          (potion && bandagePos.x === potion.x && bandagePos.y === potion.y));
                 bandage = new GameObject(bandagePos.x, bandagePos.y, '🩹');
+                
+                for(let i=0; i<3; i++){
+                    let trapPos;
+                    do {
+                        trapPos = getRandomEmptyTile();
+                    } while(isWall(trapPos.x, trapPos.y));
+                    trapBowls.push(new TrapBowl(trapPos.x, trapPos.y));
+                }
             }
 
             updateUI();
@@ -448,7 +477,7 @@
 
         function updateUI() {
             levelDisplay.textContent = currentLevel;
-            livesDisplay.textContent = "❤️".repeat(lives) + "🖤".repeat(Math.max(0, 5 - lives));
+            livesDisplay.textContent = "❤️".repeat(lives) + "🖤".repeat(Math.max(0, 10 - lives));
         }
 
         function restartGame() {
@@ -462,7 +491,6 @@
         function handleGamepadInput() {
             const pads = navigator.getGamepads();
             
-            // Hráč 1
             if (pads[0]) {
                 const pad = pads[0];
                 keysPressed['gp0_up'] = pad.axes[1] < -0.5 || pad.buttons[12].pressed;
@@ -470,19 +498,18 @@
                 keysPressed['gp0_left'] = pad.axes[0] < -0.5 || pad.buttons[14].pressed;
                 keysPressed['gp0_right'] = pad.axes[0] > 0.5 || pad.buttons[15].pressed;
                 if (pad.buttons[0].pressed) {
-                    player.jump();
+                    players[0].jump();
                 }
             }
 
-            // Hráč 2
-            if (player2 && pads[1]) {
+            if (players.length > 1 && pads[1]) {
                 const pad = pads[1];
                 keysPressed['gp1_up'] = pad.axes[1] < -0.5 || pad.buttons[12].pressed;
                 keysPressed['gp1_down'] = pad.axes[1] > 0.5 || pad.buttons[13].pressed;
                 keysPressed['gp1_left'] = pad.axes[0] < -0.5 || pad.buttons[14].pressed;
                 keysPressed['gp1_right'] = pad.axes[0] > 0.5 || pad.buttons[15].pressed;
                  if (pad.buttons[0].pressed) {
-                    player2.jump();
+                    players[1].jump();
                 }
             }
         }
@@ -499,16 +526,16 @@
             const now = Date.now();
             if (now - lastPlayerMove > moveCooldown) {
                 let moved = false;
-                if (keysPressed['ArrowUp'] || keysPressed['w'] || keysPressed['gp0_up']) { player.move(0, -1); moved = true; } 
-                else if (keysPressed['ArrowDown'] || keysPressed['s'] || keysPressed['gp0_down']) { player.move(0, 1); moved = true; } 
-                else if (keysPressed['ArrowLeft'] || keysPressed['a'] || keysPressed['gp0_left']) { player.move(-1, 0); moved = true; } 
-                else if (keysPressed['ArrowRight'] || keysPressed['d'] || keysPressed['gp0_right']) { player.move(1, 0); moved = true; }
+                if (keysPressed['ArrowUp'] || keysPressed['w'] || keysPressed['gp0_up']) { players[0].move(0, -1); moved = true; } 
+                else if (keysPressed['ArrowDown'] || keysPressed['s'] || keysPressed['gp0_down']) { players[0].move(0, 1); moved = true; } 
+                else if (keysPressed['ArrowLeft'] || keysPressed['a'] || keysPressed['gp0_left']) { players[0].move(-1, 0); moved = true; } 
+                else if (keysPressed['ArrowRight'] || keysPressed['d'] || keysPressed['gp0_right']) { players[0].move(1, 0); moved = true; }
                 
-                if (player2) {
-                    if (keysPressed['gp1_up']) { player2.move(0, -1); moved = true; } 
-                    else if (keysPressed['gp1_down']) { player2.move(0, 1); moved = true; } 
-                    else if (keysPressed['gp1_left']) { player2.move(-1, 0); moved = true; } 
-                    else if (keysPressed['gp1_right']) { player2.move(1, 0); moved = true; }
+                if (players.length > 1) {
+                    if (keysPressed['gp1_up']) { players[1].move(0, -1); moved = true; } 
+                    else if (keysPressed['gp1_down']) { players[1].move(0, 1); moved = true; } 
+                    else if (keysPressed['gp1_left']) { players[1].move(-1, 0); moved = true; } 
+                    else if (keysPressed['gp1_right']) { players[1].move(1, 0); moved = true; }
                 }
 
                 if (moved) lastPlayerMove = now;
@@ -526,7 +553,7 @@
                 const bossCenterY = b.y * TILE_SIZE + TILE_SIZE / 2;
                 b.lasers.forEach(laser => {
                     const endX = bossCenterX + Math.cos(laser.angle) * laser.length;
-                    const endY = centerY + Math.sin(laser.angle) * laser.length;
+                    const endY = bossCenterY + Math.sin(laser.angle) * laser.length;
                     for (let i = 0.1; i <= 1; i += 0.1) {
                         const checkPx = bossCenterX + (endX - bossCenterX) * i;
                         const checkPy = bossCenterY + (endY - bossCenterY) * i;
@@ -544,13 +571,14 @@
                 const p = projectiles[i];
                 p.update();
 
-                const playersToCheck = player2 ? [player, player2] : [player];
-                playersToCheck.forEach(p_instance => {
-                     if (!p_instance.isJumping && p.x === p_instance.x && p.y === p_instance.y) {
+                players.forEach(playerInstance => {
+                     if (!playerInstance.isJumping && p.x === playerInstance.x && p.y === playerInstance.y) {
                         lives -= 2;
                         projectiles.splice(i, 1);
-                        player.x = 1; player.y = 1;
-                        if(player2) player2.x = 1; player2.y = 2;
+                        players.forEach((pl, index) => {
+                            pl.x = 1;
+                            pl.y = 1 + index;
+                        });
                         if (lives <= 0) { lives = 0; gameOver(false); }
                         updateUI();
                         return;
@@ -568,13 +596,14 @@
                 }
             }
             
-            if (isPlayerInDeadEnd() && !escapePotion && !openedWall) {
-                escapePotion = new GameObject(player.x, player.y, '💥');
-            }
+            players.forEach(p_instance => {
+                if (isPlayerInDeadEnd(p_instance) && !escapePotion && !openedWall) {
+                    escapePotion = new GameObject(p_instance.x, p_instance.y, '💥');
+                }
+            });
 
             let collisionDetected = false;
-            const allPlayers = player2 ? [player, player2] : [player];
-            allPlayers.forEach(p_instance => {
+            players.forEach(p_instance => {
                 if(collisionDetected) return;
                 if (!p_instance.isJumping) {
                     const allMonsters = [...bosses, ...enemies];
@@ -585,8 +614,10 @@
                             updateUI();
                             if (lives <= 0) { gameOver(false); }
                             else {
-                               player.x = 1; player.y = 1;
-                               if(player2) player2.x = 1; player2.y = 2;
+                               players.forEach((pl, index) => {
+                                   pl.x = 1;
+                                   pl.y = 1 + index;
+                               });
                                if (enemies.length > 0) { resetEnemyPositions(); }
                             }
                         }
@@ -612,8 +643,10 @@
                                 if (dist < playerRadius) {
                                     collisionDetected = true;
                                     lives--;
-                                    player.x = 1; player.y = 1;
-                                    if(player2) player2.x = 1; player2.y = 2;
+                                    players.forEach((pl, index) => {
+                                       pl.x = 1;
+                                       pl.y = 1 + index;
+                                    });
                                     if (lives <= 0) { lives = 0; gameOver(false); }
                                     updateUI();
                                     return;
@@ -624,13 +657,13 @@
                 }
             });
 
-            if (player2) {
-                if (portal.x === player.x && portal.y === player.y && portal.x === player2.x && portal.y === player2.y) { nextLevel(); }
+            if (players.length > 1) {
+                if (portal.x === players[0].x && portal.y === players[0].y && portal.x === players[1].x && portal.y === players[1].y) { nextLevel(); }
             } else {
-                if (portal.x === player.x && portal.y === player.y) { nextLevel(); }
+                if (portal.x === players[0].x && portal.y === players[0].y) { nextLevel(); }
             }
 
-            if (potion && (potion.x === player.x && potion.y === player.y || (player2 && potion.x === player2.x && potion.y === player2.y))) {
+            if (potion && players.some(p => p.x === potion.x && p.y === potion.y)) {
                 potion = null;
                 potionEffectActive = true;
                 const hiddenEnemies = [...enemies];
@@ -644,37 +677,47 @@
                 }, 10000);
             }
 
-            if (bandage && (bandage.x === player.x && bandage.y === player.y || (player2 && bandage.x === player2.x && bandage.y === player2.y))) {
+            if (bandage && players.some(p => p.x === bandage.x && p.y === bandage.y)) {
                 bandage = null;
-                if (lives < 5) { lives++; updateUI(); }
+                if (lives < (players.length > 1 ? 10 : 5)) { lives++; updateUI(); }
             }
             
-            if (escapePotion && (escapePotion.x === player.x && escapePotion.y === player.y || (player2 && escapePotion.x === player2.x && escapePotion.y === player2.y))) {
-                escapePotion = null;
-                const p = player2 && escapePotion.x === player2.x ? player2 : player;
-                const { x, y } = p;
-                const wallNeighbors = [];
-                const neighbors = [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }];
-                for (const n of neighbors) {
-                    const nx = x + n.dx; const ny = y + n.dy;
-                    if (isWall(nx, ny) && nx > 0 && nx < gridSize - 1 && ny > 0 && ny < gridSize - 1) {
-                        wallNeighbors.push({ x: nx, y: ny });
+            players.forEach(p_instance => {
+                if (escapePotion && p_instance.x === escapePotion.x && p_instance.y === escapePotion.y) {
+                    escapePotion = null;
+                    const { x, y } = p_instance;
+                    const wallNeighbors = [];
+                    const neighbors = [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }];
+                    for (const n of neighbors) {
+                        const nx = x + n.dx; const ny = y + n.dy;
+                        if (isWall(nx, ny) && nx > 0 && nx < gridSize - 1 && ny > 0 && ny < gridSize - 1) {
+                            wallNeighbors.push({ x: nx, y: ny });
+                        }
+                    }
+                    if (wallNeighbors.length > 0) {
+                        const wallToOpen = wallNeighbors[Math.floor(Math.random() * wallNeighbors.length)];
+                        openedWall = { x: wallToOpen.x, y: wallToOpen.y };
+                        maze[openedWall.y][openedWall.x] = 0;
+                        
+                        clearTimeout(escapePotionTimeout);
+                        escapePotionTimeout = setTimeout(() => {
+                            if (openedWall) {
+                                maze[openedWall.y][openedWall.x] = 1;
+                                openedWall = null;
+                            }
+                        }, 6000);
                     }
                 }
-                if (wallNeighbors.length > 0) {
-                    const wallToOpen = wallNeighbors[Math.floor(Math.random() * wallNeighbors.length)];
-                    openedWall = { x: wallToOpen.x, y: wallToOpen.y };
-                    maze[openedWall.y][openedWall.x] = 0;
-                    
-                    clearTimeout(escapePotionTimeout);
-                    escapePotionTimeout = setTimeout(() => {
-                        if (openedWall) {
-                            maze[openedWall.y][openedWall.x] = 1;
-                            openedWall = null;
-                        }
-                    }, 6000);
-                }
-            }
+
+                trapBowls.forEach(trap => {
+                    if(p_instance.x === trap.x && p_instance.y === trap.y && !p_instance.isTrapped){
+                        p_instance.isTrapped = true;
+                        setTimeout(() => {
+                            p_instance.isTrapped = false;
+                        }, 2000);
+                    }
+                });
+            });
         }
         
         function draw() {
@@ -693,8 +736,8 @@
             if(potion) potion.draw();
             if(bandage) bandage.draw();
             if(escapePotion) escapePotion.draw();
-            player.draw();
-            if(player2) player2.draw();
+            trapBowls.forEach(t => t.draw());
+            players.forEach(p => p.draw());
             enemies.forEach(enemy => enemy.draw());
             bosses.forEach(b => b.draw());
             projectiles.forEach(p => p.draw());
@@ -723,11 +766,21 @@
             messageModal.classList.remove('hidden');
         }
 
+        function checkPlayerCount() {
+            const pads = navigator.getGamepads().filter(p => p);
+            const numPlayers = Math.max(1, pads.length);
+            
+            if (numPlayers !== players.length) {
+                console.log(`Počet hráčů se změnil na ${numPlayers}. Restartuji level.`);
+                initLevel();
+            }
+        }
+
         // --- Ovládání ---
         window.addEventListener('keydown', e => {
             if(isGameOver) return;
             if (e.code === 'Space') {
-                player.jump();
+                players[0].jump();
             }
             keysPressed[e.key] = true;
             
@@ -802,10 +855,13 @@
 
         window.addEventListener('touchend', (e) => {
             if (Date.now() - touchStartTime < 200 && !touchMoved) {
-                player.jump();
+                players[0].jump();
             }
              keysPressed['ArrowUp'] = keysPressed['ArrowDown'] = keysPressed['ArrowLeft'] = keysPressed['ArrowRight'] = false;
         });
+
+        window.addEventListener("gamepadconnected", checkPlayerCount);
+        window.addEventListener("gamepaddisconnected", checkPlayerCount);
 
         restartButton.addEventListener('click', restartGame);
         
