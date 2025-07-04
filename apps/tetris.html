@@ -320,6 +320,8 @@
                 this.dropInterval = 1000; // Milliseconds per drop
                 this.lastDropTime = 0;
                 this.gameOver = false;
+                this.lastActionTime = 0; // For input debouncing
+                this.actionCooldown = 150; // 150ms cooldown for actions
                 console.log(`Player ${this.playerIndex + 1} GameState initialized.`);
             }
 
@@ -347,17 +349,19 @@
                     shape: pieceData.shape,
                     color: pieceData.color,
                     x: Math.floor(BOARD_WIDTH / 2) - Math.floor(pieceData.shape[0].length / 2), // Center the piece
-                    y: 0 // Start at the top
+                    y: -2 // Spawn 2 rows above the visible board
                 };
             }
 
-            // Function to draw the current piece
+            // Function to draw the current piece (on main game board)
             drawPiece(piece, context, offsetX = 0, offsetY = 0) {
-                // console.log(`Player ${this.playerIndex + 1} drawing piece at (${piece.x}, ${piece.y})`);
                 piece.shape.forEach((row, y) => {
                     row.forEach((value, x) => {
                         if (value) {
-                            this.drawBlock(piece.x + x + offsetX, piece.y + y + offsetY, piece.color, context);
+                            // Only draw if the block is within the visible board (y >= 0)
+                            if (piece.y + y + offsetY >= 0) {
+                                this.drawBlock(piece.x + x + offsetX, piece.y + y + offsetY, piece.color, context);
+                            }
                         }
                     });
                 });
@@ -365,7 +369,6 @@
 
             // Function to draw the entire board
             drawBoard() {
-                // console.log(`Player ${this.playerIndex + 1} drawing board.`);
                 this.board.forEach((row, y) => {
                     row.forEach((color, x) => {
                         if (color) {
@@ -385,12 +388,11 @@
 
                             // Check boundaries
                             if (boardX < 0 || boardX >= BOARD_WIDTH || boardY >= BOARD_HEIGHT) {
-                                // console.log(`Collision: Boundary at (${boardX}, ${boardY})`);
                                 return true;
                             }
                             // Check if hitting an existing block (and not out of bounds at the top)
+                            // Only check collision with existing blocks if boardY is within bounds and not a negative Y (above board)
                             if (boardY >= 0 && boardY < BOARD_HEIGHT && this.board[boardY][boardX]) {
-                                // console.log(`Collision: Existing block at (${boardX}, ${boardY})`);
                                 return true;
                             }
                         }
@@ -404,7 +406,10 @@
                 this.currentPiece.shape.forEach((row, y) => {
                     row.forEach((value, x) => {
                         if (value) {
-                            this.board[this.currentPiece.y + y][this.currentPiece.x + x] = this.currentPiece.color;
+                            // Only merge if the block is within the visible board (y >= 0)
+                            if (this.currentPiece.y + y >= 0) {
+                                this.board[this.currentPiece.y + y][this.currentPiece.x + x] = this.currentPiece.color;
+                            }
                         }
                     });
                 });
@@ -416,12 +421,10 @@
                 let linesCleared = 0;
                 for (let y = BOARD_HEIGHT - 1; y >= 0; y--) {
                     if (this.board[y].every(block => block !== 0)) {
-                        // Line is full, remove it
                         this.board.splice(y, 1);
-                        // Add a new empty row at the top
                         this.board.unshift(Array(BOARD_WIDTH).fill(0));
                         linesCleared++;
-                        y++; // Re-check the same row index as rows shifted down
+                        y++;
                     }
                 }
 
@@ -442,6 +445,8 @@
 
             // Rotate piece (clockwise)
             rotate() {
+                const currentTime = Date.now();
+                if (currentTime - this.lastActionTime < this.actionCooldown) { return; }
                 console.log(`Player ${this.playerIndex + 1} attempting rotate.`);
                 const numRows = this.currentPiece.shape.length;
                 const numCols = this.currentPiece.shape[0].length;
@@ -487,22 +492,58 @@
                 } else {
                     console.log(`Player ${this.playerIndex + 1} rotated successfully.`);
                 }
+                this.lastActionTime = currentTime;
             }
 
-            // Display Next Piece
+            // Display Next Piece (Rewritten for direct pixel drawing)
             drawNextPiece() {
                 this.nextCtx.clearRect(0, 0, this.nextPieceCanvas.width, this.nextPieceCanvas.height);
-                const pieceWidth = this.nextPiece.shape[0].length;
-                const pieceHeight = this.nextPiece.shape.length;
-                const startX = (this.nextPieceCanvas.width / (BLOCK_SIZE * (window.devicePixelRatio || 1)) - pieceWidth) / 2;
-                const startY = (this.nextPieceCanvas.height / (BLOCK_SIZE * (window.devicePixelRatio || 1)) - pieceHeight) / 2;
-                this.drawPiece(this.nextPiece, this.nextCtx, startX, startY);
+
+                const piece = this.nextPiece;
+                if (!piece) {
+                    console.warn(`Player ${this.playerIndex + 1}: nextPiece is null, cannot draw preview.`);
+                    return;
+                }
+
+                const pieceShape = piece.shape;
+                const pieceWidthBlocks = pieceShape[0].length;
+                const pieceHeightBlocks = pieceShape.length;
+
+                // Fixed block size for the preview canvas (120x120, so 4x4 blocks at 30px each)
+                const previewBlockSize = 30;
+                const canvasCenterPxX = this.nextPieceCanvas.width / 2 / (window.devicePixelRatio || 1);
+                const canvasCenterPxY = this.nextPieceCanvas.height / 2 / (window.devicePixelRatio || 1);
+
+                const pieceWidthPx = pieceWidthBlocks * previewBlockSize;
+                const pieceHeightPx = pieceHeightBlocks * previewBlockSize;
+
+                const startPxX = (canvasCenterPxX - pieceWidthPx / 2);
+                const startPxY = (canvasCenterPxY - pieceHeightPx / 2);
+
+                pieceShape.forEach((row, y) => {
+                    row.forEach((value, x) => {
+                        if (value) {
+                            this.nextCtx.fillStyle = piece.color;
+                            this.nextCtx.fillRect(startPxX + x * previewBlockSize, startPxY + y * previewBlockSize, previewBlockSize, previewBlockSize);
+                            this.nextCtx.strokeStyle = '#333';
+                            this.nextCtx.strokeRect(startPxX + x * previewBlockSize, startPxY + y * previewBlockSize, previewBlockSize, previewBlockSize);
+                        }
+                    });
+                });
                 console.log(`Player ${this.playerIndex + 1} next piece drawn.`);
             }
 
             // Move piece down (soft drop)
             softDrop() {
-                // console.log(`Player ${this.playerIndex + 1} soft dropping. Current Y: ${this.currentPiece.y}`);
+                const currentTime = Date.now();
+                // This softDrop is called both by game loop and manual input.
+                // Only apply cooldown if it's a manual input (i.e., not from the main game loop's automatic drop)
+                // For the game loop, we rely on dropInterval.
+                // For manual input, we debounce.
+                if (currentTime - this.lastActionTime < this.actionCooldown && this.currentPiece.y !== 0) { // Don't debounce initial spawn
+                    return;
+                }
+
                 this.currentPiece.y++;
                 if (this.checkCollision(this.currentPiece)) {
                     this.currentPiece.y--;
@@ -517,11 +558,14 @@
                         console.error(`Player ${this.playerIndex + 1} Game Over detected on new piece spawn.`);
                     }
                 }
-                this.lastDropTime = Date.now(); // Use Date.now()
+                this.lastDropTime = currentTime;
+                this.lastActionTime = currentTime; // Update action time for manual drops
             }
 
             // Hard drop
             hardDrop() {
+                const currentTime = Date.now();
+                if (currentTime - this.lastActionTime < this.actionCooldown) { return; }
                 console.log(`Player ${this.playerIndex + 1} hard dropping.`);
                 while (!this.checkCollision(this.currentPiece, 0, 1)) {
                     this.currentPiece.y++;
@@ -536,11 +580,14 @@
                     showMessage(`Player ${this.playerIndex + 1} Game Over!`, `Your score: ${this.score}`);
                     console.error(`Player ${this.playerIndex + 1} Game Over detected on hard drop.`);
                 }
-                this.lastDropTime = Date.now(); // Use Date.now()
+                this.lastDropTime = currentTime;
+                this.lastActionTime = currentTime;
             }
 
             // Move piece left
             moveLeft() {
+                const currentTime = Date.now();
+                if (currentTime - this.lastActionTime < this.actionCooldown) { return; }
                 console.log(`Player ${this.playerIndex + 1} moving left.`);
                 const originalX = this.currentPiece.x;
                 this.currentPiece.x--;
@@ -548,10 +595,13 @@
                     this.currentPiece.x = originalX;
                     console.log(`Player ${this.playerIndex + 1} left move blocked.`);
                 }
+                this.lastActionTime = currentTime;
             }
 
             // Move piece right
             moveRight() {
+                const currentTime = Date.now();
+                if (currentTime - this.lastActionTime < this.actionCooldown) { return; }
                 console.log(`Player ${this.playerIndex + 1} moving right.`);
                 const originalX = this.currentPiece.x;
                 this.currentPiece.x++;
@@ -559,20 +609,20 @@
                     this.currentPiece.x = originalX;
                     console.log(`Player ${this.playerIndex + 1} right move blocked.`);
                 }
+                this.lastActionTime = currentTime;
             }
         }
 
         // --- Game Loop ---
-        let gameLoopTimeoutId = null; // Changed from animationFrameId to hold setTimeout ID
+        let gameLoopTimeoutId = null;
 
-        function update() { // Removed time parameter as setTimeout doesn't provide it
-            // console.log(`Update loop running.`);
+        function update() {
             let allGamesOver = true;
             gameInstances.forEach(gameState => {
                 if (gameState.gameOver) return;
                 allGamesOver = false;
 
-                const currentTime = Date.now(); // Use Date.now()
+                const currentTime = Date.now();
                 const deltaTime = currentTime - gameState.lastDropTime;
 
                 if (deltaTime > gameState.dropInterval) {
@@ -587,7 +637,7 @@
             });
 
             if (!allGamesOver) {
-                gameLoopTimeoutId = setTimeout(update, 1000 / 60); // Aim for roughly 60 FPS, or adjust as needed
+                gameLoopTimeoutId = setTimeout(update, 1000 / 60); // Aim for roughly 60 FPS
             } else {
                 clearTimeout(gameLoopTimeoutId);
                 gameLoopTimeoutId = null;
@@ -613,8 +663,14 @@
 
         function pollGamepads() {
             try {
-                const currentPads = navigator.getGamepads ? navigator.getGamepads() : [];
-                const connectedGamepadCount = currentPads.filter(g => g !== null).length;
+                // Ensure navigator.getGamepads exists for compatibility
+                if (!navigator.getGamepads) {
+                    // console.warn("navigator.getGamepads not supported.");
+                    return;
+                }
+
+                const currentPads = Array.from(navigator.getGamepads()).filter(g => g !== null);
+                const connectedGamepadCount = currentPads.length;
 
                 if (gameInstances.length === 1 && connectedGamepadCount >= 2) {
                     console.log("Late join detected via gamepad. Re-initializing games.");
@@ -627,7 +683,7 @@
                     if (pad && gameInstances[i] && !gameInstances[i].gameOver) {
                         // Initialize previous state for this gamepad if it doesn't exist
                         if (!prevGamepadStates[i]) {
-                            prevGamepadStates[i] = { buttons: pad.buttons.map(b => b.pressed) };
+                            prevGamepadStates[i] = { buttons: pad.buttons.map(b => b.pressed), axes: pad.axes.map(a => a) };
                             console.log(`Initialized prevGamepadStates for pad ${i}.`);
                         }
 
@@ -653,11 +709,25 @@
                         // Update previous state for next frame
                         prevGamepadStates[i].buttons = pad.buttons.map(b => b.pressed);
 
-                        // Check axes for continuous movement
-                        const axisThreshold = 0.5;
-                        if (pad.axes[0] < -axisThreshold) { gameState.moveLeft(); }
-                        else if (pad.axes[0] > axisThreshold) { gameState.moveRight(); }
-                        if (pad.axes[1] > axisThreshold) { gameState.softDrop(); }
+                        // Check axes for continuous movement with deadzone
+                        const axisThreshold = 0.5; // Threshold for movement
+                        const deadzone = 0.2; // Deadzone to ignore minor stick drift
+
+                        // Left/Right movement from axes (e.g., left stick horizontal axis 0)
+                        if (Math.abs(pad.axes[0]) > deadzone) { // Check deadzone first
+                            if (pad.axes[0] < -axisThreshold) {
+                                gameState.moveLeft();
+                            } else if (pad.axes[0] > axisThreshold) {
+                                gameState.moveRight();
+                            }
+                        }
+
+                        // Soft drop from axes (e.g., left stick vertical axis 1)
+                        if (Math.abs(pad.axes[1]) > deadzone) { // Check deadzone first
+                            if (pad.axes[1] > axisThreshold) {
+                                gameState.softDrop();
+                            }
+                        }
                     }
                 }
             } catch (e) {
@@ -780,7 +850,7 @@
             }
 
             gameInstances = []; // Reset game instances
-            prevGamepadStates = {}; // *** CRUCIAL FIX: Reset gamepad states on game initialization ***
+            prevGamepadStates = {}; // CRUCIAL FIX: Reset gamepad states on game initialization
 
             // Initialize Player 1
             const gameCanvas0 = document.getElementById('gameCanvas-0');
@@ -811,7 +881,8 @@
                 gameState.currentPiece = gameState.getRandomPiece();
                 gameState.nextPiece = gameState.getRandomPiece();
                 gameState.drawNextPiece();
-                gameState.lastDropTime = Date.now(); // Use Date.now()
+                gameState.lastDropTime = Date.now();
+                gameState.lastActionTime = Date.now(); // Initialize for cooldown
                 console.log(`Player ${gameState.playerIndex + 1} game state reset.`);
 
                 const dpr = window.devicePixelRatio || 1;
