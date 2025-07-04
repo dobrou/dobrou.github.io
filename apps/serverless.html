@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serverless QR Code Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- QR Code Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator/qrcode.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        #chatLog::-webkit-scrollbar { width: 8px; }
+        #chatLog::-webkit-scrollbar-track { background: #1f2937; }
+        #chatLog::-webkit-scrollbar-thumb { background-color: #4b5563; border-radius: 4px; }
+        .code-textarea { word-break: break-all; }
+        #scanner-modal { background-color: rgba(0,0,0,0.8); }
+        #video-feed {
+            width: 100%;
+            max-width: 640px;
+            border-radius: 1rem;
+            border: 2px solid #374151;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-2xl mx-auto bg-gray-800 rounded-2xl shadow-2xl p-6 space-y-6">
+        
+        <!-- Header -->
+        <div class="text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-white">Serverless QR Chat</h1>
+            <div id="status" class="mt-4 inline-block px-4 py-2 rounded-full bg-yellow-500 text-white font-semibold text-sm transition-all">
+                Status: Choose Your Role
+            </div>
+        </div>
+
+        <!-- Connection Area -->
+        <div id="connection-setup">
+            <!-- Initial Role Selection -->
+            <div id="role-selection" class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button id="host-btn" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg transition-all">Host a Chat</button>
+                <button id="join-btn" class="w-full sm:w-auto bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded-lg transition-all">Join a Chat</button>
+            </div>
+
+            <!-- Host View -->
+            <div id="host-view" class="hidden text-center p-4 bg-gray-700/50 rounded-lg">
+                <h2 class="text-xl font-bold text-white">You are the Host</h2>
+                <p class="text-gray-300 text-sm mt-1 mb-4">Ask the Peer to scan this QR code.</p>
+                <div id="qr-code-container" class="flex justify-center items-center bg-white p-4 rounded-lg w-80 h-80 mx-auto">
+                    <p class="text-gray-500 text-sm">Generating QR Code...</p>
+                </div>
+                <div class="mt-4">
+                    <label for="response-code-input" class="block text-sm font-medium text-gray-300 mb-2">Enter Peer's Response Code:</label>
+                    <textarea id="response-code-input" class="w-full h-20 bg-gray-900 text-gray-300 rounded-md p-2 text-xs border border-gray-600 code-textarea" placeholder="Paste or type the response from your peer here..."></textarea>
+                    <button id="submit-response-btn" class="mt-2 w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded-md">Finalize Connection</button>
+                </div>
+            </div>
+
+            <!-- Peer View -->
+            <div id="peer-view" class="hidden text-center p-4 bg-gray-700/50 rounded-lg">
+                 <h2 class="text-xl font-bold text-white">You are the Peer</h2>
+                 <p class="text-gray-300 text-sm mt-1 mb-4">Show this QR code to the host, or read them the code below.</p>
+                 <div id="peer-qr-code-container" class="flex justify-center items-center bg-white p-4 rounded-lg w-80 h-80 mx-auto">
+                     <p id="peer-qr-placeholder" class="text-gray-500 text-sm">Generating Response QR Code...</p>
+                 </div>
+                 <div id="peer-fallback-ui" class="mt-4">
+                    <h3 class="text-sm font-medium text-gray-300 mb-2">Manual Response Code:</h3>
+                    <textarea id="peer-code-textarea" readonly class="w-full h-20 bg-gray-900 text-gray-300 rounded-md p-2 text-xs border border-gray-600 code-textarea"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div id="chat-container" class="hidden">
+            <div id="chatLog" class="w-full h-64 bg-gray-900 rounded-lg p-4 overflow-y-auto border border-gray-700 mb-4"></div>
+            <div class="flex gap-4">
+                <input type="text" id="messageInput" placeholder="Type your message..." class="flex-grow bg-gray-700 text-white rounded-lg px-4 py-2 border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:outline-none" disabled>
+                <button id="sendBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg transition-all" disabled>Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Scanner Modal -->
+    <div id="scanner-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="relative text-center w-full max-w-lg">
+            <p class="text-white text-lg mb-4">Point your camera at a QR code</p>
+            <video id="video-feed" playsinline></video>
+            <div id="zoom-controls" class="hidden mt-4">
+                <label for="zoom-slider" class="text-white mr-2">Zoom:</label>
+                <input type="range" id="zoom-slider" class="w-1/2">
+            </div>
+            <button id="close-scanner-btn" class="mt-4 bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-lg">Cancel</button>
+        </div>
+    </div>
+    <canvas id="scanner-canvas" class="hidden"></canvas>
+
+    <!-- Notification Toast -->
+    <div id="notification-toast" class="hidden fixed bottom-5 right-5 bg-red-600 text-white py-2 px-4 rounded-lg shadow-lg transition-opacity duration-300 opacity-0">
+        <p id="notification-message"></p>
+    </div>
+
+
+    <script>
+        // --- DOM Elements ---
+        const statusDiv = document.getElementById('status');
+        const roleSelection = document.getElementById('role-selection');
+        const hostBtn = document.getElementById('host-btn');
+        const joinBtn = document.getElementById('join-btn');
+        const hostView = document.getElementById('host-view');
+        const peerView = document.getElementById('peer-view');
+        const qrContainer = document.getElementById('qr-code-container');
+        const peerQrContainer = document.getElementById('peer-qr-code-container');
+        const peerQrPlaceholder = document.getElementById('peer-qr-placeholder');
+        const responseCodeInput = document.getElementById('response-code-input');
+        const submitResponseBtn = document.getElementById('submit-response-btn');
+        const peerCodeTextarea = document.getElementById('peer-code-textarea');
+        const chatContainer = document.getElementById('chat-container');
+        const chatLog = document.getElementById('chatLog');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const connectionSetupDiv = document.getElementById('connection-setup');
+        const scannerModal = document.getElementById('scanner-modal');
+        const video = document.getElementById('video-feed');
+        const closeScannerBtn = document.getElementById('close-scanner-btn');
+        const zoomControls = document.getElementById('zoom-controls');
+        const zoomSlider = document.getElementById('zoom-slider');
+        const notificationToast = document.getElementById('notification-toast');
+        const notificationMessage = document.getElementById('notification-message');
+        
+        // --- App State ---
+        let peerConnection;
+        let dataChannel;
+        let videoStream;
+        let notificationTimeout;
+        const configuration = {
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        };
+
+        // --- Core Logic ---
+        function initializePeerConnection() {
+            if (peerConnection) peerConnection.close();
+            peerConnection = new RTCPeerConnection(configuration);
+
+            peerConnection.onicecandidate = event => {
+                if (event.candidate === null) {
+                    console.log("ICE Gathering complete.");
+                    const code = JSON.stringify(peerConnection.localDescription);
+                    const role = peerConnection.localDescription.type === 'offer' ? 'host' : 'peer';
+                    if (role === 'host') {
+                        generateQRCode(qrContainer, code);
+                    } else {
+                        generateQRCode(peerQrContainer, code);
+                        peerCodeTextarea.value = code; // For fallback
+                    }
+                }
+            };
+            peerConnection.ondatachannel = event => {
+                dataChannel = event.channel;
+                setupDataChannelEvents();
+            };
+        }
+
+        function setupDataChannelEvents() {
+            dataChannel.onopen = () => {
+                updateStatus("Connected", "bg-green-500");
+                enableChat();
+            };
+            dataChannel.onclose = () => {
+                updateStatus("Disconnected", "bg-red-500");
+                disableChat();
+            };
+            dataChannel.onmessage = event => appendMessage(event.data, 'Peer');
+        }
+
+        // --- Host Functions ---
+        async function setupAsHost() {
+            roleSelection.classList.add('hidden');
+            hostView.classList.remove('hidden');
+            updateStatus("Waiting for Peer", "bg-blue-500");
+
+            initializePeerConnection();
+            dataChannel = peerConnection.createDataChannel("chat");
+            setupDataChannelEvents();
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+        }
+
+        // --- Peer Functions ---
+        async function setupAsPeer(offerCode) {
+            roleSelection.classList.add('hidden');
+            peerView.classList.remove('hidden');
+            // FIX: Immediately update the placeholder text to be more accurate.
+            peerQrPlaceholder.textContent = "Generating Response QR Code...";
+            updateStatus("Created Response. Host must scan or type it.", "bg-green-500");
+
+            initializePeerConnection();
+            try {
+                const offer = JSON.parse(offerCode);
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+            } catch (e) {
+                console.error("Failed to create answer:", e);
+                showNotification("Invalid invite code. Please restart.");
+                resetViews();
+            }
+        }
+
+        // --- Finalize Connection (Host) ---
+        async function finalizeConnection(answerCode) {
+             if (!peerConnection) return;
+             try {
+                const answer = JSON.parse(answerCode);
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+                updateStatus("Connecting...", "bg-yellow-500");
+             } catch(e) {
+                console.error("Failed to finalize connection", e);
+                showNotification("Invalid response code.");
+             }
+        }
+
+        // --- QR Code Functions ---
+        function generateQRCode(container, text) {
+            container.innerHTML = '';
+            try {
+                const qr = qrcode(0, 'L');
+                qr.addData(text);
+                qr.make();
+                container.innerHTML = qr.createImgTag(8, 16); // Increased cell size for a larger image
+                container.firstChild.style.cssText = "width: 100%; height: 100%;";
+            } catch (e) {
+                console.error("QR Code generation failed:", e);
+                container.innerHTML = "<p class='text-red-500 text-xs'>QR generation failed. Use manual copy/paste.</p>";
+            }
+        }
+
+        function startScanner() {
+            scannerModal.classList.remove('hidden');
+            const canvas = document.getElementById('scanner-canvas');
+            const context = canvas.getContext('2d');
+
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                .then(stream => {
+                    videoStream = stream;
+                    video.srcObject = stream;
+                    video.setAttribute("playsinline", true);
+                    video.play();
+                    setupZoomControls(stream);
+                    requestAnimationFrame(tick);
+                })
+                .catch(err => {
+                    console.error("Camera access denied:", err);
+                    showNotification("Camera access is required.");
+                    stopScanner();
+                });
+            
+            function tick() {
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    canvas.height = video.videoHeight;
+                    canvas.width = video.videoWidth;
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+                    if (code) {
+                        stopScanner();
+                        handleScannedCode(code.data);
+                        return;
+                    }
+                }
+                if (videoStream) {
+                    requestAnimationFrame(tick);
+                }
+            }
+        }
+
+        function stopScanner() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+            }
+            scannerModal.classList.add('hidden');
+        }
+        
+        function setupZoomControls(stream) {
+            const track = stream.getVideoTracks()[0];
+            const capabilities = track.getCapabilities();
+            if (capabilities.zoom) {
+                zoomControls.classList.remove('hidden');
+                zoomSlider.min = capabilities.zoom.min;
+                zoomSlider.max = capabilities.zoom.max;
+                zoomSlider.step = capabilities.zoom.step;
+                zoomSlider.value = track.getSettings().zoom || capabilities.zoom.min;
+                zoomSlider.oninput = () => {
+                    track.applyConstraints({ advanced: [{ zoom: zoomSlider.value }] });
+                };
+            } else {
+                zoomControls.classList.add('hidden');
+            }
+        }
+
+        function handleScannedCode(code) {
+            try {
+                const data = JSON.parse(code);
+                if (data.type === 'offer') {
+                    setupAsPeer(code);
+                } else {
+                    showNotification("Invalid QR code. Expecting an invite code.");
+                }
+            } catch (e) {
+                showNotification("Invalid QR code format.");
+            }
+        }
+
+        // --- Event Listeners ---
+        hostBtn.onclick = setupAsHost;
+        joinBtn.onclick = startScanner;
+        submitResponseBtn.onclick = () => {
+            if (responseCodeInput.value) {
+                finalizeConnection(responseCodeInput.value);
+            }
+        };
+        closeScannerBtn.onclick = stopScanner;
+
+        // --- UI Helper Functions ---
+        function updateStatus(text, bgColorClass) {
+            statusDiv.textContent = `Status: ${text}`;
+            statusDiv.className = `mt-4 inline-block px-4 py-2 rounded-full text-white font-semibold text-sm transition-all ${bgColorClass}`;
+        }
+        
+        function showNotification(message, duration = 3000) {
+            if (notificationTimeout) clearTimeout(notificationTimeout);
+            notificationMessage.textContent = message;
+            notificationToast.classList.remove('hidden', 'opacity-0');
+            requestAnimationFrame(() => notificationToast.classList.remove('opacity-0'));
+            notificationTimeout = setTimeout(() => {
+                notificationToast.classList.add('opacity-0');
+                setTimeout(() => notificationToast.classList.add('hidden'), 300);
+            }, duration);
+        }
+        
+        function resetViews() {
+            roleSelection.classList.remove('hidden');
+            hostView.classList.add('hidden');
+            peerView.classList.add('hidden');
+            updateStatus("Choose Your Role", "bg-yellow-500");
+        }
+
+        // --- Chat UI ---
+        function enableChat() {
+            connectionSetupDiv.classList.add('hidden');
+            chatContainer.classList.remove('hidden');
+            messageInput.disabled = false;
+            sendBtn.disabled = false;
+            messageInput.focus();
+        }
+        function disableChat() {
+            messageInput.disabled = true;
+            sendBtn.disabled = true;
+        }
+        function appendMessage(message, sender) {
+            const messageElement = document.createElement('div');
+            const senderSpan = document.createElement('span');
+            senderSpan.className = 'font-bold block text-sm mb-1';
+            senderSpan.textContent = sender;
+            const textNode = document.createTextNode(message);
+            if (sender === 'You') {
+                messageElement.className = 'bg-indigo-500 text-white p-3 rounded-lg ml-auto max-w-xs md:max-w-md break-words my-2 text-right';
+                senderSpan.className += ' text-indigo-200';
+            } else {
+                messageElement.className = 'bg-gray-600 text-white p-3 rounded-lg mr-auto max-w-xs md:max-w-md break-words my-2 text-left';
+                senderSpan.className += ' text-gray-300';
+            }
+            messageElement.appendChild(senderSpan);
+            messageElement.appendChild(textNode);
+            chatLog.appendChild(messageElement);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+        sendBtn.onclick = () => {
+            const message = messageInput.value;
+            if (message && dataChannel && dataChannel.readyState === 'open') {
+                dataChannel.send(message);
+                appendMessage(message, 'You');
+                messageInput.value = '';
+            }
+        };
+        messageInput.onkeydown = (event) => {
+            if (event.key === 'Enter' && !sendBtn.disabled) sendBtn.click();
+        };
+
+    </script>
+</body>
+</html>
