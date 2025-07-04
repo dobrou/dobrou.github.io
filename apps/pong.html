@@ -33,16 +33,16 @@
             align-items: center;
             flex-direction: column;
             text-align: center;
-            background-color: rgba(0, 0, 0, 0.7);
+            background-color: rgba(0, 0, 0, 0.5); /* Slightly more transparent to see fireworks */
             color: #fff;
             font-size: 2em;
-            /* Hidden by default */
-            display: none;
+            display: none; /* Hidden by default */
         }
         .overlay h1 {
             margin: 0;
             font-size: 2.5em;
             color: #0f0; /* Green for a retro feel */
+            text-shadow: 0 0 15px #0f0;
         }
         .overlay p {
             margin-top: 20px;
@@ -56,6 +56,10 @@
             left: 10px;
             font-size: 1em;
             color: #888;
+            transition: opacity 0.5s;
+        }
+        .info-text.hidden {
+            opacity: 0;
         }
     </style>
 </head>
@@ -82,7 +86,9 @@
 
         // --- Game Configuration ---
         const PADDLE_WIDTH = 15;
-        const PADDLE_HEIGHT = 100;
+        const PADDLE_HEIGHT_DEFAULT = 100;
+        const MIN_PADDLE_HEIGHT = 40;
+        const MAX_PADDLE_HEIGHT = 200;
         const BALL_RADIUS = 10;
         const PADDLE_SPEED = 8;
         const AI_SPEED = 6;
@@ -92,6 +98,9 @@
         let scores = { p1: 0, p2: 0 };
         let gameOver = false;
         let audioCtx;
+        let particles = [];
+        let fireworks = [];
+        let fireworksInterval;
 
         // --- Control Management ---
         let player1Control = null;
@@ -107,62 +116,43 @@
 
         // --- Sound Generation ---
         function setupAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
         
         function playSound(type) {
             if (!audioCtx) return;
-
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             const now = audioCtx.currentTime;
-            const duration = 0.15; // Sound duration
-
+            const duration = 0.15;
             oscillator.connect(gainNode);
             gainNode.connect(audioCtx.destination);
-
-            // Set initial volume
             gainNode.gain.setValueAtTime(0.3, now);
-
-            // Use sine waves for smoother, more pleasant sounds
             oscillator.type = 'sine';
-
             switch(type) {
-                case 'paddle':
-                    // A clear, medium-pitched "bip"
-                    oscillator.frequency.setValueAtTime(440, now);
-                    break;
-                case 'wall':
-                    // A lower-pitched "bop"
-                    oscillator.frequency.setValueAtTime(150, now);
-                    break;
-                case 'score':
-                    // A higher, more rewarding "ding"
-                    oscillator.frequency.setValueAtTime(660, now);
-                    gainNode.gain.setValueAtTime(0.4, now); // Make score sound slightly louder
-                    break;
+                case 'paddle': oscillator.frequency.setValueAtTime(440, now); break;
+                case 'wall': oscillator.frequency.setValueAtTime(150, now); break;
+                case 'score': oscillator.frequency.setValueAtTime(660, now); gainNode.gain.setValueAtTime(0.4, now); break;
             }
-
-            // Start the sound
             oscillator.start(now);
-
-            // Smoothly fade out the sound instead of stopping it abruptly for a less harsh cutoff
             gainNode.gain.linearRampToValueAtTime(0.0001, now + duration);
             oscillator.stop(now + duration);
         }
 
         // --- Game Objects ---
         function createBall() { return { x: canvas.width / 2, y: canvas.height / 2, radius: BALL_RADIUS, speed: 7, dx: 5, dy: 5 }; }
-        function createPaddle(x) { return { x: x, y: canvas.height / 2 - PADDLE_HEIGHT / 2, width: PADDLE_WIDTH, height: PADDLE_HEIGHT, speed: PADDLE_SPEED, dy: 0 }; }
+        function createPaddle(x) { return { x: x, y: canvas.height / 2 - PADDLE_HEIGHT_DEFAULT / 2, width: PADDLE_WIDTH, height: PADDLE_HEIGHT_DEFAULT, speed: PADDLE_SPEED, dy: 0 }; }
 
         // --- Initialization ---
         function init() {
             gameOver = false;
             winnerOverlay.style.display = 'none';
+            clearInterval(fireworksInterval);
+            fireworks = [];
+            particles = [];
+            
             player1Control = null;
-            player2Control = null; // AI will be assigned if no second player joins
+            player2Control = null;
             updateControlInfo();
 
             canvas.width = window.innerWidth;
@@ -182,10 +172,10 @@
         // --- Event Listeners ---
         function addEventListeners() {
             document.addEventListener('keydown', (e) => {
-                keys[e.key] = true;
-                detectControl(e.key);
+                keys[e.key.toLowerCase()] = true;
+                detectControl(e.key.toLowerCase());
             });
-            document.addEventListener('keyup', (e) => keys[e.key] = false);
+            document.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
 
             window.addEventListener("gamepadconnected", (e) => gamepads[e.gamepad.index] = e.gamepad);
             window.addEventListener("gamepaddisconnected", (e) => delete gamepads[e.gamepad.index]);
@@ -197,20 +187,23 @@
             });
             
             if ('DeviceOrientationEvent' in window) {
-                window.addEventListener('deviceorientation', (event) => {
-                    if (event.gamma !== null) {
+                window.addEventListener('deviceorientation', (e) => {
+                    if (e.gamma !== null) {
                         assignControl(controlTypes.GYRO);
-                        handleGyro(event.gamma, player1Control === controlTypes.GYRO ? player1 : player2);
+                        handleGyro(e.gamma, player1Control === controlTypes.GYRO ? player1 : player2);
                     }
                 });
             }
 
-            const startListener = () => {
+            const startListener = (e) => {
                 setupAudio();
-                if (gameOver) init();
+                if (gameOver) {
+                    e.preventDefault();
+                    init();
+                }
             };
-            document.addEventListener('click', startListener);
-            document.addEventListener('touchstart', startListener);
+            document.body.addEventListener('click', startListener);
+            document.body.addEventListener('touchstart', startListener);
         }
 
         // --- Control Assignment Logic ---
@@ -224,48 +217,73 @@
         }
 
         function detectControl(key) {
-            if (['w', 's', 'W', 'S'].includes(key)) {
-                assignControl(controlTypes.KEYBOARD_WS);
-            } else if (['ArrowUp', 'ArrowDown'].includes(key)) {
-                assignControl(controlTypes.KEYBOARD_ARROWS);
-            }
+            if (['w', 's'].includes(key)) assignControl(controlTypes.KEYBOARD_WS);
+            else if (['arrowup', 'arrowdown'].includes(key)) assignControl(controlTypes.KEYBOARD_ARROWS);
         }
         
         function updateControlInfo() {
+            if (player1Control) p1ControlInfo.classList.add('hidden'); else p1ControlInfo.classList.remove('hidden');
+            if (player2Control) p2ControlInfo.classList.add('hidden'); else p2ControlInfo.classList.remove('hidden');
             p1ControlInfo.textContent = `P1: ${player1Control || '(Move to assign)'}`;
             p2ControlInfo.textContent = `P2: ${player2Control || '(AI or move to assign)'}`;
         }
 
         // --- Game Logic Update ---
         function update() {
-            if (gameOver) return;
             handleInput();
             movePaddles();
             moveBall();
             handleCollisions();
+            updateParticles();
         }
 
         function handleInput() {
-            // Check for gamepad input and assign controls
             const connectedGamepads = navigator.getGamepads();
             if (connectedGamepads[0]) assignControl(controlTypes.GAMEPAD_0);
             if (connectedGamepads[1]) assignControl(controlTypes.GAMEPAD_1);
 
-            // Set paddle movement based on assigned controls
             player1.dy = getPlayerMovement(player1Control, connectedGamepads);
-            // If P2 has no control, AI takes over.
             player2.dy = getPlayerMovement(player2Control, connectedGamepads);
+            
+            handlePaddleSizeChange(player1, player1Control, connectedGamepads);
+            handlePaddleSizeChange(player2, player2Control, connectedGamepads);
+        }
+        
+        function handlePaddleSizeChange(player, control, gamepads) {
+            let change = 0;
+            switch(control) {
+                case controlTypes.KEYBOARD_WS:
+                    if(keys['a']) change = -5;
+                    if(keys['d']) change = 5;
+                    break;
+                case controlTypes.KEYBOARD_ARROWS: // Using J/L for P2 as an example
+                    if(keys['j']) change = -5;
+                    if(keys['l']) change = 5;
+                    break;
+                case controlTypes.GAMEPAD_0:
+                    if(gamepads[0]?.buttons[14]?.pressed) change = -5; // D-pad left
+                    if(gamepads[0]?.buttons[15]?.pressed) change = 5; // D-pad right
+                    break;
+                case controlTypes.GAMEPAD_1:
+                    if(gamepads[1]?.buttons[14]?.pressed) change = -5;
+                    if(gamepads[1]?.buttons[15]?.pressed) change = 5;
+                    break;
+            }
+            if (change !== 0) {
+                player.height += change;
+                player.height = Math.max(MIN_PADDLE_HEIGHT, Math.min(MAX_PADDLE_HEIGHT, player.height));
+            }
         }
 
         function getPlayerMovement(control, gamepads) {
             switch (control) {
                 case controlTypes.KEYBOARD_WS:
-                    if (keys['w'] || keys['W']) return -PADDLE_SPEED;
-                    if (keys['s'] || keys['S']) return PADDLE_SPEED;
+                    if (keys['w']) return -PADDLE_SPEED;
+                    if (keys['s']) return PADDLE_SPEED;
                     return 0;
                 case controlTypes.KEYBOARD_ARROWS:
-                    if (keys['ArrowUp']) return -PADDLE_SPEED;
-                    if (keys['ArrowDown']) return PADDLE_SPEED;
+                    if (keys['arrowup']) return -PADDLE_SPEED;
+                    if (keys['arrowdown']) return PADDLE_SPEED;
                     return 0;
                 case controlTypes.GAMEPAD_0:
                     if (gamepads[0]) {
@@ -279,39 +297,30 @@
                         if (Math.abs(axis) > 0.1) return axis * PADDLE_SPEED;
                     }
                     return 0;
-                case controlTypes.GYRO:
-                    return 0; // Gyro moves paddle directly, not via velocity
-                default:
-                    return 0; // No human input
+                case controlTypes.GYRO: return 0;
+                default: return 0;
             }
         }
 
         function handleGyro(gamma, paddle) {
-            if (!paddle) return; // Don't control if paddle not assigned
+            if (!paddle) return;
             let tilt = Math.max(-60, Math.min(60, gamma));
             const targetY = ((tilt + 60) / 120) * (canvas.height - paddle.height);
             paddle.y = targetY;
         }
 
         function movePaddles() {
-            // Only move via dy if not controlled by Gyro
             if (player1Control !== controlTypes.GYRO) player1.y += player1.dy;
             if (player2Control !== controlTypes.GYRO) player2.y += player2.dy;
 
-            // Clamp P1
-            if (player1.y < 0) player1.y = 0;
-            if (player1.y + player1.height > canvas.height) player1.y = canvas.height - player1.height;
+            player1.y = Math.max(0, Math.min(canvas.height - player1.height, player1.y));
 
-            // AI logic for P2 if no human control
             if (!player2Control) {
                 const paddleCenter = player2.y + player2.height / 2;
                 if (paddleCenter < ball.y - 35) player2.y += AI_SPEED;
                 else if (paddleCenter > ball.y + 35) player2.y -= AI_SPEED;
             }
-
-            // Clamp P2
-            if (player2.y < 0) player2.y = 0;
-            if (player2.y + player2.height > canvas.height) player2.y = canvas.height - player2.height;
+            player2.y = Math.max(0, Math.min(canvas.height - player2.height, player2.y));
         }
 
         function moveBall() {
@@ -324,16 +333,10 @@
             }
 
             if (ball.x + ball.radius > canvas.width) {
-                scores.p1++;
-                playSound('score');
-                checkWin();
-                resetBall();
+                scores.p1++; playSound('score'); checkWin(); resetBall();
             }
             if (ball.x - ball.radius < 0) {
-                scores.p2++;
-                playSound('score');
-                checkWin();
-                resetBall();
+                scores.p2++; playSound('score'); checkWin(); resetBall();
             }
         }
         
@@ -343,7 +346,8 @@
             
             if (hitPlayer1 || hitPlayer2) {
                 playSound('paddle');
-                ball.dx *= -1.05; // Reverse and speed up
+                createSparkles(ball.x, ball.y);
+                ball.dx *= -1.05;
                 let paddle = hitPlayer1 ? player1 : player2;
                 let deltaY = ball.y - (paddle.y + paddle.height / 2);
                 ball.dy = deltaY * 0.35;
@@ -363,6 +367,10 @@
         function endGame() {
             gameOver = true;
             winnerOverlay.style.display = 'flex';
+            clearInterval(fireworksInterval);
+            fireworksInterval = setInterval(createFirework, 500);
+            createFirework(); // Launch one immediately
+            requestAnimationFrame(overlayLoop);
         }
 
         function resetBall() {
@@ -373,6 +381,58 @@
             ball.dy = 5 * (Math.random() > 0.5 ? 1 : -1);
         }
 
+        // --- Particle Effects ---
+        function createSparkles(x, y) {
+            for (let i = 0; i < 15; i++) {
+                particles.push({
+                    x: x, y: y,
+                    dx: (Math.random() - 0.5) * 4,
+                    dy: (Math.random() - 0.5) * 4,
+                    size: Math.random() * 3 + 1,
+                    life: 30
+                });
+            }
+        }
+        
+        function createFirework() {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height / 2;
+            const hue = Math.random() * 360;
+            for (let i = 0; i < 50; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 5 + 2;
+                fireworks.push({
+                    x: x, y: y,
+                    dx: Math.cos(angle) * speed,
+                    dy: Math.sin(angle) * speed,
+                    size: Math.random() * 3 + 1,
+                    life: 60 + Math.random() * 20,
+                    color: `hsl(${hue}, 100%, 50%)`
+                });
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.dx;
+                p.y += p.dy;
+                p.life--;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+        }
+        
+        function updateFireworks() {
+             for (let i = fireworks.length - 1; i >= 0; i--) {
+                let p = fireworks[i];
+                p.x += p.dx;
+                p.y += p.dy;
+                p.dy += 0.1; // Gravity
+                p.life--;
+                if (p.life <= 0) fireworks.splice(i, 1);
+            }
+        }
+
         // --- Drawing ---
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -380,7 +440,24 @@
             drawRect(player1.x, player1.y, player1.width, player1.height, '#fff');
             drawRect(player2.x, player2.y, player2.width, player2.height, '#fff');
             drawCircle(ball.x, ball.y, ball.radius, '#fff');
+            drawParticles();
             drawScores();
+        }
+        
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.fillStyle = `rgba(255, 255, 255, ${p.life / 30})`;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+            });
+        }
+        
+        function drawFireworks() {
+            fireworks.forEach(p => {
+                ctx.globalAlpha = p.life / 80;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+                ctx.globalAlpha = 1.0;
+            });
         }
 
         function drawRect(x, y, w, h, color) { ctx.fillStyle = color; ctx.fillRect(x, y, w, h); }
@@ -403,12 +480,21 @@
             ctx.fillText(scores.p2, 3 * canvas.width / 4, 60);
         }
 
-        // --- Game Loop ---
+        // --- Game Loops ---
         function gameLoop() {
             if (!gameOver) {
                 update();
                 draw();
                 requestAnimationFrame(gameLoop);
+            }
+        }
+        
+        function overlayLoop() {
+            if (gameOver) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                updateFireworks();
+                drawFireworks();
+                requestAnimationFrame(overlayLoop);
             }
         }
 
