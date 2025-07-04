@@ -138,11 +138,10 @@
             function getVibrantColorFromString(str) {
                 let hash = 0;
                 if (str.length === 0) return 'hsl(0, 90%, 65%)';
-                // Improved hash function for better color distribution
                 for (let i = 0; i < str.length; i++) {
                     const char = str.charCodeAt(i);
                     hash = (hash << 5) - hash + char;
-                    hash = hash & hash; // Convert to 32bit integer
+                    hash = hash & hash;
                 }
                 const hue = Math.abs(hash % 360);
                 const saturation = 90;
@@ -213,13 +212,7 @@
                         const isDir = file.type === 'dir';
                         const tile = document.createElement('a');
                         
-                        // Correctly set href for files vs. directories
-                        if (isDir) {
-                            tile.href = `${window.location.pathname.replace(/\/$/, '')}/${file.name}/`;
-                        } else {
-                            tile.href = `${window.location.pathname.replace(/\/$/, '')}/${file.name}`;
-                        }
-
+                        tile.href = isDir ? `${window.location.pathname.replace(/\/$/, '')}/${file.name}/` : `${window.location.pathname.replace(/\/$/, '')}/${file.name}`;
                         tile.className = 'tile';
                         tile.setAttribute('tabindex', '0');
 
@@ -299,39 +292,49 @@
                         break;
                 }
             });
-
+            
+            // --- Gamepad Handler (FIXED) ---
             const buttonPressed = {};
+            let lastGamepadNavTime = 0;
+            const gamepadNavCooldown = 150;
+
             function gamepadHandler() {
-                const gamepads = navigator.getGamepads().filter(Boolean);
-                if (gamepads.length === 0) {
+                const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+                const gp = Array.from(gamepads).find(Boolean); // Find the first non-null gamepad
+
+                if (!gp || !gp.buttons || !gp.axes) {
                     gamepadLoop = requestAnimationFrame(gamepadHandler);
-                    return;
-                };
+                    return; // No active gamepad, try again next frame
+                }
 
-                const gp = gamepads[0];
                 const deadzone = 0.5;
+                const now = performance.now();
 
-                const dpadDown = gp.buttons[13].pressed;
-                const dpadUp = gp.buttons[12].pressed;
-                const dpadLeft = gp.buttons[14].pressed;
-                const dpadRight = gp.buttons[15].pressed;
-                
-                const stickDown = gp.axes[1] > deadzone;
-                const stickUp = gp.axes[1] < -deadzone;
-                const stickLeft = gp.axes[0] < -deadzone;
-                const stickRight = gp.axes[0] > deadzone;
+                // Navigation with Cooldown
+                if (now - lastGamepadNavTime > gamepadNavCooldown) {
+                    const dpadDown = gp.buttons[13] && gp.buttons[13].pressed;
+                    const dpadUp = gp.buttons[12] && gp.buttons[12].pressed;
+                    const dpadLeft = gp.buttons[14] && gp.buttons[14].pressed;
+                    const dpadRight = gp.buttons[15] && gp.buttons[15].pressed;
+                    
+                    const stickDown = gp.axes[1] > deadzone;
+                    const stickUp = gp.axes[1] < -deadzone;
+                    const stickLeft = gp.axes[0] < -deadzone;
+                    const stickRight = gp.axes[0] > deadzone;
 
-                if ((dpadDown || stickDown) && !buttonPressed['down']) navigate('down');
-                if ((dpadUp || stickUp) && !buttonPressed['up']) navigate('up');
-                if ((dpadLeft || stickLeft) && !buttonPressed['left']) navigate('left');
-                if ((dpadRight || stickRight) && !buttonPressed['right']) navigate('right');
-                
-                buttonPressed['down'] = dpadDown || stickDown;
-                buttonPressed['up'] = dpadUp || stickUp;
-                buttonPressed['left'] = dpadLeft || stickLeft;
-                buttonPressed['right'] = dpadRight || stickRight;
+                    let navigated = false;
+                    if (dpadDown || stickDown) { navigate('down'); navigated = true; } 
+                    else if (dpadUp || stickUp) { navigate('up'); navigated = true; } 
+                    else if (dpadLeft || stickLeft) { navigate('left'); navigated = true; } 
+                    else if (dpadRight || stickRight) { navigate('right'); navigated = true; }
 
-                const actionButtonPressed = gp.buttons[0].pressed;
+                    if (navigated) {
+                        lastGamepadNavTime = now;
+                    }
+                }
+
+                // Action Button
+                const actionButtonPressed = gp.buttons[0] && gp.buttons[0].pressed;
                 if (actionButtonPressed && !buttonPressed['action']) {
                      if (selectedIndex > -1 && tiles[selectedIndex]) {
                         tiles[selectedIndex].click();
@@ -344,16 +347,17 @@
 
             window.addEventListener('gamepadconnected', (e) => {
                 console.log(`Gamepad connected: ${e.gamepad.id}.`);
-                if (!gamepadLoop) gamepadHandler();
             });
             
             window.addEventListener('gamepaddisconnected', (e) => {
                 console.log(`Gamepad disconnected: ${e.gamepad.id}.`);
-                cancelAnimationFrame(gamepadLoop);
-                gamepadLoop = null;
             });
 
+            // --- Initial Load ---
             await fetchAndDisplayFiles();
+            // Start the gamepad loop immediately to detect already-connected controllers
+            gamepadHandler();
+
         })();
     </script>
 </body>
