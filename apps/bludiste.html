@@ -402,7 +402,7 @@
             // Level 12
             [
                 [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                [1,0,1,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,1,0,1],
+                [1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,1],
                 [1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1,1,0,1],
@@ -420,7 +420,7 @@
                 [1,1,1,1,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0,1],
                 [1,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,1,0,0,0,1],
                 [1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,0,1,1,1,0,1],
-                [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
+                [1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1],
                 [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
             ],
             // Level 13
@@ -1179,19 +1179,19 @@
             keysPressed[key] = true;
             
             cheatCodeBuffer += e.key.toUpperCase();
-            if (cheatCodeBuffer.length > 5) {
-                cheatCodeBuffer = cheatCodeBuffer.slice(-5);
+            if (cheatCodeBuffer.length > 6) {
+                cheatCodeBuffer = cheatCodeBuffer.slice(-6);
             }
 
-            if (cheatCodeBuffer.endsWith('BOSS')) {
+            if (cheatCodeBuffer.endsWith('KONEC')) {
                  currentLevel = mazeLevels.length;
                  initLevel();
                  cheatCodeBuffer = '';
                  return;
             }
 
-            if (cheatCodeBuffer.startsWith('LEVEL') && cheatCodeBuffer.length === 5) {
-                const levelChar = cheatCodeBuffer.charAt(4);
+            if (cheatCodeBuffer.startsWith('LEVEL') && cheatCodeBuffer.length === 6) {
+                const levelChar = cheatCodeBuffer.charAt(5);
                 let levelNumber = -1;
 
                 if (levelChar >= '1' && levelChar <= '9') {
