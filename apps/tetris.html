@@ -1,1127 +1,630 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="cs">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Classic Tetris</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <title>Klasický Tetris</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
-        /* Basic Reset */
-        body, html {
-            margin: 0;
-            padding: 0;
-            height: 100%; /* Ensure html and body take full viewport height */
-            width: 100%;  /* Ensure html and body take full viewport width */
-            overflow: hidden; /* Prevent scrollbars */
-            font-family: 'Inter', sans-serif;
-            background-color: #1a1a2e; /* Dark background */
-            color: #e0e0e0; /* Light text */
-            box-sizing: border-box;
+        :root {
+            --bg-color: #0b132b;
+            --grid-color: #000;
+            --text-color: #cbeef3;
+            --accent-color: #1c2541;
+            --border-color: #00f5d4;
+            --font-family: 'Press Start 2P', cursive;
         }
 
-        /* Main App Wrapper for Fullscreen Layout */
-        .app-wrapper {
+        body {
+            background-color: var(--bg-color);
+            background-image: linear-gradient(to bottom right, #0b132b, #1c2541);
+            color: var(--text-color);
+            font-family: var(--font-family);
             display: flex;
-            flex-direction: column;
-            height: 100vh; /* Take full viewport height */
-            width: 100vw;  /* Take full viewport width */
-            justify-content: center; /* Center content vertically */
-            align-items: center; /* Center content horizontally */
-            padding: 10px; /* Small padding around the entire app */
-            box-sizing: border-box;
-        }
-
-        /* Main Game Container */
-        .game-container {
-            display: flex;
-            flex-wrap: wrap; /* Allow wrapping for smaller screens */
-            gap: 20px;
             justify-content: center;
-            align-items: center; /* Changed from flex-start to center for vertical alignment */
-            padding: 20px;
-            max-width: 100%;
-            flex-grow: 1; /* Allow game container to grow and take available space */
-            overflow: hidden; /* Prevent internal scrolling if content is too large */
-            box-sizing: border-box;
-        }
-
-        /* Player Board Container */
-        .player-board-container {
-            display: flex;
-            flex-direction: column; /* Stacks H2 and game-content-wrapper vertically */
             align-items: center;
-            background-color: #2a2a4a;
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
-            transition: all 0.3s ease;
+            min-height: 100vh;
+            margin: 0;
+            padding: 1rem;
             box-sizing: border-box;
         }
 
-        .player-board-container.game-over {
-            opacity: 0.7;
-        }
-
-        .player-board-container h2 {
-            margin-top: 0;
-            margin-bottom: 15px; /* Space between title and game content */
-            color: #8b5cf6; /* Purple accent */
-            font-size: 1.8em;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        /* New wrapper for Canvas and Info Panel */
-        .game-content-wrapper {
-            display: flex;
-            flex-direction: row; /* Arrange canvas and info side-by-side */
-            gap: 20px; /* Space between canvas and info panel */
-            align-items: center; /* Vertically align items in the middle */
-            justify-content: center; /* Horizontally center content */
-            width: 100%; /* Take full available width */
-        }
-
-        /* Canvas Styling */
-        canvas {
-            background-color: #000;
-            border: 5px solid #4a4a7a;
-            border-radius: 8px;
-            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
-            display: block;
-            flex-shrink: 0; /* Prevent canvas from shrinking */
-        }
-
-        /* Info Panel (Score, Level, Next) */
-        .info-panel {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-            background-color: #3a3a5a; /* Moved background here from info-item */
-            border-radius: 10px; /* Moved border-radius here from info-item */
-            padding: 10px 15px; /* Moved padding here from info-item */
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Moved shadow here from info-item */
-            min-width: 120px; /* Fixed width for stats panel */
-            flex-shrink: 0; /* Don't let it shrink */
-            height: fit-content; /* Adjust height to content */
-        }
-
-        .info-item {
-            width: 100%; /* Take full width of its parent (.info-panel) */
-            text-align: center;
-            /* Removed background-color, border-radius, padding, box-shadow */
-        }
-
-        .info-item h3 {
-            margin: 0 0 5px 0;
-            color: #a78bfa; /* Lighter purple */
-            font-size: 1.1em;
-        }
-
-        .info-item p {
-            margin: 0;
-            font-size: 1.5em;
-            font-weight: bold;
-            color: #fff;
-        }
-
-        .next-block-canvas {
-            background-color: #1a1a2e; /* Darker background for next block */
-            border: 2px solid #5a5a8a;
-            border-radius: 5px;
-            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.3);
-        }
-
-        /* Game Over Message */
-        .game-over-message {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgba(0, 0, 0, 0.8);
-            border: 3px solid #ff4d4d; /* Red accent */
-            border-radius: 15px;
-            padding: 30px 40px;
-            text-align: center;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6);
-            z-index: 100;
-            display: none; /* Hidden by default */
-            flex-direction: column;
-            gap: 15px;
-            animation: fadeIn 0.5s ease-out forwards;
-        }
-
-        .game-over-message h2 {
-            color: #ff4d4d;
-            font-size: 2.5em;
-            margin: 0;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .game-over-message p {
-            font-size: 1.2em;
-            margin: 0;
-            color: #e0e0e0;
-        }
-
-        /* Instructions */
-        .instructions {
-            background-color: #2a2a4a;
-            border-radius: 15px;
-            padding: 20px 30px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
-            text-align: center;
-            max-width: 800px;
-            width: 100%;
-            box-sizing: border-box;
-            flex-shrink: 0; /* Prevent instructions from shrinking excessively */
-            margin-top: auto; /* Push instructions to the bottom if space allows */
-            transition: opacity 0.5s ease-out, transform 0.5s ease-out; /* Smooth transition for hiding */
-        }
-
-        .instructions.hidden {
-            opacity: 0;
-            transform: translateY(20px);
-            pointer-events: none; /* Prevent interaction when hidden */
-        }
-
-        .instructions h2 {
-            color: #8b5cf6;
-            margin-top: 0;
-            font-size: 1.8em;
-        }
-
-        .instructions p {
-            margin-bottom: 15px;
-            line-height: 1.6;
-        }
-
-        .instructions ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
+        #game-container {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 15px;
+            gap: 2rem;
+            align-items: flex-start;
         }
 
-        .instructions li {
-            background-color: #3a3a5a;
-            border-radius: 8px;
-            padding: 10px 15px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-            flex: 1 1 auto; /* Allow items to grow and shrink */
-            min-width: 280px; /* Minimum width for each instruction block */
-            text-align: left;
+        .player-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 4px solid var(--border-color);
+            padding: 1rem;
+            background-color: var(--accent-color);
+            border-radius: 10px;
+            box-shadow: 0 0 20px var(--border-color), inset 0 0 10px rgba(0,0,0,0.5);
         }
 
-        .instructions li strong {
-            color: #a78bfa;
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 3px 3px 5px #000;
+        }
+
+        .game-board-container {
+            position: relative;
+            border: 4px solid var(--border-color);
+        }
+
+        canvas {
             display: block;
-            margin-bottom: 5px;
-            font-size: 1.1em;
+            background-color: var(--grid-color);
+        }
+        
+        #game-over-overlay {
+            position: fixed; /* Use fixed to cover the whole screen */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            display: none; /* Initially hidden */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 100;
         }
 
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translate(-50%, -60%); }
-            to { opacity: 1; transform: translate(-50%, -50%); }
+        #game-over-overlay h2 {
+            font-size: 3rem;
+            color: var(--text-color);
+            margin-bottom: 1rem;
+            text-shadow: 4px 4px 0px #000;
         }
 
-        /* Responsive Design */
-        @media (max-width: 1200px) {
-            .game-container {
+        #game-over-overlay p {
+            font-size: 1.2rem;
+        }
+
+        .info-area {
+            width: 150px;
+            padding-left: 1rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .info-box {
+            background: rgba(0,0,0,0.3);
+            border: 2px solid var(--border-color);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 5px;
+            text-align: center;
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.6);
+        }
+
+        .info-box h2 {
+            font-size: 1rem;
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+            color: var(--text-color);
+        }
+
+        .info-box p, .info-box canvas {
+            font-size: 1.2rem;
+            margin: 0;
+            color: #fff;
+        }
+
+        #instructions {
+            margin-top: 2rem;
+            padding: 1rem;
+            max-width: 800px;
+            text-align: center;
+            line-height: 1.5;
+            font-size: 0.8rem;
+            color: #a0a0c0;
+            transition: opacity 1.5s ease-in-out;
+            opacity: 1;
+        }
+        
+        @media (max-width: 960px) {
+            body {
+                flex-direction: column;
+            }
+            #game-container {
                 flex-direction: column;
                 align-items: center;
-                padding: 10px; /* Reduce padding on smaller screens */
-            }
-            .player-board-container {
-                width: auto; /* Allow natural width */
-                padding: 15px; /* Reduce padding */
-            }
-            .game-content-wrapper {
-                flex-direction: column; /* Stack canvas and info vertically on smaller screens */
-                gap: 15px;
-            }
-            .info-panel {
-                min-width: unset; /* Remove fixed width on small screens */
-                width: calc(100% - 30px); /* Fill available width */
-            }
-            .instructions ul {
-                flex-direction: column;
-                align-items: center;
-            }
-            .instructions li {
-                width: 90%; /* Take more width on smaller screens */
-            }
-        }
-
-        @media (max-width: 768px) {
-            .app-wrapper {
-                padding: 5px; /* Even less padding on very small screens */
-            }
-            .game-container {
-                gap: 10px; /* Reduce gap between player boards */
-            }
-            .player-board-container h2 {
-                font-size: 1.5em;
-            }
-            .info-item p {
-                font-size: 1.2em;
-            }
-            .instructions {
-                padding: 15px;
-            }
-            .instructions h2 {
-                font-size: 1.5em;
-            }
-        }
-
-        @media (max-width: 600px) {
-            .game-over-message {
-                padding: 20px 30px;
-            }
-            .game-over-message h2 {
-                font-size: 2em;
-            }
-            .game-over-message p {
-                font-size: 1em;
             }
         }
     </style>
 </head>
 <body>
-    <div class="app-wrapper">
-        <div class="game-container">
-            <!-- Player 1 Board -->
-            <div class="player-board-container" id="player1-container">
-                <h2>Player 1</h2>
-                <div class="game-content-wrapper">
-                    <canvas id="gameCanvas1"></canvas>
-                    <div class="info-panel">
-                        <div class="info-item">
-                            <h3>Score</h3>
-                            <p id="score1">0</p>
-                        </div>
-                        <div class="info-item">
-                            <h3>Level</h3>
-                            <p id="level1">1</p>
-                        </div>
-                        <div class="info-item">
-                            <h3>Next</h3>
-                            <canvas id="nextBlockCanvas1" class="next-block-canvas"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Player 2 Board (initially hidden or styled for single player) -->
-            <div class="player-board-container" id="player2-container" style="display: none;">
-                <h2>Player 2</h2>
-                <div class="game-content-wrapper">
-                    <canvas id="gameCanvas2"></canvas>
-                    <div class="info-panel">
-                        <div class="info-item">
-                            <h3>Score</h3>
-                            <p id="score2">0</p>
-                        </div>
-                        <div class="info-item">
-                            <h3>Level</h3>
-                            <p id="level2">1</p>
-                        </div>
-                        <div class="info-item">
-                            <h3>Next</h3>
-                            <canvas id="nextBlockCanvas2" class="next-block-canvas"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <div id="main-content">
+        <div id="game-container">
+            <!-- Player areas will be generated by JavaScript -->
         </div>
-
-        <!-- Game Over Message -->
-        <div class="game-over-message" id="gameOverMessage">
-            <h2>GAME OVER!</h2>
-            <p>Press ENTER or START on gamepad to restart.</p>
+        <div id="instructions">
+            <h2>Jak hrát</h2>
+            <p>P1: Šipky (Pohyb), Nahoru (Otočit), Shift (Pustit)</p>
+            <p>P2: WASD (Pohyb), W (Otočit), Q (Pustit)</p>
+            <p>Gamepad: D-Pad/Páčka (Pohyb), A/Nahoru (Otočit), B (Pustit)</p>
+            <p>Stiskněte ENTER nebo START na ovladači pro restart.</p>
         </div>
-
-        <!-- Instructions -->
-        <div class="instructions" id="instructions">
-            <h2>How to Play</h2>
-            <p>Enjoy the classic challenge of Tetris! Clear lines, aim for a high score, and see what's coming next.</p>
-            <p>The game automatically switches to two-player split-screen if a second gamepad connects or Player 2 controls are used.</p>
-            <ul>
-                <li>
-                    <strong>Player 1 Controls:</strong>
-                    <p>Arrow Keys: Move & Rotate</p>
-                    <p>Shift: Quick Drop</p>
-                </li>
-                <li>
-                    <strong>Player 2 Controls:</strong>
-                    <p>WASD Keys: Move & Rotate</p>
-                    <p>Q: Quick Drop</p>
-                </li>
-                <li>
-                    <strong>General:</strong>
-                    <p>Gamepad Friendly: Supports up to two players. Hold buttons for continuous movement.</p>
-                    <p>Restart: Press ENTER (keyboard) or START (gamepad) to restart.</p>
-                </li>
-            </ul>
-        </div>
+    </div>
+    
+    <div id="game-over-overlay">
+        <h2>KONEC HRY</h2>
+        <p>Stiskněte ENTER nebo START pro Restart</p>
     </div>
 
     <script>
-        // --- Game Constants ---
-        const BLOCK_SIZE = 30; // Size of each block in pixels
-        const BOARD_WIDTH = 10; // Blocks wide
-        const BOARD_HEIGHT = 20; // Blocks high
-        const NEXT_PREVIEW_SIZE = 4; // Grid size for next block preview
+        // --- Game Setup ---
+        const COLS = 10;
+        const ROWS = 20;
+        const BLOCK_SIZE = 30;
+        const COLORS = [
+            null,
+            '#00f5d4', // T (Teal)
+            '#fce181', // O (Yellow)
+            '#5dadec', // L (Blue)
+            '#80dfff', // J (Light Blue)
+            '#a9f04d', // I (Green)
+            '#42e695', // S (Mint Green)
+            '#4682b4', // Z (Steel Blue)
+        ];
+        const SHAPES = [
+            [],
+            [[0, 0, 0], [1, 1, 1], [0, 1, 0]], // T
+            [[2, 2], [2, 2]],                   // O
+            [[0, 3, 0], [0, 3, 0], [0, 3, 3]], // L
+            [[0, 4, 0], [0, 4, 0], [4, 4, 0]], // J
+            [[0, 5, 0, 0], [0, 5, 0, 0], [0, 5, 0, 0], [0, 5, 0, 0]], // I
+            [[0, 6, 6], [6, 6, 0], [0, 0, 0]], // S
+            [[7, 7, 0], [0, 7, 7], [0, 0, 0]], // Z
+        ];
 
-        // Tetromino shapes and their colors
-        const TETROMINOES = [
-            {
-                shape: [
-                    [0, 1, 0],
-                    [1, 1, 1],
-                    [0, 0, 0]
-                ], // T
-                color: '#8b5cf6' // Purple
-            },
-            {
-                shape: [
-                    [1, 1],
-                    [1, 1]
-                ], // O
-                color: '#facc15' // Yellow
-            },
-            {
-                shape: [
-                    [0, 1, 1],
-                    [1, 1, 0],
-                    [0, 0, 0]
-                ], // S
-                color: '#22c55e' // Green
-            },
-            {
-                shape: [
-                    [1, 1, 0],
-                    [0, 1, 1],
-                    [0, 0, 0]
-                ], // Z
-                color: '#ef4444' // Red
-            },
-            {
-                shape: [
-                    [1, 1, 1, 1]
-                ], // I
-                color: '#0ea5e9' // Cyan
-            },
-            {
-                shape: [
-                    [1, 0, 0],
-                    [1, 1, 1],
-                    [0, 0, 0]
-                ], // L
-                color: '#f97316' // Orange
-            },
-            {
-                shape: [
-                    [0, 0, 1],
-                    [1, 1, 1],
-                    [0, 0, 0]
-                ], // J
-                color: '#3b82f6' // Blue
+        let players = [];
+        let numPlayers = 1;
+        let playerGamepadMap = new Map(); // Map<playerId, gamepadIndex>
+        let animationFrameId;
+
+        // --- Player Class ---
+        class Player {
+            constructor(id) {
+                this.id = id;
+                this.score = 0;
+                this.level = 1;
+                this.lines = 0;
+                this.grid = this.createGrid();
+                this.piece = null;
+                this.nextPiece = this.newPiece();
+                this.gameOver = false;
+                this.dropCounter = 0;
+                this.dropInterval = 1000; // ms
+
+                this.setupDOM();
+                this.reset();
             }
-        ];
 
-        // --- Game State Variables (for up to 2 players) ---
-        const gameStates = []; // Array to hold state for each player
-        const gameIntervals = []; // Array to hold setInterval IDs for each player's drop
-        const gamepads = []; // Array to store connected gamepads
-        let playerCount = 1; // Initially single player
-        let instructionsHidden = false; // Flag to track if instructions are hidden
+            setupDOM() {
+                const gameContainer = document.getElementById('game-container');
+                const playerArea = document.createElement('div');
+                playerArea.className = 'player-area';
+                playerArea.id = `player-${this.id}-area`;
 
-        // DOM Elements
-        const canvasElements = [
-            document.getElementById('gameCanvas1'),
-            document.getElementById('gameCanvas2')
-        ];
-        const contextElements = [
-            canvasElements[0].getContext('2d'),
-            canvasElements[1].getContext('2d')
-        ];
-        const nextBlockCanvasElements = [
-            document.getElementById('nextBlockCanvas1'),
-            document.getElementById('nextBlockCanvas2')
-        ];
-        const nextBlockContextElements = [
-            nextBlockCanvasElements[0].getContext('2d'),
-            nextBlockCanvasElements[1].getContext('2d')
-        ];
-        const scoreDisplays = [
-            document.getElementById('score1'),
-            document.getElementById('score2')
-        ];
-        const levelDisplays = [
-            document.getElementById('level1'),
-            document.getElementById('level2')
-        ];
-        const playerContainers = [
-            document.getElementById('player1-container'),
-            document.getElementById('player2-container')
-        ];
-        const gameOverMessage = document.getElementById('gameOverMessage');
-        const instructionsElement = document.getElementById('instructions'); // Get the instructions element
+                playerArea.innerHTML = `
+                    <h1>Hráč ${this.id + 1}</h1>
+                    <div style="display: flex;">
+                        <div class="game-board-container">
+                             <canvas id="board-${this.id}"></canvas>
+                        </div>
+                        <div class="info-area">
+                            <div class="info-box">
+                                <h2>SKÓRE</h2>
+                                <p id="score-${this.id}">0</p>
+                            </div>
+                            <div class="info-box">
+                                <h2>ÚROVEŇ</h2>
+                                <p id="level-${this.id}">1</p>
+                            </div>
+                            <div class="info-box">
+                                <h2>DALŠÍ</h2>
+                                <canvas id="next-${this.id}"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                gameContainer.appendChild(playerArea);
 
-        // --- Initialization and Setup ---
+                this.canvas = document.getElementById(`board-${this.id}`);
+                this.ctx = this.canvas.getContext('2d');
+                this.canvas.width = COLS * BLOCK_SIZE;
+                this.canvas.height = ROWS * BLOCK_SIZE;
+                this.ctx.scale(BLOCK_SIZE, BLOCK_SIZE);
 
-        // Set canvas dimensions
-        canvasElements.forEach(canvas => {
-            canvas.width = BOARD_WIDTH * BLOCK_SIZE;
-            canvas.height = BOARD_HEIGHT * BLOCK_SIZE;
-        });
-        nextBlockCanvasElements.forEach(canvas => {
-            canvas.width = NEXT_PREVIEW_SIZE * BLOCK_SIZE;
-            canvas.height = NEXT_PREVIEW_SIZE * BLOCK_SIZE;
-        });
-
-        /**
-         * Initializes the game state for a specific player.
-         * @param {number} playerIndex - The index of the player (0 for P1, 1 for P2).
-         */
-        function initializePlayer(playerIndex) {
-            gameStates[playerIndex] = {
-                board: createEmptyBoard(),
-                currentPiece: null,
-                nextPiece: null,
-                score: 0,
-                level: 1,
-                linesCleared: 0,
-                gameOver: false,
-                dropInterval: 1000 // Initial drop speed (1 second)
-            };
-            generateNewPiece(playerIndex);
-            updateUI(playerIndex);
-            playerContainers[playerIndex].classList.remove('game-over');
-        }
-
-        /**
-         * Creates an empty game board filled with zeros.
-         * @returns {number[][]} An empty board.
-         */
-        function createEmptyBoard() {
-            return Array.from({ length: BOARD_HEIGHT }, () => Array(BOARD_WIDTH).fill(0));
-        }
-
-        /**
-         * Generates a random new tetromino and sets it as the current piece for a player.
-         * Moves the next piece to current and generates a new next piece.
-         * @param {number} playerIndex - The index of the player.
-         */
-        function generateNewPiece(playerIndex) {
-            const state = gameStates[playerIndex];
-            if (state.nextPiece) {
-                state.currentPiece = state.nextPiece;
-            } else {
-                state.currentPiece = getRandomTetromino();
+                this.nextCanvas = document.getElementById(`next-${this.id}`);
+                this.nextCtx = this.nextCanvas.getContext('2d');
+                this.nextCanvas.width = 4 * BLOCK_SIZE;
+                this.nextCanvas.height = 4 * BLOCK_SIZE;
+                this.nextCtx.scale(BLOCK_SIZE, BLOCK_SIZE);
+                
+                this.scoreElement = document.getElementById(`score-${this.id}`);
+                this.levelElement = document.getElementById(`level-${this.id}`);
             }
-            state.nextPiece = getRandomTetromino();
 
-            // Initial position for the new piece
-            state.currentPiece.x = Math.floor((BOARD_WIDTH - state.currentPiece.shape[0].length) / 2);
-            state.currentPiece.y = 0;
+            createGrid() {
+                return Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+            }
+            
+            newPiece() {
+                const rand = Math.floor(Math.random() * (SHAPES.length - 1)) + 1;
+                const piece = JSON.parse(JSON.stringify(SHAPES[rand])); // Deep copy
+                return {
+                    pos: { x: Math.floor(COLS / 2) - Math.floor(piece[0].length / 2), y: 0 },
+                    matrix: piece,
+                    type: rand,
+                };
+            }
 
-            // Check for immediate game over
-            if (checkCollision(state.board, state.currentPiece, 0, 0, state.currentPiece.rotation)) {
-                state.gameOver = true;
-                clearInterval(gameIntervals[playerIndex]); // Stop dropping
-                playerContainers[playerIndex].classList.add('game-over');
-                if (playerCount === 1 || (playerCount === 2 && gameStates.every(s => s.gameOver))) {
-                    gameOverMessage.style.display = 'flex'; // Show global game over if all players are out
+            reset() {
+                this.score = 0;
+                this.level = 1;
+                this.lines = 0;
+                this.grid = this.createGrid();
+                this.piece = this.newPiece();
+                this.nextPiece = this.newPiece();
+                this.gameOver = false;
+                this.dropInterval = 1000;
+                this.updateScoreboard();
+                this.draw();
+            }
+
+            update(deltaTime) {
+                if (this.gameOver) return;
+
+                this.dropCounter += deltaTime;
+                if (this.dropCounter > this.dropInterval) {
+                    this.drop();
                 }
             }
-        }
+            
+            drop() {
+                this.piece.pos.y++;
+                if (this.collide()) {
+                    this.piece.pos.y--;
+                    this.merge();
+                    this.piece = this.nextPiece;
+                    this.nextPiece = this.newPiece();
+                    this.clearLines();
+                    if (this.collide()) {
+                        this.gameOver = true;
+                        console.log(`Player ${this.id + 1} Game Over`);
+                    }
+                }
+                this.dropCounter = 0;
+            }
 
-        /**
-         * Gets a random tetromino from the TETROMINOES array.
-         * @returns {object} A new tetromino object.
-         */
-        function getRandomTetromino() {
-            const randomIndex = Math.floor(Math.random() * TETROMINOES.length);
-            const { shape, color } = TETROMINOES[randomIndex];
-            return {
-                shape: shape,
-                color: color,
-                x: 0, // Will be set later
-                y: 0, // Will be set later
-                rotation: 0 // Initial rotation index
-            };
-        }
+            hardDrop() {
+                if (this.gameOver) return;
+                while (!this.collide()) {
+                    this.piece.pos.y++;
+                }
+                this.piece.pos.y--;
+                this.drop(); // Call drop to handle merge, new piece, etc.
+            }
 
-        /**
-         * Clones a piece object to avoid modifying the original.
-         * @param {object} piece - The piece to clone.
-         * @returns {object} A deep copy of the piece.
-         */
-        function clonePiece(piece) {
-            return {
-                shape: piece.shape.map(row => [...row]),
-                color: piece.color,
-                x: piece.x,
-                y: piece.y,
-                rotation: piece.rotation
-            };
-        }
-
-        // --- Drawing Functions ---
-
-        /**
-         * Draws a single block on the canvas.
-         * @param {CanvasRenderingContext2D} ctx - The canvas context.
-         * @param {number} x - X coordinate of the block (in board units).
-         * @param {number} y - Y coordinate of the block (in board units).
-         * @param {string} color - Color of the block.
-         */
-        function drawBlock(ctx, x, y, color) {
-            ctx.fillStyle = color;
-            ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-            ctx.strokeStyle = '#333'; // Dark border for blocks
-            ctx.lineWidth = 1;
-            ctx.strokeRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-        }
-
-        /**
-         * Draws the entire game board for a specific player.
-         * @param {number} playerIndex - The index of the player.
-         */
-        function drawBoard(playerIndex) {
-            const state = gameStates[playerIndex];
-            const ctx = contextElements[playerIndex];
-
-            // Clear the canvas
-            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-
-            // Draw settled blocks on the board
-            for (let row = 0; row < BOARD_HEIGHT; row++) {
-                for (let col = 0; col < BOARD_WIDTH; col++) {
-                    if (state.board[row][col] !== 0) {
-                        drawBlock(ctx, col, row, state.board[row][col]);
+            move(dir) {
+                if (this.gameOver) return;
+                this.piece.pos.x += dir;
+                if (this.collide()) {
+                    this.piece.pos.x -= dir;
+                }
+            }
+            
+            rotate() {
+                if (this.gameOver) return;
+                const originalPos = this.piece.pos.x;
+                let offset = 1;
+                this.rotateMatrix(this.piece.matrix);
+                while (this.collide()) {
+                    this.piece.pos.x += offset;
+                    offset = -(offset + (offset > 0 ? 1 : -1));
+                    if (offset > this.piece.matrix[0].length) {
+                        this.rotateMatrix(this.piece.matrix); // Rotate back
+                        this.piece.pos.x = originalPos;
+                        return;
                     }
                 }
             }
 
-            // Draw the current falling piece
-            if (state.currentPiece) {
-                for (let row = 0; row < state.currentPiece.shape.length; row++) {
-                    for (let col = 0; col < state.currentPiece.shape[row].length; col++) {
-                        if (state.currentPiece.shape[row][col] === 1) {
-                            drawBlock(ctx, state.currentPiece.x + col, state.currentPiece.y + row, state.currentPiece.color);
-                        }
+            rotateMatrix(matrix) {
+                for (let y = 0; y < matrix.length; ++y) {
+                    for (let x = 0; x < y; ++x) {
+                        [matrix[x][y], matrix[y][x]] = [matrix[y][x], matrix[x][y]];
                     }
                 }
+                matrix.forEach(row => row.reverse());
             }
-        }
 
-        /**
-         * Draws the next block in the preview canvas for a specific player.
-         * @param {number} playerIndex - The index of the player.
-         */
-        function drawNextPiece(playerIndex) {
-            const state = gameStates[playerIndex];
-            const ctx = nextBlockContextElements[playerIndex];
-
-            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // Clear preview canvas
-
-            if (state.nextPiece) {
-                // Center the piece in the preview area
-                const pieceWidth = state.nextPiece.shape[0].length;
-                const pieceHeight = state.nextPiece.shape.length;
-                const startX = Math.floor((NEXT_PREVIEW_SIZE - pieceWidth) / 2);
-                const startY = Math.floor((NEXT_PREVIEW_SIZE - pieceHeight) / 2);
-
-                for (let row = 0; row < pieceHeight; row++) {
-                    for (let col = 0; col < pieceWidth; col++) {
-                        if (state.nextPiece.shape[row][col] === 1) {
-                            drawBlock(ctx, startX + col, startY + row, state.nextPiece.color);
-                        }
-                    }
-                }
-            }
-        }
-
-        /**
-         * Updates the score and level display for a specific player.
-         * @param {number} playerIndex - The index of the player.
-         */
-        function updateUI(playerIndex) {
-            const state = gameStates[playerIndex];
-            scoreDisplays[playerIndex].textContent = state.score;
-            levelDisplays[playerIndex].textContent = state.level;
-            drawBoard(playerIndex);
-            drawNextPiece(playerIndex);
-        }
-
-        // --- Game Logic ---
-
-        /**
-         * Checks for collision with existing blocks or board boundaries.
-         * @param {number[][]} board - The current game board.
-         * @param {object} piece - The piece to check.
-         * @param {number} offsetX - Horizontal offset for the check.
-         * @param {number} offsetY - Vertical offset for the check.
-         * @param {number} newRotation - The rotation state to check.
-         * @returns {boolean} True if a collision occurs, false otherwise.
-         */
-        function checkCollision(board, piece, offsetX, offsetY, newRotation) {
-            const rotatedShape = rotateShape(piece.shape, newRotation);
-            for (let row = 0; row < rotatedShape.length; row++) {
-                for (let col = 0; col < rotatedShape[row].length; col++) {
-                    if (rotatedShape[row][col] === 1) {
-                        const newX = piece.x + col + offsetX;
-                        const newY = piece.y + row + offsetY;
-
-                        // Check boundaries
-                        if (newX < 0 || newX >= BOARD_WIDTH || newY >= BOARD_HEIGHT) {
-                            return true;
-                        }
-                        // Check collision with existing blocks (only if newY is within board height)
-                        if (newY >= 0 && board[newY][newX] !== 0) {
+            collide() {
+                const { matrix, pos } = this.piece;
+                for (let y = 0; y < matrix.length; y++) {
+                    for (let x = 0; x < matrix[y].length; x++) {
+                        if (matrix[y][x] !== 0 &&
+                           (this.grid[y + pos.y] && this.grid[y + pos.y][x + pos.x]) !== 0) {
                             return true;
                         }
                     }
                 }
+                return false;
             }
-            return false;
-        }
 
-        /**
-         * Rotates a 2D array (tetromino shape).
-         * @param {number[][]} shape - The 2D array representing the tetromino shape.
-         * @param {number} rotation - The desired rotation index (0, 1, 2, 3).
-         * @returns {number[][]} The rotated shape.
-         */
-        function rotateShape(shape, rotation) {
-            const numRows = shape.length;
-            const numCols = shape[0].length;
-            let rotated = Array.from({ length: numCols }, () => Array(numRows).fill(0));
-
-            for (let row = 0; row < numRows; row++) {
-                for (let col = 0; col < numCols; col++) {
-                    // 90 degrees clockwise rotation
-                    rotated[col][numRows - 1 - row] = shape[row][col];
-                }
-            }
-            return rotated;
-        }
-
-        /**
-         * Attempts to move the current piece for a player.
-         * @param {number} playerIndex - The index of the player.
-         * @param {number} offsetX - Horizontal movement (e.g., -1 for left, 1 for right).
-         * @param {number} offsetY - Vertical movement (e.g., 1 for down).
-         */
-        function movePiece(playerIndex, offsetX, offsetY) {
-            const state = gameStates[playerIndex];
-            if (state.gameOver || !state.currentPiece) return;
-
-            if (!checkCollision(state.board, state.currentPiece, offsetX, offsetY, state.currentPiece.rotation)) {
-                state.currentPiece.x += offsetX;
-                state.currentPiece.y += offsetY;
-                updateUI(playerIndex);
-                return true; // Move successful
-            }
-            return false; // Move failed due to collision
-        }
-
-        /**
-         * Attempts to rotate the current piece for a player.
-         * Implements a simple wall kick mechanism for I and O tetrominoes.
-         * @param {number} playerIndex - The index of the player.
-         */
-        function rotatePiece(playerIndex) {
-            const state = gameStates[playerIndex];
-            if (state.gameOver || !state.currentPiece) return;
-
-            const originalRotation = state.currentPiece.rotation;
-            const newRotation = (originalRotation + 1) % 4; // Cycle through 0, 1, 2, 3
-            const rotatedShape = rotateShape(state.currentPiece.shape, newRotation);
-
-            // Simple wall kick (try to shift if rotation causes collision)
-            const kickTests = [
-                { x: 0, y: 0 },   // No kick
-                { x: -1, y: 0 },  // Kick left
-                { x: 1, y: 0 },   // Kick right
-                { x: 0, y: -1 },  // Kick down (for T-spins, etc., though simple here)
-                { x: -2, y: 0 },  // Double kick left
-                { x: 2, y: 0 }    // Double kick right
-            ];
-
-            for (const kick of kickTests) {
-                if (!checkCollision(state.board, state.currentPiece, kick.x, kick.y, newRotation)) {
-                    state.currentPiece.shape = rotatedShape; // Update shape after successful check
-                    state.currentPiece.x += kick.x;
-                    state.currentPiece.y += kick.y;
-                    state.currentPiece.rotation = newRotation;
-                    updateUI(playerIndex);
-                    return;
-                }
-            }
-        }
-
-        /**
-         * Locks the current piece onto the board.
-         * @param {number} playerIndex - The index of the player.
-         */
-        function lockPiece(playerIndex) {
-            const state = gameStates[playerIndex];
-            if (!state.currentPiece) return;
-
-            for (let row = 0; row < state.currentPiece.shape.length; row++) {
-                for (let col = 0; col < state.currentPiece.shape[row].length; col++) {
-                    if (state.currentPiece.shape[row][col] === 1) {
-                        const boardX = state.currentPiece.x + col;
-                        const boardY = state.currentPiece.y + row;
-                        if (boardY >= 0 && boardY < BOARD_HEIGHT && boardX >= 0 && boardX < BOARD_WIDTH) {
-                            state.board[boardY][boardX] = state.currentPiece.color;
+            merge() {
+                this.piece.matrix.forEach((row, y) => {
+                    row.forEach((value, x) => {
+                        if (value !== 0) {
+                            this.grid[y + this.piece.pos.y][x + this.piece.pos.x] = value;
                         }
-                    }
-                }
-            }
-            clearLines(playerIndex);
-            generateNewPiece(playerIndex);
-            updateUI(playerIndex);
-        }
-
-        /**
-         * Drops the current piece by one unit for a player. If it collides, locks it.
-         * @param {number} playerIndex - The index of the player.
-         */
-        function dropPiece(playerIndex) {
-            const state = gameStates[playerIndex];
-            if (state.gameOver || !state.currentPiece) return;
-
-            if (!movePiece(playerIndex, 0, 1)) { // Try to move down
-                lockPiece(playerIndex); // If collision, lock the piece
-            }
-        }
-
-        /**
-         * Instantly drops the current piece to the lowest possible position for a player.
-         * @param {number} playerIndex - The index of the player.
-         */
-        function hardDrop(playerIndex) {
-            const state = gameStates[playerIndex];
-            if (state.gameOver || !state.currentPiece) return;
-
-            while (movePiece(playerIndex, 0, 1)) {
-                // Keep dropping until collision
-            }
-            lockPiece(playerIndex); // Lock the piece after hard drop
-        }
-
-        /**
-         * Clears full lines from the board, updates score and level.
-         * @param {number} playerIndex - The index of the player.
-         */
-        function clearLines(playerIndex) {
-            const state = gameStates[playerIndex];
-            let linesClearedThisTurn = 0;
-
-            for (let row = BOARD_HEIGHT - 1; row >= 0; row--) {
-                if (state.board[row].every(cell => cell !== 0)) {
-                    // Line is full, remove it
-                    state.board.splice(row, 1);
-                    // Add a new empty row at the top
-                    state.board.unshift(Array(BOARD_WIDTH).fill(0));
-                    linesClearedThisTurn++;
-                    row++; // Re-check the current row as it's now a new row
-                }
-            }
-
-            if (linesClearedThisTurn > 0) {
-                // Score calculation (simple example)
-                const scoreMultiplier = [0, 100, 300, 500, 800]; // Score for 0, 1, 2, 3, 4 lines
-                state.score += scoreMultiplier[linesClearedThisTurn] * state.level;
-                state.linesCleared += linesClearedThisTurn;
-
-                // Level up every 10 lines
-                const newLevel = Math.floor(state.linesCleared / 10) + 1;
-                if (newLevel > state.level) {
-                    state.level = newLevel;
-                    // Increase drop speed
-                    state.dropInterval = Math.max(100, 1000 - (state.level - 1) * 70);
-                    // Reset interval for this player
-                    clearInterval(gameIntervals[playerIndex]);
-                    gameIntervals[playerIndex] = setInterval(() => gameLoop(playerIndex), state.dropInterval);
-                }
-            }
-        }
-
-        /**
-         * Main game loop for a specific player.
-         * @param {number} playerIndex - The index of the player.
-         */
-        function gameLoop(playerIndex) {
-            const state = gameStates[playerIndex];
-            if (!state.gameOver) {
-                dropPiece(playerIndex);
-            }
-        }
-
-        // --- Input Handling ---
-
-        /**
-         * Handles keyboard key down events.
-         * @param {KeyboardEvent} event - The keyboard event.
-         */
-        function handleKeyDown(event) {
-            // Hide instructions on first key press
-            if (!instructionsHidden) {
-                instructionsElement.classList.add('hidden');
-                setTimeout(() => {
-                    instructionsElement.style.display = 'none'; // Fully remove after transition
-                }, 500); // Match transition duration
-                instructionsHidden = true;
-            }
-
-            // Player 1 Controls
-            if (!gameStates[0].gameOver) {
-                switch (event.key) {
-                    case 'ArrowLeft':
-                        movePiece(0, -1, 0);
-                        break;
-                    case 'ArrowRight':
-                        movePiece(0, 1, 0);
-                        break;
-                    case 'ArrowDown':
-                        dropPiece(0);
-                        break;
-                    case 'ArrowUp':
-                        rotatePiece(0);
-                        break;
-                    case 'Shift': // Quick drop
-                        hardDrop(0);
-                        break;
-                }
-            }
-
-            // Player 2 Controls (if active)
-            if (playerCount === 2 && !gameStates[1].gameOver) {
-                switch (event.key.toLowerCase()) {
-                    case 'a':
-                        movePiece(1, -1, 0);
-                        break;
-                    case 'd':
-                        movePiece(1, 1, 0);
-                        break;
-                    case 's':
-                        dropPiece(1);
-                        break;
-                    case 'w':
-                        rotatePiece(1);
-                        break;
-                    case 'q': // Quick drop
-                        hardDrop(1);
-                        break;
-                }
-            }
-
-            // Restart Game
-            if (event.key === 'Enter') {
-                resetGame();
-            }
-
-            // Check for player 2 activation if only one player is active
-            if (playerCount === 1) {
-                const player2Keys = ['a', 'd', 's', 'w', 'q'];
-                if (player2Keys.includes(event.key.toLowerCase())) {
-                    playerCount = 2;
-                    resetGame(); // Restart in two-player mode
-                }
-            }
-        }
-
-        /**
-         * Handles gamepad connection.
-         * @param {GamepadEvent} event - The gamepad connection event.
-         */
-        window.addEventListener('gamepadconnected', (event) => {
-            const gamepad = event.gamepad;
-            console.log(`Gamepad connected at index ${gamepad.index}: ${gamepad.id}. ${gamepads.length + 1} gamepads connected.`);
-            gamepads[gamepad.index] = gamepad;
-            if (gamepads.filter(g => g).length > 1 && playerCount === 1) {
-                playerCount = 2;
-                resetGame(); // Restart in two-player mode
-            }
-        });
-
-        /**
-         * Handles gamepad disconnection.
-         * @param {GamepadEvent} event - The gamepad disconnection event.
-         */
-        window.addEventListener('gamepaddisconnected', (event) => {
-            console.log(`Gamepad disconnected from index ${event.gamepad.index}: ${event.gamepad.id}`);
-            delete gamepads[event.gamepad.index];
-            // If only one gamepad left and was 2-player, consider switching back to 1-player
-            if (gamepads.filter(g => g).length < 2 && playerCount === 2) {
-                // This logic can be more complex, for now, let's just keep it 2-player until explicit restart
-                // Or you could set playerCount = 1 and resetGame() here if desired behavior
-            }
-        });
-
-        const gamepadButtonState = [[], []]; // Track button press state for each player's gamepad
-        const gamepadAxisState = [[], []]; // Track axis state for each player's gamepad
-
-        /**
-         * Polls gamepad states and triggers corresponding game actions.
-         */
-        function pollGamepads() {
-            const currentGamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-
-            for (let i = 0; i < currentGamepads.length; i++) {
-                const gamepad = currentGamepads[i];
-                if (gamepad && gamepad.connected) {
-                    const playerIndex = i; // Map gamepad index to player index (simple 1:1 for now)
-                    if (playerIndex >= playerCount) continue; // Only process for active players
-
-                    const state = gameStates[playerIndex];
-                    if (state.gameOver) continue;
-
-                    // Buttons
-                    gamepad.buttons.forEach((button, buttonIndex) => {
-                        if (button.pressed && !gamepadButtonState[playerIndex][buttonIndex]) {
-                            // Button pressed (rising edge)
-                            handleGamepadInput(playerIndex, buttonIndex, 'press');
-                        } else if (!button.pressed && gamepadButtonState[playerIndex][buttonIndex]) {
-                            // Button released (falling edge)
-                            handleGamepadInput(playerIndex, buttonIndex, 'release');
-                        }
-                        gamepadButtonState[playerIndex][buttonIndex] = button.pressed;
                     });
+                });
+            }
 
-                    // Axes (for D-Pad or left stick)
-                    // Threshold for axis movement
-                    const AXIS_THRESHOLD = 0.5;
-
-                    // Horizontal axis (left/right)
-                    if (gamepad.axes[0] < -AXIS_THRESHOLD && !gamepadAxisState[playerIndex]['left']) {
-                        movePiece(playerIndex, -1, 0);
-                        gamepadAxisState[playerIndex]['left'] = true;
-                    } else if (gamepad.axes[0] > AXIS_THRESHOLD && !gamepadAxisState[playerIndex]['right']) {
-                        movePiece(playerIndex, 1, 0);
-                        gamepadAxisState[playerIndex]['right'] = true;
-                    } else if (Math.abs(gamepad.axes[0]) < AXIS_THRESHOLD) {
-                        gamepadAxisState[playerIndex]['left'] = false;
-                        gamepadAxisState[playerIndex]['right'] = false;
+            clearLines() {
+                let linesCleared = 0;
+                outer: for (let y = this.grid.length - 1; y > 0; --y) {
+                    for (let x = 0; x < this.grid[y].length; ++x) {
+                        if (this.grid[y][x] === 0) {
+                            continue outer;
+                        }
                     }
+                    
+                    const row = this.grid.splice(y, 1)[0].fill(0);
+                    this.grid.unshift(row);
+                    ++y;
+                    linesCleared++;
+                }
 
-                    // Vertical axis (down) - for soft drop
-                    if (gamepad.axes[1] > AXIS_THRESHOLD && !gamepadAxisState[playerIndex]['down']) {
-                        dropPiece(playerIndex);
-                        gamepadAxisState[playerIndex]['down'] = true;
-                    } else if (gamepad.axes[1] < AXIS_THRESHOLD) {
-                        gamepadAxisState[playerIndex]['down'] = false;
+                if (linesCleared > 0) {
+                    const linePoints = [0, 40, 100, 300, 1200];
+                    this.score += linePoints[linesCleared] * this.level;
+                    this.lines += linesCleared;
+                    
+                    if (this.lines >= this.level * 10) {
+                        this.level++;
+                        this.dropInterval = Math.max(100, 1000 - (this.level - 1) * 50);
                     }
+                    this.updateScoreboard();
                 }
             }
-            requestAnimationFrame(pollGamepads); // Continue polling
-        }
 
-        /**
-         * Maps gamepad button presses to game actions.
-         * @param {number} playerIndex - The index of the player.
-         * @param {number} buttonIndex - The index of the pressed button.
-         * @param {string} type - 'press' or 'release'.
-         */
-        function handleGamepadInput(playerIndex, buttonIndex, type) {
-            // Hide instructions on first gamepad input
-            if (!instructionsHidden) {
-                instructionsElement.classList.add('hidden');
+            draw() {
+                // Clear main board with grid color
+                this.ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid-color').trim();
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                this.drawMatrix(this.grid, { x: 0, y: 0 }, this.ctx);
+                if (this.piece) {
+                    this.drawMatrix(this.piece.matrix, this.piece.pos, this.ctx);
+                }
+
+                // Draw per-player game over screen
+                if (this.gameOver) {
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+                    this.ctx.fillRect(0, 0, COLS, ROWS); // Using scaled units
+                    this.ctx.font = '2px "Press Start 2P"';
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('KONEC', COLS / 2, ROWS / 2 - 1);
+                    this.ctx.fillText('HRY', COLS / 2, ROWS / 2 + 1.5);
+                }
+
+                // Clear and draw next piece
+                this.nextCtx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid-color').trim();
+                this.nextCtx.fillRect(0, 0, this.nextCanvas.width, this.nextCanvas.height);
+                if (this.nextPiece) {
+                    const matrix = this.nextPiece.matrix;
+                    const pos = { x: (4 - matrix[0].length) / 2, y: (4 - matrix.length) / 2 };
+                    this.drawMatrix(matrix, pos, this.nextCtx);
+                }
+            }
+
+            drawMatrix(matrix, offset, context) {
+                matrix.forEach((row, y) => {
+                    row.forEach((value, x) => {
+                        if (value !== 0) {
+                            context.fillStyle = COLORS[value];
+                            // Draw slightly smaller to create grid lines from background
+                            context.fillRect(x + offset.x + 0.05, y + offset.y + 0.05, 0.9, 0.9);
+                        }
+                    });
+                });
+            }
+            
+            updateScoreboard() {
+                this.scoreElement.innerText = this.score;
+                this.levelElement.innerText = this.level;
+            }
+        }
+        
+        // --- Game Loop and Controls ---
+
+        function initGame(playerCount) {
+            // Show instructions and set a timer to hide them
+            const instructions = document.getElementById('instructions');
+            instructions.style.display = 'block';
+            instructions.style.opacity = '1';
+            setTimeout(() => {
+                instructions.style.opacity = '0';
+                // After transition, set display to none to free up space
                 setTimeout(() => {
-                    instructionsElement.style.display = 'none'; // Fully remove after transition
-                }, 500); // Match transition duration
-                instructionsHidden = true;
+                    instructions.style.display = 'none';
+                }, 1500); // Must match CSS transition duration
+            }, 5000); // Hide after 5 seconds
+
+            numPlayers = playerCount;
+            document.getElementById('game-container').innerHTML = ''; // Clear previous setup
+            players = [];
+            for (let i = 0; i < numPlayers; i++) {
+                players.push(new Player(i));
+            }
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            document.getElementById('game-over-overlay').style.display = 'none';
+            
+            playerGamepadMap.clear();
+            try {
+                const connectedPads = navigator.getGamepads();
+                let assignedCount = 0;
+                for (const pad of connectedPads) {
+                    if (pad && assignedCount < playerCount) {
+                        playerGamepadMap.set(assignedCount, pad.index);
+                        console.log(`Assigned gamepad ${pad.index} to player ${assignedCount + 1} on init.`);
+                        assignedCount++;
+                    }
+                }
+            } catch (e) {
+                console.error("Could not access gamepads on init:", e);
             }
 
-            if (type === 'press') {
-                // Common gamepad button mappings (e.g., Xbox controller)
-                // A (0): Rotate / Confirm
-                // B (1): Hard Drop / Cancel
-                // D-Pad Left (14), D-Pad Right (15), D-Pad Down (13), D-Pad Up (12)
-                // Start (9): Restart
-                switch (buttonIndex) {
-                    case 14: // D-Pad Left
-                        movePiece(playerIndex, -1, 0);
-                        break;
-                    case 15: // D-Pad Right
-                        movePiece(playerIndex, 1, 0);
-                        break;
-                    case 13: // D-Pad Down (Soft Drop)
-                        dropPiece(playerIndex);
-                        break;
-                    case 0: // A button (Rotate)
-                    case 12: // D-Pad Up
-                        rotatePiece(playerIndex);
-                        break;
-                    case 1: // B button (Hard Drop)
-                        hardDrop(playerIndex);
-                        break;
-                    case 9: // Start button
-                        resetGame();
-                        break;
+            lastTime = 0;
+            gameLoop();
+        }
+
+        let lastTime = 0;
+        function gameLoop(time = 0) {
+            const deltaTime = time - lastTime;
+            lastTime = time;
+
+            handleGamepadInput();
+
+            let allGameOver = true;
+            players.forEach(player => {
+                player.update(deltaTime);
+                player.draw();
+                if (!player.gameOver) {
+                    allGameOver = false;
+                }
+            });
+
+            if (allGameOver) {
+                document.getElementById('game-over-overlay').style.display = 'flex';
+                cancelAnimationFrame(animationFrameId); // Stop the loop
+            } else {
+                animationFrameId = requestAnimationFrame(gameLoop);
+            }
+        }
+        
+        // Keyboard Controls
+        const keyMap = {
+            ArrowLeft:  p => p.move(-1), ArrowRight: p => p.move(1), ArrowUp:    p => p.rotate(), ArrowDown:  p => p.drop(), Shift:      p => p.hardDrop(),
+            KeyA:       p => p.move(-1), KeyD:       p => p.move(1), KeyW:       p => p.rotate(), KeyS:       p => p.drop(), KeyQ:       p => p.hardDrop(),
+        };
+
+        document.addEventListener('keydown', event => {
+            if (event.code === 'Enter') {
+                initGame(numPlayers);
+                return;
+            }
+
+            if (numPlayers === 1 && ['KeyA', 'KeyD', 'KeyW', 'KeyS', 'KeyQ'].includes(event.code)) {
+                initGame(2);
+                return;
+            }
+
+            const playerIndex = (event.code.startsWith('Arrow') || event.code === 'Shift') ? 0 : 1;
+            if (players[playerIndex] && keyMap[event.code]) {
+                keyMap[event.code](players[playerIndex]);
+                players[playerIndex].draw();
+                event.preventDefault();
+            }
+        });
+        
+        // Gamepad Controls
+        function onGamepadConnected(e) {
+            const gamepad = e.gamepad;
+            console.log(`Gamepad connected: index ${gamepad.index}, id: ${gamepad.id}.`);
+
+            const isAlreadyAssigned = [...playerGamepadMap.values()].includes(gamepad.index);
+            if (isAlreadyAssigned) return;
+
+            const unassignedPlayer = players.find(p => ![...playerGamepadMap.keys()].includes(p.id));
+            
+            if (unassignedPlayer) {
+                playerGamepadMap.set(unassignedPlayer.id, gamepad.index);
+                console.log(`Assigned gamepad ${gamepad.index} to player ${unassignedPlayer.id + 1}`);
+            }
+
+            if (playerGamepadMap.size > 1 && numPlayers !== 2) {
+                initGame(2);
+            }
+        }
+
+        function onGamepadDisconnected(e) {
+            console.log(`Gamepad disconnected: index ${e.gamepad.index}.`);
+            for (const [playerId, gamepadIndex] of playerGamepadMap.entries()) {
+                if (gamepadIndex === e.gamepad.index) {
+                    playerGamepadMap.delete(playerId);
+                    console.log(`Unassigned gamepad ${e.gamepad.index} from player ${playerId + 1}`);
+                    break;
                 }
             }
         }
 
-        // --- Game Flow Control ---
+        let gamepadStates = {}; // To handle button presses once per press
+        function handleGamepadInput() {
+            if (playerGamepadMap.size === 0) return;
+            try {
+                const connectedPads = navigator.getGamepads();
+                if (!connectedPads) return;
 
-        /**
-         * Starts the game for all active players.
-         */
-        function startGame() {
-            // Hide global game over message
-            gameOverMessage.style.display = 'none';
+                let newGamepadStates = {};
 
-            // Show/hide player 2 container based on playerCount
-            playerContainers[1].style.display = playerCount === 2 ? 'flex' : 'none';
+                for (const [playerId, gamepadIndex] of playerGamepadMap.entries()) {
+                    const pad = connectedPads[gamepadIndex];
+                    const player = players.find(p => p.id === playerId);
 
-            // Clear any existing intervals
-            gameIntervals.forEach(clearInterval);
-            gameIntervals.length = 0; // Clear the array
+                    if (pad && player) {
+                        const wasButtonPressed = (buttonIndex) => {
+                            const key = `${pad.index}-${buttonIndex}`;
+                            const isPressed = pad.buttons[buttonIndex].pressed;
+                            newGamepadStates[key] = isPressed;
+                            return isPressed && !gamepadStates[key];
+                        };
 
-            // Initialize and start game for each player
-            for (let i = 0; i < playerCount; i++) {
-                initializePlayer(i);
-                gameIntervals[i] = setInterval(() => gameLoop(i), gameStates[i].dropInterval);
-            }
-            // Ensure canvases are drawn immediately after start
-            for (let i = 0; i < playerCount; i++) {
-                drawBoard(i);
-                drawNextPiece(i);
-            }
+                        if (wasButtonPressed(9)) { initGame(numPlayers); return; }
+                        if (player.gameOver) continue;
+
+                        if (pad.axes[0] < -0.5 || pad.buttons[14].pressed) player.move(-1);
+                        if (pad.axes[0] > 0.5 || pad.buttons[15].pressed) player.move(1);
+                        if (pad.axes[1] > 0.5 || pad.buttons[13].pressed) player.drop();
+                        
+                        if (wasButtonPressed(0) || wasButtonPressed(12)) player.rotate();
+                        if (wasButtonPressed(1)) player.hardDrop();
+
+                        player.draw();
+                    }
+                }
+                gamepadStates = newGamepadStates;
+            } catch (e) { console.error("Error handling gamepad input:", e); }
         }
 
-        /**
-         * Resets the entire game state and restarts.
-         */
-        function resetGame() {
-            gameStates.length = 0; // Clear all player states
-            startGame(); // Re-initialize and start
-            // When game resets, show instructions again if they were hidden
-            if (instructionsHidden) {
-                instructionsElement.style.display = 'block'; // Or 'flex' depending on original display
-                instructionsElement.classList.remove('hidden');
-                instructionsHidden = false;
-            }
-        }
+        window.addEventListener("gamepadconnected", onGamepadConnected);
+        window.addEventListener("gamepaddisconnected", onGamepadDisconnected);
 
-        // --- Event Listeners ---
-        window.addEventListener('keydown', handleKeyDown);
-
-        // Initial start of the game when the window loads
-        window.onload = function() {
-            startGame();
-            pollGamepads(); // Start polling gamepads
+        // --- Initial Load ---
+        window.onload = () => {
+            initGame(1);
         };
     </script>
 </body>

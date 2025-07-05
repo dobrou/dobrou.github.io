@@ -132,9 +132,6 @@
             const errorContainer = document.getElementById('error');
             const errorMessageElement = document.getElementById('errorMessage');
 
-            // --- Konfigurace ---
-            const FALLBACK_API_URL = 'https://api.github.com/repos/dobrou/dobrou.github.io/contents/';
-
             // --- Pomocné funkce ---
             function getVibrantColorFromString(str) {
                 let hash = 0;
@@ -159,27 +156,37 @@
             }
 
             // --- Určení API URL ---
-            function getApiUrl() {
+            function getApiUrl(basePath, hashPath) {
                 const { hostname } = window.location;
-                if (!hostname.endsWith('.github.io')) return FALLBACK_API_URL + getPathFromHash();
+                if (!hostname.endsWith('.github.io')) return `https://api.github.com/repos/dobrou/dobrou.github.io/contents/apps/${hashPath}`;
 
                 const owner = hostname.split('.')[0];
+                const pathParts = window.location.pathname.split('/').filter(p => p);
                 
-                // Oprava: Vždy předpokládáme, že repozitář je hlavní repozitář uživatele (owner.github.io).
-                // Cesta k obsahu se bere pouze z hashe.
-                const repo = `${owner}.github.io`;
+                // Heuristika pro určení repozitáře
+                let repo = `${owner}.github.io`;
+                if (pathParts.length > 0 && pathParts[0] !== owner) {
+                    // Pokud je první část cesty jiná než vlastník, je to pravděpodobně projektový repozitář
+                    // Toto je zjednodušení, které nemusí pokrýt všechny případy
+                    // Pro dobrou.github.io/apps/ to ale nebude fungovat správně, proto zůstaneme u owner.github.io
+                }
                 
-                const contentPath = getPathFromHash();
-                return `https://api.github.com/repos/${owner}/${repo}/contents/${contentPath}`;
+                const fullPath = [basePath, hashPath].filter(Boolean).join('/');
+                return `https://api.github.com/repos/${owner}/${repo}/contents/${fullPath}`;
             }
 
             // --- Načítání a vykreslování dat ---
             async function fetchAndDisplayFiles() {
-                // Skryjeme chybovou hlášku při každém novém načítání
                 errorContainer.style.display = 'none';
-                const apiUrl = getApiUrl();
-                const currentPath = getPathFromHash();
-                const pathSegments = currentPath.split('/').filter(p => p);
+                
+                // Zjistíme základní cestu z URL, kde se nachází index.html
+                const basePath = window.location.pathname.replace(/index\.html$/, '').replace(/\/$/, '').substring(1);
+                const hashPath = getPathFromHash();
+                const currentFullPath = [basePath, hashPath].filter(Boolean).join('/');
+                
+                const apiUrl = getApiUrl(basePath, hashPath);
+                
+                const pathSegments = currentFullPath.split('/').filter(p => p);
 
                 if (pathSegments.length > 0) {
                     let title = pathSegments[pathSegments.length - 1];
@@ -198,11 +205,10 @@
                     fileListContainer.innerHTML = '';
                     const files = data.filter(file => file.name.toLowerCase() !== 'index.html');
                     
-                    // Přidání dlaždice ".." pro návrat o úroveň výš, pokud nejsme v rootu
-                    if (currentPath) {
-                        const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
+                    if (hashPath) {
+                        const parentHashPath = hashPath.substring(0, hashPath.lastIndexOf('/'));
                         const tile = document.createElement('a');
-                        tile.href = `#${parentPath}`;
+                        tile.href = `#${parentHashPath}`;
                         tile.className = 'tile';
                         tile.setAttribute('tabindex', '0');
                         tile.innerHTML = `
@@ -214,7 +220,7 @@
                         fileListContainer.appendChild(tile);
                     }
                     
-                    if (files.length === 0 && !currentPath) {
+                    if (files.length === 0 && !hashPath) {
                         fileListContainer.innerHTML = `<p style="color: #9ca3af; grid-column: 1 / -1;">Tento adresář je prázdný.</p>`;
                         return;
                     }
@@ -225,13 +231,12 @@
                         const fileName = file.name;
                         
                         if (isDir) {
-                            const newHashPath = currentPath ? `${currentPath}/${fileName}` : fileName;
+                            const newHashPath = hashPath ? `${hashPath}/${fileName}` : fileName;
                             tile.href = `#${newHashPath}`;
                         } else {
                             const filePath = fileName.endsWith('.html') ? fileName.slice(0, -5) : fileName;
-                            // Odkazujeme relativně k aktuálnímu adresáři
-                            const fullPath = currentPath ? `${currentPath}/${filePath}` : filePath;
-                            tile.href = fullPath;
+                            // Sestavení relativní cesty k souboru
+                            tile.href = filePath;
                         }
 
                         tile.className = 'tile';
@@ -370,7 +375,6 @@
             window.addEventListener('gamepadconnected', (e) => { console.log(`Gamepad připojen: ${e.gamepad.id}.`); });
             window.addEventListener('gamepaddisconnected', (e) => { console.log(`Gamepad odpojen: ${e.gamepad.id}.`); });
 
-            // První načtení při startu
             fetchAndDisplayFiles();
             gamepadHandler();
 

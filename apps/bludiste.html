@@ -46,7 +46,8 @@
             justify-content: center;
             overflow: hidden;
             z-index: 50;
-            transition: background-color 1s ease-in-out, opacity 0.5s 1s;
+            background-color: black;
+            transition: opacity 0.5s 1s;
         }
         #season-text {
             position: absolute;
@@ -82,21 +83,14 @@
             left: 55%;
             font-size: 2.5rem;
             opacity: 0;
-            transition: opacity 0.5s ease-in;
-        }
-        @keyframes fall {
-            0% { transform: translateY(0); opacity: 1; }
-            100% { transform: translateY(100vh); opacity: 0; }
-        }
-        .fall-animation {
-            animation: fall 1.5s forwards ease-in;
+            transition: opacity 0.5s ease-in, transform 1.5s ease-in;
         }
 
     </style>
 </head>
 <body class="bg-gray-900 text-white items-center justify-center p-2 sm:p-4">
     
-    <div id="intro-container" class="bg-black">
+    <div id="intro-container">
         <div id="season-text"></div>
         <div id="tree-trunk"></div>
         <div id="tree-branch">
@@ -402,7 +396,7 @@
             // Level 12
             [
                 [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                [1,0,1,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,1,0,1],
+                [1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,1],
                 [1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1,1,0,1],
@@ -411,7 +405,7 @@
                 [1,0,1,1,1,1,1,0,1,0,1,0,0,0,1,0,1,0,1,0,1],
                 [1,0,1,0,0,0,0,0,1,0,1,1,1,0,1,0,1,0,1,0,1],
                 [1,0,1,0,1,1,1,1,1,0,0,0,1,0,1,0,1,0,0,0,1],
-                [1,0,1,0,1,0,0,0,0,0,1,0,0,0,0,0,1,1,1,0,1],
+                [1,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,1,1,1,0,1],
                 [1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,0,0,1,0,1],
                 [1,0,1,0,1,0,1,0,0,0,1,0,1,0,1,1,1,0,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,1,0,1,0,1],
@@ -420,7 +414,7 @@
                 [1,1,1,1,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0,1],
                 [1,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,1,0,0,0,1],
                 [1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,0,1,1,1,0,1],
-                [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
+                [1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1],
                 [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
             ],
             // Level 13
@@ -1292,7 +1286,7 @@
                 { name: 'Jaro', color: '#87CEEB', duration: 1500, action: () => { treeTrunk.style.height = '50%'; } },
                 { name: 'Léto', color: '#228B22', duration: 1500, action: () => { treeBranch.style.width = '200px'; } },
                 { name: 'Podzim', color: '#D2691E', duration: 1500, action: () => { fruitContainer.style.opacity = '1'; } },
-                { name: 'Zima', color: '#ADD8E6', duration: 1500, action: () => { fruitContainer.classList.add('fall-animation'); } }
+                { name: 'Zima', color: '#ADD8E6', duration: 1500, action: () => { fruitContainer.style.transform = 'translateY(100vh)'; fruitContainer.style.opacity = '0';} }
             ];
             
             function skipIntro() {
