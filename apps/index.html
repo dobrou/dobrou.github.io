@@ -200,7 +200,7 @@
                 }
 
                 try {
-                    const response = await fetch(apiUrl); // Odebrána autorizační hlavička
+                    const response = await fetch(apiUrl);
                     if (!response.ok) {
                         throw new Error(`GitHub API odpovědělo se statusem ${response.status}`);
                     }

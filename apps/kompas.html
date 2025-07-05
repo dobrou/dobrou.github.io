@@ -4,87 +4,291 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Kompas</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
     <style>
+        /* Import fontu a základní styly */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+        
         body {
             font-family: 'Inter', sans-serif;
+            background-color: #111827; /* bg-gray-900 */
+            color: #ffffff; /* text-white */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            margin: 0;
             touch-action: none; /* Zakáže přiblížení štípnutím */
         }
-        .compass-dial, #sun-pointer, #moon-pointer {
+
+        /* Kontejner pro žádost o oprávnění */
+        #permission-container {
+            text-align: center;
+            padding: 2rem; /* p-8 */
+        }
+
+        #permission-container h1 {
+            font-size: 1.875rem; /* text-3xl */
+            line-height: 2.25rem;
+            font-weight: 700; /* font-bold */
+            margin-bottom: 1rem; /* mb-4 */
+        }
+
+        #permission-container p {
+            color: #9ca3af; /* text-gray-400 */
+            margin-bottom: 1.5rem; /* mb-6 */
+        }
+
+        #permission-btn {
+            background-color: #4f46e5; /* bg-indigo-600 */
+            color: white;
+            font-weight: 700; /* font-bold */
+            padding: 0.75rem 1.5rem; /* py-3 px-6 */
+            border-radius: 0.5rem; /* rounded-lg */
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        #permission-btn:hover {
+            background-color: #4338ca; /* hover:bg-indigo-700 */
+            transform: scale(1.05);
+        }
+
+        /* Kontejner kompasu */
+        #compass-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        #compass-container.hidden {
+            display: none;
+        }
+
+        /* Vnější kruh kompasu */
+        .compass-outer-circle {
+            position: relative;
+            width: 20rem; /* w-80 */
+            height: 20rem; /* h-80 */
+            border-radius: 9999px; /* rounded-full */
+            background-color: #1f2937; /* bg-gray-800 */
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); /* shadow-2xl */
+            border: 4px solid #374151; /* border-4 border-gray-700 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Media query pro větší obrazovky */
+        @media (min-width: 768px) {
+            .compass-outer-circle {
+                width: 24rem; /* md:w-96 */
+                height: 24rem; /* md:h-96 */
+            }
+        }
+
+        /* Společné styly pro absolutní prvky kompasu */
+        .compass-element {
+            position: absolute;
+        }
+
+        /* Světové strany */
+        #north { top: 0.5rem; font-size: 1.875rem; font-weight: 700; color: #ef4444; z-index: 10; }
+        #south { bottom: 0.5rem; font-size: 1.5rem; font-weight: 700; color: #9ca3af; z-index: 10; }
+        #west { left: 1rem; font-size: 1.5rem; font-weight: 700; color: #9ca3af; z-index: 10; }
+        #east { right: 1rem; font-size: 1.5rem; font-weight: 700; color: #9ca3af; z-index: 10; }
+
+        /* Ciferník, ukazatele a střelka */
+        .compass-dial, #sun-pointer, #moon-pointer, .degree-marker-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
             transition: transform 0.2s ease-out;
         }
-        /* Zajištění, aby ikony Slunce/Měsíce byly nad čárkami stupňů */
-        #sun-pointer, #moon-pointer {
-            z-index: 5;
+        #sun-pointer, #moon-pointer { z-index: 5; }
+        .compass-dial { z-index: 4; }
+        
+        .celestial-icon {
+            position: absolute;
+            top: 2rem; /* top-8 */
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.875rem; /* text-3xl */
         }
-        /* Zajištění, aby číselník byl pod ikonami, ale nad značkami */
-        .compass-dial {
-            z-index: 4;
+
+        /* Střelka kompasu */
+        .needle-part {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0.25rem; /* w-1 */
+            height: 8rem; /* h-32 */
+            border-radius: 9999px;
         }
+        #needle-north {
+            background-color: #ef4444; /* bg-red-500 */
+            transform: translateX(-50%) translateY(-100%);
+            transform-origin: bottom center;
+        }
+        #needle-south {
+            background-color: #9ca3af; /* bg-gray-400 */
+            transform: translateX(-50%) translateY(0%);
+            transform-origin: top center;
+        }
+        #needle-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 1rem; /* w-4 */
+            height: 1rem; /* h-4 */
+            background-color: white;
+            border-radius: 9999px;
+            border: 2px solid #111827;
+            transform: translate(-50%, -50%);
+            z-index: 6;
+        }
+
+        /* Zobrazení stupňů */
+        #degree-display {
+            position: absolute;
+            z-index: 10;
+            font-size: 3rem; /* text-5xl */
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-weight: 700;
+        }
+        
+        #error-message {
+            margin-top: 2rem; /* mt-8 */
+            text-align: center;
+            color: #f87171; /* text-red-400 */
+            padding: 1rem; /* p-4 */
+        }
+
     </style>
 </head>
-<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen overflow-hidden">
+<body>
 
-    <div id="permission-container" class="text-center p-8">
-        <h1 class="text-3xl font-bold mb-4">Digitální kompas</h1>
-        <p class="text-gray-400 mb-6">Pro zobrazení kompasu a polohy Slunce a Měsíce, prosím, povolte přístup k senzorům orientace zařízení a k vaší poloze.</p>
-        <button id="permission-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-transform transform hover:scale-105">
-            Povolit přístup
-        </button>
+    <div id="permission-container">
+        <h1>Digitální kompas</h1>
+        <p>Pro zobrazení kompasu a polohy Slunce a Měsíce, prosím, povolte přístup k senzorům orientace zařízení a k vaší poloze.</p>
+        <button id="permission-btn">Povolit přístup</button>
     </div>
 
-    <div id="compass-container" class="hidden flex flex-col items-center justify-center relative">
-        <!-- Vnější kruh kompasu -->
-        <div class="relative w-80 h-80 md:w-96 md:h-96 rounded-full bg-gray-800 shadow-2xl border-4 border-gray-700 flex items-center justify-center">
-            
-            <!-- Statické značky světových stran -->
-            <span class="absolute top-2 text-3xl font-bold text-red-500 z-10">S</span>
-            <span class="absolute bottom-2 text-2xl font-bold text-gray-400 z-10">J</span>
-            <span class="absolute left-4 text-2xl font-bold text-gray-400 z-10">Z</span>
-            <span class="absolute right-4 text-2xl font-bold text-gray-400 z-10">V</span>
+    <div id="compass-container" class="hidden">
+        <div class="compass-outer-circle">
+            <span id="north" class="compass-element">S</span>
+            <span id="south" class="compass-element">J</span>
+            <span id="west" class="compass-element">Z</span>
+            <span id="east" class="compass-element">V</span>
 
-            <!-- Značky stupňů -->
-            <div class="absolute w-full h-full">
-                <div class="absolute top-1/2 left-1/2 w-px h-4 bg-gray-500" style="transform: translateX(-50%) translateY(-50%) rotate(30deg) translateY(-9rem);"></div>
-                <div class="absolute top-1/2 left-1/2 w-px h-4 bg-gray-500" style="transform: translateX(-50%) translateY(-50%) rotate(60deg) translateY(-9rem);"></div>
-                <div class="absolute top-1/2 left-1/2 w-px h-4 bg-gray-500" style="transform: translateX(-50%) translateY(-50%) rotate(120deg) translateY(-9rem);"></div>
-                <div class="absolute top-1/2 left-1/2 w-px h-4 bg-gray-500" style="transform: translateX(-50%) translateY(-50%) rotate(150deg) translateY(-9rem);"></div>
-                <div class="absolute top-1/2 left-1/2 w-px h-4 bg-gray-500" style="transform: translateX(-50%) translateY(-50%) rotate(210deg) translateY(-9rem);"></div>
-                <div class="absolute top-1/2 left-1/2 w-px h-4 bg-gray-500" style="transform: translateX(-50%) translateY(-50%) rotate(240deg) translateY(-9rem);"></div>
-                <div class="absolute top-1/2 left-1/2 w-px h-4 bg-gray-500" style="transform: translateX(-50%) translateY(-50%) rotate(300deg) translateY(-9rem);"></div>
-                <div class="absolute top-1/2 left-1/2 w-px h-4 bg-gray-500" style="transform: translateX(-50%) translateY(-50%) rotate(330deg) translateY(-9rem);"></div>
+            <div id="sun-pointer">
+                <span class="celestial-icon">☀️</span>
+            </div>
+            <div id="moon-pointer">
+                <span class="celestial-icon">🌙</span>
             </div>
 
-            <!-- Ukazatel Slunce -->
-            <div id="sun-pointer" class="absolute w-full h-full">
-                <span class="absolute top-8 text-3xl" style="left: 50%; transform: translateX(-50%);">☀️</span>
-            </div>
-
-            <!-- Ukazatel Měsíce -->
-            <div id="moon-pointer" class="absolute w-full h-full">
-                <span class="absolute top-8 text-3xl" style="left: 50%; transform: translateX(-50%);">🌙</span>
-            </div>
-
-            <!-- Ciferník kompasu, který se otáčí -->
-            <div class="compass-dial w-full h-full">
-                 <!-- Střelka -->
-                <div class="absolute top-1/2 left-1/2 w-1 h-32 bg-red-500 rounded-full" style="transform: translateX(-50%) translateY(-100%); transform-origin: bottom center;"></div>
-                <div class="absolute top-1/2 left-1/2 w-1 h-32 bg-gray-400 rounded-full" style="transform: translateX(-50%) translateY(0%); transform-origin: top center;"></div>
-                 <!-- Středový bod -->
-                <div class="absolute top-1/2 left-1/2 w-4 h-4 bg-white rounded-full border-2 border-gray-900" style="transform: translate(-50%, -50%); z-index: 6;"></div>
+            <div class="compass-dial">
+                 <div id="needle-north" class="needle-part"></div>
+                 <div id="needle-south" class="needle-part"></div>
+                 <div id="needle-center"></div>
             </div>
             
-            <!-- Zobrazení stupňů uprostřed -->
-            <div id="degree-display" class="absolute z-10 text-5xl font-mono font-bold text-white">
-                0°
-            </div>
+            <div id="degree-display">0°</div>
         </div>
-         <p id="error-message" class="mt-8 text-center text-red-400 p-4"></p>
+         <p id="error-message"></p>
     </div>
 
     <script>
+        // --- Začátek vložených astronomických výpočtů ---
+        // Založeno na algoritmech z "Astronomical Algorithms" od Jeana Meeuse.
+        // Tento kód nahrazuje externí knihovnu SunCalc.js.
+        const CelestialMath = (function() {
+            const toRad = Math.PI / 180;
+            const toDeg = 180 / Math.PI;
+
+            // Výpočet Juliánského data
+            function getJulianDate(date) {
+                return date.getTime() / 86400000 - 0.5 + 2440588;
+            }
+            
+            // Obecná funkce pro výpočet pozice
+            function getAzimuthAndAltitude(isMoon, date, lat, lon) {
+                const j = getJulianDate(date);
+                const n = j - 2451545.0;
+                const T = n / 36525;
+                
+                let lambda, beta; // Ekliptikální délka a šířka
+
+                if (isMoon) {
+                    // Výpočty pro Měsíc
+                    const L_prime = (218.316 + 13.176396 * n) % 360;
+                    const M_prime = (134.963 + 13.064993 * n) % 360;
+                    const F = (93.272 + 13.229350 * n) % 360;
+                    
+                    const l_prime_rad = L_prime * toRad;
+                    const m_prime_rad = M_prime * toRad;
+                    const f_rad = F * toRad;
+
+                    const lon_corr = 6.289 * Math.sin(m_prime_rad);
+                    const lat_corr = 5.128 * Math.sin(f_rad);
+                    lambda = (L_prime + lon_corr) * toRad;
+                    beta = lat_corr * toRad;
+                } else {
+                    // Výpočty pro Slunce
+                    let L = (280.460 + 0.9856474 * n) % 360;
+                    if (L < 0) L += 360;
+                    let g = (357.528 + 0.9856003 * n) % 360;
+                    if (g < 0) g += 360;
+                    
+                    const l_rad = L * toRad;
+                    const g_rad = g * toRad;
+
+                    lambda = l_rad + (1.915 * Math.sin(g_rad) + 0.020 * Math.sin(2 * g_rad)) * toRad;
+                    beta = 0; // Slunce je vždy na ekliptice
+                }
+
+                // Sklon ekliptiky
+                const epsilon = (23.439 - 0.0000004 * n) * toRad;
+
+                // Převod na rovníkové souřadnice (rektascenze a deklinace)
+                const alpha = Math.atan2(Math.cos(epsilon) * Math.sin(lambda), Math.cos(lambda));
+                const delta = Math.asin(Math.sin(epsilon) * Math.sin(lambda));
+                
+                // Převod na horizontální souřadnice (azimut a výška)
+                const latRad = lat * toRad;
+                const gmst0 = (18.697374558 + 24.06570982441908 * n) % 24;
+                const gmst = (gmst0 + date.getUTCHours() * 1.002737909) % 24;
+                const lst = (gmst * 15 + lon) * toRad; // Místní hvězdný čas
+
+                const H = lst - alpha; // Hodinový úhel
+                
+                const x = Math.cos(H) * Math.cos(delta);
+                const y = Math.sin(H) * Math.cos(delta);
+                const z = Math.sin(delta);
+
+                const xhor = x * Math.sin(latRad) - z * Math.cos(latRad);
+                const yhor = y;
+                const zhor = x * Math.cos(latRad) + z * Math.sin(latRad);
+                
+                // Azimut se počítá od jihu, takže přičteme 180, abychom ho měli od severu
+                let azimuth = Math.atan2(yhor, xhor) * toDeg + 180;
+                
+                return { azimuth: azimuth * toRad }; // Vracíme v radiánech pro konzistenci
+            }
+
+            return {
+                getSunPosition: (date, lat, lon) => getAzimuthAndAltitude(false, date, lat, lon),
+                getMoonPosition: (date, lat, lon) => getAzimuthAndAltitude(true, date, lat, lon)
+            };
+        })();
+        // --- Konec vložených astronomických výpočtů ---
+
         const permissionContainer = document.getElementById('permission-container');
         const permissionBtn = document.getElementById('permission-btn');
         const compassContainer = document.getElementById('compass-container');
@@ -99,30 +303,26 @@
         function showError(message) {
             errorMessage.textContent = message;
             compassContainer.classList.add('hidden');
-            permissionContainer.classList.remove('hidden');
+            permissionContainer.style.display = 'block';
             permissionBtn.style.display = 'none';
             permissionContainer.querySelector('h1').textContent = 'Chyba';
             permissionContainer.querySelector('p').textContent = message;
         }
         
-        // Funkce pro aktualizaci polohy nebeských těles
         function updateCelestialPositions() {
             if (!userCoords) return;
 
             const now = new Date();
             const { latitude, longitude } = userCoords;
 
-            // Výpočet pozice Slunce
-            const sunPos = SunCalc.getPosition(now, latitude, longitude);
-            const sunAzimuth = sunPos.azimuth * 180 / Math.PI + 180; // Převod na stupně a korekce
+            const sunPos = CelestialMath.getSunPosition(now, latitude, longitude);
+            const sunAzimuth = sunPos.azimuth * 180 / Math.PI;
             sunPointer.style.transform = `rotate(${sunAzimuth}deg)`;
 
-            // Výpočet pozice Měsíce
-            const moonPos = SunCalc.getMoonPosition(now, latitude, longitude);
-            const moonAzimuth = moonPos.azimuth * 180 / Math.PI + 180; // Převod na stupně a korekce
+            const moonPos = CelestialMath.getMoonPosition(now, latitude, longitude);
+            const moonAzimuth = moonPos.azimuth * 180 / Math.PI;
             moonPointer.style.transform = `rotate(${moonAzimuth}deg)`;
         }
-
 
         function handleOrientation(event) {
             let heading = event.webkitCompassHeading || event.alpha;
@@ -131,23 +331,18 @@
                 showError('Vaše zařízení nebo prohlížeč neposkytuje informace o směru.');
                 return;
             }
-
-            // Otáčíme ciferníkem kompasu, ne celým kompasem.
-            // Ikony Slunce a Měsíce zůstávají na místě vzhledem k S, J, V, Z.
             let rotation = 360 - heading;
-
             compassDial.style.transform = `rotate(${rotation}deg)`;
             degreeDisplay.textContent = `${Math.round(heading)}°`;
         }
 
         function requestPermissions() {
-             // 1. Získání oprávnění pro orientaci
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission()
                     .then(permissionState => {
                         if (permissionState === 'granted') {
                             window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-                            requestGeolocation(); // Pokračujeme na geolokaci
+                            requestGeolocation();
                         } else {
                             showError('Přístup k orientaci zařízení byl zamítnut.');
                         }
@@ -158,14 +353,13 @@
                     });
             } else if ('DeviceOrientationEvent' in window) {
                  window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-                 requestGeolocation(); // Pokračujeme na geolokaci
+                 requestGeolocation();
             } else {
                  showError('Váš prohlížeč nepodporuje Device Orientation API.');
             }
         }
 
         function requestGeolocation() {
-            // 2. Získání oprávnění pro geolokaci
             if ('geolocation' in navigator) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
@@ -174,11 +368,9 @@
                             longitude: position.coords.longitude
                         };
                         
-                        // Všechna oprávnění udělena, zobrazíme kompas
-                        permissionContainer.classList.add('hidden');
+                        permissionContainer.style.display = 'none';
                         compassContainer.classList.remove('hidden');
                         
-                        // Poprvé aktualizujeme polohy a pak každou minutu
                         updateCelestialPositions();
                         setInterval(updateCelestialPositions, 60000); 
                     },
@@ -192,16 +384,12 @@
             }
         }
 
-
-        // Připojení event listeneru k tlačítku
         permissionBtn.addEventListener('click', requestPermissions);
 
-        // Kontrola HTTPS, protože senzory jsou zabezpečená funkce
         if (window.location.protocol !== 'https:') {
             showError('Tato funkce je dostupná pouze na zabezpečeném (HTTPS) připojení.');
             permissionBtn.disabled = true;
         }
-
     </script>
 </body>
 </html>

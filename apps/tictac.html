@@ -336,17 +336,17 @@
                 makeMove(cellIndex);
             }
 
-            // --- OPRAVA: Nové, oddělené funkce pro logiku ovládání ---
             function navigate(direction) {
                 if (isOpponentThinking) return;
                 isFocusVisible = true;
                 
                 const oldIndex = focusIndex;
                 let newIndex = oldIndex;
+                
                 const isModeRow = oldIndex >= 0 && oldIndex <= 2;
                 const isCell = oldIndex >= 3 && oldIndex <= 11;
                 const isResetRow = oldIndex === 12;
-                const cellIndexInBoard = oldIndex - 3; // index 0-8
+                const cellIndexInBoard = oldIndex - 3;
 
                 switch (direction) {
                     case 'left':
@@ -359,7 +359,7 @@
                         if (isCell) {
                             newIndex = (cellIndexInBoard >= 3) ? oldIndex - 3 : cellIndexInBoard;
                         } else if (isResetRow) {
-                            newIndex = 10; // Prostřední buňka spodního řádku
+                            newIndex = 10;
                         }
                         break;
                     case 'down':
@@ -507,7 +507,6 @@
                     updateFocus();
                     updateStatus("Gamepad připojen!");
                     setTimeout(() => updateStatus(`Hráč ${currentPlayer} je na řadě`), 1500);
-                    gamepadLoop();
                 });
 
                 window.addEventListener("gamepaddisconnected", () => {
@@ -518,7 +517,7 @@
             function gamepadLoop() {
                 const gamepads = navigator.getGamepads().filter(p => p);
                 if (gamepads.length === 0) {
-                    requestAnimationFrame(gamepadLoop); // Pokračovat v cyklu pro případné znovu připojení
+                    requestAnimationFrame(gamepadLoop);
                     return;
                 }
 
@@ -736,6 +735,7 @@
             // Spuštění hry!
             initializeGame('pvp');
             setupInput();
+            gamepadLoop(); // OPRAVA: Spustit smyčku pro gamepad hned na začátku
         });
     </script>
 
