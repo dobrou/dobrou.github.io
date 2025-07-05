@@ -198,12 +198,13 @@
                 id: playerIndex + 1,
                 snake: [],
                 score: 0,
-                angle: (playerIndex % 2 === 0) ? 0 : Math.PI,
+                angle: (playerIndex % 2 === 0) ? Math.PI / 4 : Math.PI + Math.PI / 4, // FIX: Start at an offset angle
                 turnSpeed: 0,
                 control: null,
                 colors: playerColors[playerIndex],
                 active: true,
                 spawnTimer: 30,
+                growthPending: 0, // FIX: Gradual growth system
             };
 
             var startX = (canvas.width / (MAX_PLAYERS + 1)) * (playerIndex + 1);
@@ -353,7 +354,15 @@
                     break;
                 }
             }
-            if (!foodEaten) player.snake.pop();
+
+            // FIX: Gradual growth logic
+            if (!foodEaten) {
+                 if (player.growthPending > 0) {
+                    player.growthPending--;
+                } else {
+                    player.snake.pop();
+                }
+            }
         }
 
         function draw() {
@@ -430,20 +439,13 @@
             createSparkles(food.x, food.y);
             var type = food.type;
             switch(type) {
-                case 'normal': player.score++; break;
+                case 'normal': 
+                    player.score++; 
+                    player.growthPending += 1;
+                    break;
                 case 'golden':
                     player.score = (player.score + 1) * 2;
-                    var len = player.snake.length;
-                    for(var i = 0; i < len; i++) {
-                        var lastSegment = player.snake[player.snake.length - 1];
-                        var newSegment = {};
-                        for (var key in lastSegment) {
-                           if (lastSegment.hasOwnProperty(key)) {
-                               newSegment[key] = lastSegment[key];
-                           }
-                        }
-                        player.snake.push(newSegment);
-                    }
+                    player.growthPending += player.snake.length;
                     break;
                 case 'rotten':
                     player.score = Math.floor(player.score / 2);
@@ -512,16 +514,9 @@
         }
         
         function checkAndAssignControl(controlId, turnValue) {
-            if (turnValue === 0) return;
+            if (turnValue === 0) return false;
             if (assignedControls.has(controlId)) {
-                var player = null;
-                for(var i = 0; i < players.length; i++) {
-                    if(players[i].control === controlId) {
-                        player = players[i];
-                        break;
-                    }
-                }
-                if (player) player.turnSpeed = turnValue * baseTurnRate;
+                return true;
             } else {
                 var player = null;
                 for(var i = 0; i < players.length; i++) {
@@ -534,29 +529,76 @@
                 if (player) {
                     player.control = controlId;
                     assignedControls.add(controlId);
-                    player.turnSpeed = turnValue * baseTurnRate;
                 }
+                return true;
             }
         }
 
         function handleInputs() {
             players.forEach(function(p) { p.turnSpeed = 0; });
-            
-            checkAndAssignControl('pointer', pointerTurnDirection);
-            checkAndAssignControl('arrows', keysPressed['ArrowRight'] ? 1 : (keysPressed['ArrowLeft'] ? -1 : 0));
-            checkAndAssignControl('ad', keysPressed['d'] ? 1 : (keysPressed['a'] ? -1 : 0));
 
+            var p1_turn = 0, p2_turn = 0, p3_turn = 0, p4_turn = 0;
+            
+            // --- Read all inputs ---
+            var arrow_turn = keysPressed['ArrowRight'] ? 1 : (keysPressed['ArrowLeft'] ? -1 : 0);
+            var ad_turn = keysPressed['d'] ? 1 : (keysPressed['a'] ? -1 : 0);
+            
+            var gamepad_turns = {};
             var gamepads = navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads() : []);
             for (var i = 0; i < gamepads.length; i++) {
                 var gp = gamepads[i];
                 if (!gp) continue;
-                checkAndAssignControl('gp' + i + '-ls', gp.axes[0]);
-                checkAndAssignControl('gp' + i + '-rs', gp.axes[2]);
-                checkAndAssignControl('gp' + i + '-dpad', gp.buttons[15].pressed ? 1 : (gp.buttons[14].pressed ? -1 : 0));
+                gamepad_turns['gp' + i + '-ls'] = gp.axes[0];
+                gamepad_turns['gp' + i + '-rs'] = gp.axes[2];
+                gamepad_turns['gp' + i + '-dpad'] = gp.buttons[15].pressed ? 1 : (gp.buttons[14].pressed ? -1 : 0);
                 var rightTurn = gp.buttons[0].pressed || gp.buttons[1].pressed;
                 var leftTurn = gp.buttons[2].pressed || gp.buttons[3].pressed;
-                checkAndAssignControl('gp' + i + '-face', rightTurn ? 1 : (leftTurn ? -1 : 0));
+                gamepad_turns['gp' + i + '-face'] = rightTurn ? 1 : (leftTurn ? -1 : 0);
             }
+            
+            // --- Dynamically assign and apply controls ---
+            var all_inputs = [
+                { id: 'pointer', value: pointerTurnDirection },
+                { id: 'arrows', value: arrow_turn },
+                { id: 'ad', value: ad_turn }
+            ];
+            for(var key in gamepad_turns) {
+                if (gamepad_turns.hasOwnProperty(key)) {
+                    all_inputs.push({ id: key, value: gamepad_turns[key] });
+                }
+            }
+            
+            all_inputs.forEach(function(input) {
+                if (Math.abs(input.value) > 0.1) { // Deadzone
+                    var player = null;
+                    for(var i = 0; i < players.length; i++) {
+                        if (players[i].control === input.id) {
+                            player = players[i];
+                            break;
+                        }
+                    }
+
+                    if (!player) {
+                        var freePlayer = null;
+                        for(var i = 0; i < players.length; i++) {
+                            if (players[i].control === null) {
+                                freePlayer = players[i];
+                                break;
+                            }
+                        }
+                        if (!freePlayer) freePlayer = addNewPlayer();
+                        if (freePlayer) {
+                            freePlayer.control = input.id;
+                            assignedControls.add(input.id);
+                            player = freePlayer;
+                        }
+                    }
+                    
+                    if (player) {
+                        player.turnSpeed = input.value * baseTurnRate;
+                    }
+                }
+            });
         }
 
         function createExplosion(x, y) {

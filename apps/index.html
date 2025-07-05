@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="cs">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Directory Listing</title>
+    <title>Prohlížeč souborů</title>
     <style>
-        /* --- Base Styles & Typography --- */
+        /* --- Základní styly a typografie --- */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
             background-color: #111827; /* bg-gray-900 */
@@ -15,7 +15,7 @@
             margin: 0;
         }
 
-        /* --- Layout --- */
+        /* --- Rozložení --- */
         .container {
             max-width: 1280px;
             margin: 0 auto;
@@ -27,7 +27,7 @@
             }
         }
 
-        /* --- Title --- */
+        /* --- Nadpis --- */
         h1 {
             font-size: 1.875rem; /* text-3xl */
             font-weight: 700; /* font-bold */
@@ -41,7 +41,7 @@
             }
         }
 
-        /* --- Error Message --- */
+        /* --- Chybová hláška --- */
         .error-box {
             display: none; /* hidden */
             background-color: #991b1b; /* bg-red-800 */
@@ -52,17 +52,18 @@
             margin-bottom: 1.5rem;
         }
 
-        /* --- File Grid & Tiles --- */
+        /* --- Mřížka souborů a dlaždice --- */
         .file-grid {
             display: grid;
             gap: 1rem; /* gap-4 */
-            grid-template-columns: repeat(1, minmax(0, 1fr)); /* grid-cols-1 */
+            /* Změna pro 2 sloupce na mobilu */
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
-        /* Responsive grid columns */
-        @media (min-width: 640px) { .file-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-        @media (min-width: 768px) { .file-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-        @media (min-width: 1024px) { .file-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-        @media (min-width: 1280px) { .file-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+        /* Responzivní sloupce mřížky */
+        @media (min-width: 640px) { .file-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        @media (min-width: 768px) { .file-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+        @media (min-width: 1024px) { .file-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+        @media (min-width: 1280px) { .file-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 
         .tile {
             background-color: #1f2937; /* bg-gray-800 */
@@ -90,7 +91,7 @@
             transform: scale(1.05);
         }
 
-        /* --- Tile Content (Icon & Text) --- */
+        /* --- Obsah dlaždice (ikona a text) --- */
         .letter-icon-container {
             width: 5rem; /* w-20 */
             height: 5rem; /* h-20 */
@@ -114,13 +115,13 @@
 <body>
 
     <div id="container" class="container">
-        <h1 id="title">Loading...</h1>
+        <h1 id="title">Načítání...</h1>
         <div id="error" class="error-box">
-            <strong style="font-weight: 700;">Error:</strong>
+            <strong style="font-weight: 700;">Chyba:</strong>
             <span id="errorMessage"></span>
         </div>
         <div id="file-list" class="file-grid">
-            <!-- Tiles will be inserted here by JavaScript -->
+            <!-- Dlaždice budou vloženy zde pomocí JavaScriptu -->
         </div>
     </div>
 
@@ -131,10 +132,10 @@
             const errorContainer = document.getElementById('error');
             const errorMessageElement = document.getElementById('errorMessage');
 
-            // --- Configuration ---
-            const FALLBACK_API_URL = 'https://api.github.com/repos/dobrou/dobrou.github.io/contents/apps/';
+            // --- Konfigurace ---
+            const FALLBACK_API_URL = 'https://api.github.com/repos/dobrou/dobrou.github.io/contents/';
 
-            // --- Helper Functions ---
+            // --- Pomocné funkce ---
             function getVibrantColorFromString(str) {
                 let hash = 0;
                 if (str.length === 0) return 'hsl(0, 90%, 65%)';
@@ -148,82 +149,83 @@
                 const lightness = 65;
                 return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
             }
-
-            // --- API URL Determination ---
-            function getApiUrlFromHref() {
-                const { hostname, pathname } = window.location;
-                if (!hostname.endsWith('.github.io')) return null;
-
-                const owner = hostname.split('.')[0];
-                const pathParts = pathname.split('/').filter(p => p);
-                let repo, path;
-
-                if (pathParts.length > 0 && document.body.dataset.isProjectPage) {
-                    repo = pathParts[0];
-                    path = pathParts.slice(1).join('/');
-                } else {
-                    repo = `${owner}.github.io`;
-                    path = pathParts.join('/');
-                }
-                if (pathParts.length === 1 && pathParts[0] === repo) {
-                    path = '';
-                }
-                return `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+            
+            function getPathFromHash() {
+                return window.location.hash.substring(1);
             }
 
-            // --- Data Fetching and Rendering ---
-            async function fetchAndDisplayFiles() {
-                const apiUrl = getApiUrlFromHref() || FALLBACK_API_URL;
+            // --- Určení API URL ---
+            function getApiUrl() {
+                const { hostname } = window.location;
+                if (!hostname.endsWith('.github.io')) return FALLBACK_API_URL + getPathFromHash();
+
+                const owner = hostname.split('.')[0];
+                const pathParts = window.location.pathname.split('/').filter(p => p);
+                let repo = `${owner}.github.io`;
+
+                // Heuristika pro projektové stránky (owner.github.io/repo)
+                if (pathParts.length > 0) {
+                    repo = pathParts[0];
+                }
                 
-                const pathString = (apiUrl.split('/contents/')[1] || '').replace(/\/$/, '');
-                const pathSegments = pathString.split('/').filter(p => p);
+                const contentPath = getPathFromHash();
+                return `https://api.github.com/repos/${owner}/${repo}/contents/${contentPath}`;
+            }
+
+            // --- Načítání a vykreslování dat ---
+            async function fetchAndDisplayFiles() {
+                const apiUrl = getApiUrl();
+                const currentPath = getPathFromHash();
+                const pathSegments = currentPath.split('/').filter(p => p);
 
                 if (pathSegments.length > 0) {
                     let title = pathSegments[pathSegments.length - 1];
                     titleElement.textContent = title.charAt(0).toUpperCase() + title.slice(1).replace(/-/g, ' ');
                 } else {
-                    const repoFullName = apiUrl.split('/repos/')[1].split('/contents/')[0];
-                    const repoName = repoFullName.split('/')[1];
-                    let title = repoName.endsWith('.github.io') ? repoName.replace('.github.io', '') : repoName;
-                    titleElement.textContent = title.charAt(0).toUpperCase() + title.slice(1).replace(/-/g, ' ');
+                    titleElement.textContent = "Kořenový adresář";
                 }
 
                 try {
                     const response = await fetch(apiUrl);
                     if (!response.ok) {
-                        if (response.status === 404 && !document.body.dataset.isProjectPage) {
-                            document.body.dataset.isProjectPage = 'true';
-                            fetchAndDisplayFiles();
-                            return;
-                        }
-                        throw new Error(`GitHub API responded with status ${response.status}`);
+                        throw new Error(`GitHub API odpovědělo se statusem ${response.status}`);
                     }
                     const data = await response.json();
 
                     fileListContainer.innerHTML = '';
                     const files = data.filter(file => file.name.toLowerCase() !== 'index.html');
-
+                    
                     if (files.length === 0) {
-                        fileListContainer.innerHTML = `<p style="color: #9ca3af; grid-column: 1 / -1;">This directory is empty.</p>`;
+                        fileListContainer.innerHTML = `<p style="color: #9ca3af; grid-column: 1 / -1;">Tento adresář je prázdný.</p>`;
                         return;
                     }
 
                     files.forEach(file => {
                         const isDir = file.type === 'dir';
                         const tile = document.createElement('a');
+                        const fileName = file.name;
                         
-                        tile.href = isDir ? `${window.location.pathname.replace(/\/$/, '')}/${file.name}/` : `${window.location.pathname.replace(/\/$/, '')}/${file.name}`;
+                        if (isDir) {
+                            const newHashPath = currentPath ? `${currentPath}/${fileName}` : fileName;
+                            tile.href = `#${newHashPath}`;
+                        } else {
+                            const filePath = fileName.endsWith('.html') ? fileName.slice(0, -5) : fileName;
+                            const basePath = window.location.pathname.replace(/index\.html$/, '');
+                            tile.href = `${basePath}${currentPath ? currentPath + '/' : ''}${filePath}`;
+                        }
+
                         tile.className = 'tile';
                         tile.setAttribute('tabindex', '0');
 
-                        const firstLetter = file.name.charAt(0).toUpperCase();
-                        const letterColor = getVibrantColorFromString(file.name);
+                        const firstLetter = fileName.charAt(0).toUpperCase();
+                        const letterColor = getVibrantColorFromString(fileName);
+                        const displayName = fileName.endsWith('.html') ? fileName.slice(0, -5) : fileName;
 
                         tile.innerHTML = `
                             <div class="letter-icon-container">
                                 <span class="letter-icon" style="color: ${letterColor};">${firstLetter}</span>
                             </div>
-                            <span class="file-name">${file.name}</span>
+                            <span class="file-name">${displayName}</span>
                         `;
                         fileListContainer.appendChild(tile);
                     });
@@ -231,14 +233,14 @@
                     setupNavigation();
 
                 } catch (err) {
-                    console.error("Failed to fetch files:", err);
+                    console.error("Chyba při načítání souborů:", err);
                     errorContainer.style.display = 'block';
                     errorMessageElement.textContent = err.message;
-                    titleElement.textContent = 'Error';
+                    titleElement.textContent = 'Chyba';
                 }
             }
 
-            // --- Keyboard & Gamepad Navigation ---
+            // --- Navigace klávesnicí a gamepadem ---
             let selectedIndex = -1;
             let tiles = [];
             let gamepadLoop;
@@ -246,7 +248,7 @@
             function setupNavigation() {
                 tiles = Array.from(fileListContainer.getElementsByClassName('tile'));
                 if (tiles.length > 0) {
-                    selectedIndex = selectedIndex === -1 ? 0 : selectedIndex;
+                    selectedIndex = 0;
                     updateFocus();
                 }
             }
@@ -283,8 +285,7 @@
                     case 'ArrowDown': navigate('down'); e.preventDefault(); break;
                     case 'ArrowLeft': navigate('left'); e.preventDefault(); break;
                     case 'ArrowRight': navigate('right'); e.preventDefault(); break;
-                    case 'Enter':
-                    case ' ':
+                    case 'Enter': case ' ':
                         if (selectedIndex > -1 && tiles[selectedIndex]) {
                             tiles[selectedIndex].click();
                         }
@@ -293,24 +294,22 @@
                 }
             });
             
-            // --- Gamepad Handler (FIXED) ---
             const buttonPressed = {};
             let lastGamepadNavTime = 0;
             const gamepadNavCooldown = 150;
 
             function gamepadHandler() {
                 const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-                const gp = Array.from(gamepads).find(Boolean); // Find the first non-null gamepad
+                const gp = Array.from(gamepads).find(Boolean);
 
                 if (!gp || !gp.buttons || !gp.axes) {
                     gamepadLoop = requestAnimationFrame(gamepadHandler);
-                    return; // No active gamepad, try again next frame
+                    return;
                 }
 
                 const deadzone = 0.5;
                 const now = performance.now();
 
-                // Navigation with Cooldown
                 if (now - lastGamepadNavTime > gamepadNavCooldown) {
                     const dpadDown = gp.buttons[13] && gp.buttons[13].pressed;
                     const dpadUp = gp.buttons[12] && gp.buttons[12].pressed;
@@ -333,29 +332,23 @@
                     }
                 }
 
-                // Action Button
                 const actionButtonPressed = gp.buttons[0] && gp.buttons[0].pressed;
                 if (actionButtonPressed && !buttonPressed['action']) {
                      if (selectedIndex > -1 && tiles[selectedIndex]) {
                         tiles[selectedIndex].click();
-                    }
+                     }
                 }
                 buttonPressed['action'] = actionButtonPressed;
 
                 gamepadLoop = requestAnimationFrame(gamepadHandler);
             }
 
-            window.addEventListener('gamepadconnected', (e) => {
-                console.log(`Gamepad connected: ${e.gamepad.id}.`);
-            });
-            
-            window.addEventListener('gamepaddisconnected', (e) => {
-                console.log(`Gamepad disconnected: ${e.gamepad.id}.`);
-            });
+            window.addEventListener('hashchange', fetchAndDisplayFiles);
+            window.addEventListener('gamepadconnected', (e) => { console.log(`Gamepad připojen: ${e.gamepad.id}.`); });
+            window.addEventListener('gamepaddisconnected', (e) => { console.log(`Gamepad odpojen: ${e.gamepad.id}.`); });
 
-            // --- Initial Load ---
+            // --- Prvotní načtení ---
             await fetchAndDisplayFiles();
-            // Start the gamepad loop immediately to detect already-connected controllers
             gamepadHandler();
 
         })();

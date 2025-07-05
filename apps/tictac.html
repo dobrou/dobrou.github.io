@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="cs">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tic-Tac-Toe</title>
+    <title>Piškvorky</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
@@ -17,10 +17,10 @@
             --x-color: #ffffff;
             --o-color: #bbbbbb;
             --disabled-opacity: 0.6;
-            --gamepad-focus-color: #007bff;
+            --focus-color: #007bff;
         }
 
-        /* Basic Reset and Body Styling */
+        /* Základní reset a stylování těla */
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--background-color);
@@ -32,15 +32,15 @@
             margin: 0;
             padding: 20px;
             box-sizing: border-box;
-            overflow: hidden; /* Hide scrollbars that might appear from fireworks */
+            overflow: hidden; /* Skryje posuvníky, které by se mohly objevit kvůli ohňostroji */
         }
 
-        /* Main Game Container */
+        /* Hlavní kontejner hry */
         .game-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 1.5rem; /* Adjusted gap */
+            gap: 1.5rem;
             text-align: center;
         }
 
@@ -51,11 +51,11 @@
             letter-spacing: 2px;
         }
 
-        /* Game Mode Selection */
+        /* Výběr herního režimu */
         .mode-container {
             display: flex;
             justify-content: center;
-            gap: 0.75rem; /* Reduced gap to fit */
+            gap: 0.75rem;
         }
 
         .mode-button {
@@ -67,8 +67,8 @@
             font-size: 0.9rem;
             font-weight: bold;
             cursor: pointer;
-            transition: background-color 0.2s ease, border-color 0.2s ease;
-            white-space: nowrap; /* Prevent text from wrapping */
+            transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+            white-space: nowrap;
         }
 
         .mode-button.active {
@@ -80,7 +80,7 @@
             background-color: var(--cell-color);
         }
 
-        /* Game Board Styling */
+        /* Herní plocha */
         .board {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -90,13 +90,13 @@
             transition: opacity 0.3s ease;
         }
         
-        /* Style for when the AI/Computer is thinking */
+        /* Styl, když AI/Počítač přemýšlí */
         .board.thinking {
             opacity: var(--disabled-opacity);
             pointer-events: none;
         }
 
-        /* Cell Styling */
+        /* Buňky */
         .cell {
             background-color: var(--cell-color);
             border: 2px solid var(--border-color);
@@ -106,24 +106,24 @@
             align-items: center;
             font-size: 4rem;
             font-weight: bold;
-            line-height: 1; /* Stabilize line height */
+            line-height: 1;
             cursor: pointer;
             transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-            -webkit-tap-highlight-color: transparent; /* Removes tap highlight on mobile */
+            -webkit-tap-highlight-color: transparent;
         }
         
         .cell:hover {
             background-color: var(--accent-color);
         }
 
-        .cell:focus {
-            outline: none; /* Remove default focus outline, as we have a custom one */
+        .cell:focus, .mode-button:focus, #resetButton:focus {
+            outline: none; /* Odstranění výchozího outline */
         }
         
-        /* Custom focus indicator for both keyboard and gamepad */
-        .cell.focus-visible {
-            border-color: var(--gamepad-focus-color);
-            box-shadow: 0 0 10px var(--gamepad-focus-color);
+        /* Vlastní indikátor zaměření pro klávesnici a gamepad */
+        .focus-visible {
+            border-color: var(--focus-color) !important;
+            box-shadow: 0 0 10px var(--focus-color) !important;
         }
         
         .cell.X:hover, .cell.O:hover {
@@ -134,7 +134,7 @@
         .cell.X { color: var(--x-color); }
         .cell.O { color: var(--o-color); }
 
-        /* Status Display and Reset Button */
+        /* Stavový displej a resetovací tlačítko */
         .status-container {
             min-height: 3rem; 
             display: flex;
@@ -161,7 +161,7 @@
             font-size: 1rem;
             font-weight: bold;
             cursor: pointer;
-            transition: background-color 0.2s ease, transform 0.2s ease;
+            transition: background-color 0.2s ease, transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         }
         
         #resetButton:hover {
@@ -169,7 +169,7 @@
             transform: translateY(-2px);
         }
 
-        /* Winning animation */
+        /* Animace vítězství */
         .winning-cell {
             background-color: #2c3e50 !important; 
             animation: pulse 0.8s infinite alternate;
@@ -180,7 +180,7 @@
             to { transform: scale(1.05); }
         }
 
-        /* Fireworks Animation */
+        /* Animace ohňostroje */
         .fireworks-container {
             position: fixed;
             top: 0;
@@ -209,7 +209,7 @@
             }
         }
 
-        /* Responsive Design */
+        /* Responzivní design */
         @media (max-width: 480px) {
             .board {
                 width: 90vw;
@@ -230,28 +230,28 @@
 <body>
 
     <main class="game-container">
-        <h1>Tic-Tac-Toe</h1>
+        <h1>Piškvorky</h1>
 
         <div class="mode-container">
-            <button id="pvpButton" class="mode-button active">vs Player</button>
-            <button id="pvcButton" class="mode-button">vs Computer</button>
+            <button id="pvpButton" class="mode-button active">vs Hráč</button>
+            <button id="pvcButton" class="mode-button">vs Počítač</button>
             <button id="pvaButton" class="mode-button">vs AI</button>
         </div>
         
         <div class="status-container">
-            <p id="status">Player X's turn</p>
+            <p id="status">Hráč X je na řadě</p>
         </div>
 
-        <div class="board" id="board" role="grid" aria-label="Tic-Tac-Toe Board">
-            <!-- Cells are generated by JavaScript -->
+        <div class="board" id="board" role="grid" aria-label="Herní plocha">
+            <!-- Buňky jsou generovány JavaScriptem -->
         </div>
 
-        <button id="resetButton">Reset Game</button>
+        <button id="resetButton">Resetovat hru</button>
     </main>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // DOM Elements
+            // DOM prvky
             const boardElement = document.getElementById('board');
             const statusElement = document.getElementById('status');
             const resetButton = document.getElementById('resetButton');
@@ -259,25 +259,25 @@
             const pvaButton = document.getElementById('pvaButton');
             const pvcButton = document.getElementById('pvcButton');
 
-            // Game State
+            // Stav hry
             let boardState = Array(9).fill('');
             let currentPlayer = 'X';
             let isGameActive = true;
             let cells = [];
-            let gameMode = 'pvp'; // 'pvp', 'pva', or 'pvc'
+            let gameMode = 'pvp'; // 'pvp', 'pva', nebo 'pvc'
             let isOpponentThinking = false;
 
-            // Input State
-            let gamepadIndex;
+            // Stav ovládání
+            let focusableElements = [];
             let focusIndex = 0;
             let isFocusVisible = false;
             let lastInputTime = 0;
             const INPUT_COOLDOWN = 150; // ms
 
             const winningConditions = [
-                [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
-                [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
-                [0, 4, 8], [2, 4, 6]             // Diagonals
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // Řádky
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // Sloupce
+                [0, 4, 8], [2, 4, 6]             // Diagonály
             ];
 
             function initializeGame(newMode = gameMode) {
@@ -286,7 +286,7 @@
                 currentPlayer = 'X';
                 isGameActive = true;
                 isOpponentThinking = false;
-                focusIndex = 0;
+                
                 isFocusVisible = false;
 
                 boardElement.innerHTML = '';
@@ -298,19 +298,25 @@
                     cell.dataset.index = index;
                     cell.innerHTML = '&nbsp;'; 
                     cell.setAttribute('role', 'gridcell');
-                    cell.setAttribute('aria-label', `Cell ${index + 1}`);
-                    cell.setAttribute('tabindex', '-1'); // Cells are not directly focusable
+                    cell.setAttribute('aria-label', `Buňka ${index + 1}`);
                     boardElement.appendChild(cell);
                     cells.push(cell);
                 });
-
-                // FIX: Attach cell-specific listeners here, after they are created
+                
                 cells.forEach(cell => {
                     cell.addEventListener('click', handleCellClick);
                 });
 
+                // Nastavení prvků pro zaměření
+                focusableElements = [
+                    pvpButton, pvcButton, pvaButton,
+                    ...cells,
+                    resetButton
+                ];
+                focusIndex = focusableElements.indexOf(pvpButton); // Začínáme na prvním tlačítku
+
                 updateFocus();
-                updateStatus(`Player ${currentPlayer}'s turn`);
+                updateStatus(`Hráč ${currentPlayer} je na řadě`);
                 updateModeButtons();
             }
             
@@ -325,23 +331,25 @@
                 const clickedCell = event.target;
                 const cellIndex = parseInt(clickedCell.dataset.index);
                 
-                // Update focus to clicked cell
-                focusIndex = cellIndex;
+                focusIndex = focusableElements.indexOf(clickedCell);
                 isFocusVisible = true;
                 updateFocus();
 
                 makeMove(cellIndex);
             }
 
-            // FIX: This is now a global handler for keyboard input
             function handleGlobalKeyDown(event) {
                 if (isOpponentThinking) return;
                 const key = event.key;
                 
-                // Action keys
                 if (key === 'Enter' || key === ' ') {
                     event.preventDefault();
-                    makeMove(focusIndex);
+                    const currentElement = focusableElements[focusIndex];
+                    if (currentElement.classList.contains('cell')) {
+                        makeMove(parseInt(currentElement.dataset.index));
+                    } else {
+                        currentElement.click();
+                    }
                     return;
                 }
 
@@ -349,18 +357,43 @@
                 
                 event.preventDefault();
                 isFocusVisible = true;
-                let newFocusIndex = focusIndex;
+                
+                const oldIndex = focusIndex;
+                let newIndex = oldIndex;
+
+                // Logika navigace
+                const isModeRow = oldIndex >= 0 && oldIndex <= 2;
+                const isCell = oldIndex >= 3 && oldIndex <= 11;
+                const isResetRow = oldIndex === 12;
+                const cellIndex = oldIndex - 3; // index buňky (0-8)
 
                 switch (key) {
-                    case 'ArrowUp':    newFocusIndex -= 3; break;
-                    case 'ArrowDown':  newFocusIndex += 3; break;
-                    case 'ArrowLeft':  if (focusIndex % 3 !== 0) newFocusIndex--; break;
-                    case 'ArrowRight': if ((focusIndex + 1) % 3 !== 0) newFocusIndex++; break;
+                    case 'ArrowLeft':
+                        if (oldIndex > 0) newIndex--;
+                        break;
+                    case 'ArrowRight':
+                        if (oldIndex < focusableElements.length - 1) newIndex++;
+                        break;
+                    case 'ArrowUp':
+                        if (isCell) {
+                            if (cellIndex >= 3) newIndex -= 3; // Přesun na buňku výše
+                            else newIndex = cellIndex; // Přesun na tlačítko režimu
+                        } else if (isResetRow) {
+                            newIndex = 10; // Přesun na prostřední buňku spodního řádku
+                        }
+                        break;
+                    case 'ArrowDown':
+                        if (isModeRow) {
+                            newIndex += 3; // Přesun na buňku níže
+                        } else if (isCell) {
+                            if (cellIndex < 6) newIndex += 3; // Přesun na buňku níže
+                            else newIndex = 12; // Přesun na resetovací tlačítko
+                        }
+                        break;
                 }
-                if (newFocusIndex >= 0 && newFocusIndex < 9) {
-                    focusIndex = newFocusIndex;
-                    updateFocus();
-                }
+                
+                focusIndex = newIndex;
+                updateFocus();
             }
             
             function makeMove(cellIndex) {
@@ -375,7 +408,7 @@
                 cell.textContent = currentPlayer;
                 cell.classList.add(currentPlayer);
                 cell.style.cursor = 'not-allowed';
-                cell.setAttribute('aria-label', `Cell ${index + 1} marked as ${currentPlayer}`);
+                cell.setAttribute('aria-label', `Buňka ${index + 1} označena jako ${currentPlayer}`);
             }
 
             function checkResult() {
@@ -383,7 +416,7 @@
 
                 if (winner) {
                     isGameActive = false;
-                    updateStatus(`Player ${winner.player} has won!`);
+                    updateStatus(`Hráč ${winner.player} vyhrál!`);
                     highlightWinningCells(winner.combination);
                     launchFireworks(winner.player);
                     return;
@@ -391,7 +424,7 @@
 
                 if (!boardState.includes('')) {
                     isGameActive = false;
-                    updateStatus('Game ended in a draw!');
+                    updateStatus('Hra skončila remízou!');
                     return;
                 }
                 
@@ -410,7 +443,7 @@
             
             function switchPlayer() {
                 currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-                updateStatus(`Player ${currentPlayer}'s turn`);
+                updateStatus(`Hráč ${currentPlayer} je na řadě`);
 
                 if (currentPlayer === 'O' && isGameActive) {
                     if (gameMode === 'pva') {
@@ -429,7 +462,7 @@
 
             function triggerComputerMove() {
                 setOpponentThinking(true);
-                updateStatus('Computer is thinking...');
+                updateStatus('Počítač přemýšlí...');
                 
                 setTimeout(() => {
                     const bestMove = findBestMove(boardState);
@@ -442,7 +475,7 @@
 
             function triggerAiMove() {
                 setOpponentThinking(true);
-                updateStatus('AI is thinking...');
+                updateStatus('AI přemýšlí...');
 
                 setTimeout(async () => {
                     try {
@@ -453,8 +486,8 @@
                             makeRandomMove();
                         }
                     } catch (error) {
-                        console.error("Error getting AI move:", error);
-                        updateStatus("AI failed. Making a random move.");
+                        console.error("Chyba při získávání tahu AI:", error);
+                        updateStatus("AI selhala. Náhodný tah.");
                         if(isGameActive) makeRandomMove();
                     } finally {
                         setOpponentThinking(false);
@@ -462,36 +495,38 @@
                 }, 500);
             }
 
-            // --- Gamepad and Keyboard Focus Control ---
-            function setupGamepad() {
+            // --- Ovládání gamepadem a klávesnicí ---
+            function setupInput() {
+                document.addEventListener('keydown', handleGlobalKeyDown);
                 window.addEventListener("gamepadconnected", (e) => {
-                    gamepadIndex = e.gamepad.index;
                     isFocusVisible = true;
                     updateFocus();
-                    updateStatus("Gamepad connected!");
-                    setTimeout(() => updateStatus(`Player ${currentPlayer}'s turn`), 1500);
+                    updateStatus("Gamepad připojen!");
+                    setTimeout(() => updateStatus(`Hráč ${currentPlayer} je na řadě`), 1500);
                     gamepadLoop();
                 });
 
                 window.addEventListener("gamepaddisconnected", () => {
-                    gamepadIndex = undefined;
-                    updateStatus("Gamepad disconnected.");
+                    updateStatus("Gamepad odpojen.");
                 });
             }
 
             function gamepadLoop() {
-                if (gamepadIndex === undefined) return;
-                
-                const gamepad = navigator.getGamepads()[gamepadIndex];
-                if (!gamepad) return;
+                const gamepads = navigator.getGamepads().filter(p => p);
+                if (gamepads.length === 0) return;
 
                 const now = Date.now();
                 if (now - lastInputTime < INPUT_COOLDOWN) {
                     requestAnimationFrame(gamepadLoop);
                     return;
                 }
-
-                handleGamepadInput(gamepad);
+                
+                for (const gamepad of gamepads) {
+                    if (handleGamepadInput(gamepad)) {
+                        lastInputTime = now;
+                        break; // Zpracovat pouze jeden vstup za cyklus
+                    }
+                }
                 
                 requestAnimationFrame(gamepadLoop);
             }
@@ -507,57 +542,47 @@
                 const stickLeft = gamepad.axes[0] < -deadzone;
                 const stickRight = gamepad.axes[0] > deadzone;
 
-                let moved = false;
-                let newFocusIndex = focusIndex;
+                let inputDetected = false;
 
                 if (dpadUp || stickUp) {
-                    newFocusIndex -= 3;
-                    moved = true;
+                    handleGlobalKeyDown({ key: 'ArrowUp', preventDefault: () => {} });
+                    inputDetected = true;
                 } else if (dpadDown || stickDown) {
-                    newFocusIndex += 3;
-                    moved = true;
+                    handleGlobalKeyDown({ key: 'ArrowDown', preventDefault: () => {} });
+                    inputDetected = true;
                 } else if (dpadLeft || stickLeft) {
-                    if (focusIndex % 3 !== 0) newFocusIndex--;
-                    moved = true;
+                    handleGlobalKeyDown({ key: 'ArrowLeft', preventDefault: () => {} });
+                    inputDetected = true;
                 } else if (dpadRight || stickRight) {
-                    if ((focusIndex + 1) % 3 !== 0) newFocusIndex++;
-                    moved = true;
-                }
-
-                if (moved) {
-                    isFocusVisible = true;
-                    if (newFocusIndex >= 0 && newFocusIndex < 9) {
-                        focusIndex = newFocusIndex;
-                        updateFocus();
-                    }
-                    lastInputTime = Date.now();
+                    handleGlobalKeyDown({ key: 'ArrowRight', preventDefault: () => {} });
+                    inputDetected = true;
                 }
 
                 if (gamepad.buttons[0].pressed) {
-                    if (!isOpponentThinking) {
-                        makeMove(focusIndex);
-                    }
-                    lastInputTime = Date.now();
+                    handleGlobalKeyDown({ key: 'Enter', preventDefault: () => {} });
+                    inputDetected = true;
                 }
+                
+                return inputDetected;
             }
 
             function updateFocus() {
-                cells.forEach((cell, index) => {
-                    cell.classList.toggle('focus-visible', isFocusVisible && index === focusIndex);
+                focusableElements.forEach((el, index) => {
+                    el.classList.toggle('focus-visible', isFocusVisible && index === focusIndex);
                 });
             }
 
 
-            // --- Minimax Algorithm for Player vs Computer ---
+            // --- Algoritmus Minimax pro hru proti počítači ---
             function findBestMove(board) {
                 let bestVal = -Infinity;
                 let bestMove = { index: -1 };
 
                 for (let i = 0; i < board.length; i++) {
                     if (board[i] === '') {
-                        board[i] = 'O'; // Make a move
+                        board[i] = 'O';
                         let moveVal = minimax(board, 0, false);
-                        board[i] = ''; // Undo the move
+                        board[i] = '';
 
                         if (moveVal > bestVal) {
                             bestMove.index = i;
@@ -574,7 +599,7 @@
                     return winner.player === 'O' ? 10 - depth : -10 + depth;
                 }
                 if (!board.includes('')) {
-                    return 0; // Draw
+                    return 0;
                 }
 
                 if (isMaximizing) {
@@ -587,7 +612,7 @@
                         }
                     }
                     return best;
-                } else { // Minimizing player
+                } else {
                     let best = Infinity;
                     for (let i = 0; i < board.length; i++) {
                         if (board[i] === '') {
@@ -602,7 +627,7 @@
             
             async function getAiMove() {
                 const availableIndices = boardState.map((val, idx) => val === '' ? idx : null).filter(val => val !== null);
-                const prompt = `You are an expert Tic-Tac-Toe player. Your designated mark is 'O'. The user, playing as 'X', has just made a move. The game board is a 3x3 grid, with cells indexed from 0 to 8 (0=top-left, 8=bottom-right). The current board state is represented by this array (an empty string '' denotes an available cell): ${JSON.stringify(boardState)}. The available moves are at indices: ${JSON.stringify(availableIndices)}. Your task is to analyze the board and determine the single best move for 'O'. Your goal is to win, or if winning is not possible, to block the opponent from winning. Return your chosen move as a single number in a JSON object.`;
+                const prompt = `Jste expert na piškvorky. Vaše značka je 'O'. Uživatel, hrající jako 'X', právě provedl tah. Herní deska je mřížka 3x3 s buňkami indexovanými od 0 do 8 (0=levý horní, 8=pravý dolní). Aktuální stav desky je reprezentován tímto polem (prázdný řetězec '' označuje volnou buňku): ${JSON.stringify(boardState)}. Dostupné tahy jsou na indexech: ${JSON.stringify(availableIndices)}. Vaším úkolem je analyzovat desku a určit jediný nejlepší tah pro 'O'. Vaším cílem je vyhrát, nebo pokud výhra není možná, zablokovat soupeře ve výhře. Vraťte svůj zvolený tah jako jediné číslo v objektu JSON.`;
                 const payload = {
                   contents: [{ role: "user", parts: [{ text: prompt }] }],
                   generationConfig: {
@@ -617,15 +642,15 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                if (!response.ok) throw new Error(`API call failed with status: ${response.status}`);
+                if (!response.ok) throw new Error(`Volání API selhalo se stavem: ${response.status}`);
                 const result = await response.json();
                 if (result.candidates && result.candidates.length > 0 && result.candidates[0].content.parts.length > 0) {
                     const jsonText = result.candidates[0].content.parts[0].text;
                     const parsedJson = JSON.parse(jsonText);
                     return parsedJson.move;
                 } else {
-                    if (result.promptFeedback) console.error("Prompt Feedback:", result.promptFeedback);
-                    throw new Error("Invalid response structure from API.");
+                    if (result.promptFeedback) console.error("Zpětná vazba od API:", result.promptFeedback);
+                    throw new Error("Neplatná struktura odpovědi od API.");
                 }
             }
             
@@ -694,17 +719,15 @@
                 }, 3000);
             }
 
-            // --- Single-Time Event Listener Setup ---
-            // FIX: Add global listeners once, outside of the re-initialization function
-            document.addEventListener('keydown', handleGlobalKeyDown);
+            // --- Jednorázové nastavení posluchačů událostí ---
             resetButton.addEventListener('click', () => initializeGame());
             pvpButton.addEventListener('click', () => initializeGame('pvp'));
             pvaButton.addEventListener('click', () => initializeGame('pva'));
             pvcButton.addEventListener('click', () => initializeGame('pvc'));
             
-            // Start the game!
+            // Spuštění hry!
             initializeGame('pvp');
-            setupGamepad();
+            setupInput();
         });
     </script>
 
