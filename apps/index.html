@@ -154,6 +154,14 @@
                     return window.location.hash.substring(1);
                 }
             }
+            
+            function showError(message) {
+                console.error(message);
+                errorContainer.style.display = 'block';
+                errorMessageElement.textContent = message;
+                titleElement.textContent = 'Chyba';
+                fileListContainer.innerHTML = '';
+            }
 
             // --- Určení API URL ---
             function getApiUrl(basePath, hashPath) {
@@ -161,15 +169,7 @@
                 if (!hostname.endsWith('.github.io')) return `https://api.github.com/repos/dobrou/dobrou.github.io/contents/apps/${hashPath}`;
 
                 const owner = hostname.split('.')[0];
-                const pathParts = window.location.pathname.split('/').filter(p => p);
-                
-                // Heuristika pro určení repozitáře
-                let repo = `${owner}.github.io`;
-                if (pathParts.length > 0 && pathParts[0] !== owner) {
-                    // Pokud je první část cesty jiná než vlastník, je to pravděpodobně projektový repozitář
-                    // Toto je zjednodušení, které nemusí pokrýt všechny případy
-                    // Pro dobrou.github.io/apps/ to ale nebude fungovat správně, proto zůstaneme u owner.github.io
-                }
+                const repo = `${owner}.github.io`;
                 
                 const fullPath = [basePath, hashPath].filter(Boolean).join('/');
                 return `https://api.github.com/repos/${owner}/${repo}/contents/${fullPath}`;
@@ -179,13 +179,17 @@
             async function fetchAndDisplayFiles() {
                 errorContainer.style.display = 'none';
                 
-                // Zjistíme základní cestu z URL, kde se nachází index.html
                 const basePath = window.location.pathname.replace(/index\.html$/, '').replace(/\/$/, '').substring(1);
                 const hashPath = getPathFromHash();
+
+                // Bezpečnostní kontrola: Zabráníme pokusům o přechod do nadřazených adresářů
+                if (hashPath.includes('..')) {
+                    showError("Neplatná cesta. Pokus o přechod do nadřazeného adresáře není povolen.");
+                    return;
+                }
+
                 const currentFullPath = [basePath, hashPath].filter(Boolean).join('/');
-                
                 const apiUrl = getApiUrl(basePath, hashPath);
-                
                 const pathSegments = currentFullPath.split('/').filter(p => p);
 
                 if (pathSegments.length > 0) {
@@ -196,7 +200,7 @@
                 }
 
                 try {
-                    const response = await fetch(apiUrl);
+                    const response = await fetch(apiUrl); // Odebrána autorizační hlavička
                     if (!response.ok) {
                         throw new Error(`GitHub API odpovědělo se statusem ${response.status}`);
                     }
@@ -205,22 +209,7 @@
                     fileListContainer.innerHTML = '';
                     const files = data.filter(file => file.name.toLowerCase() !== 'index.html');
                     
-                    if (hashPath) {
-                        const parentHashPath = hashPath.substring(0, hashPath.lastIndexOf('/'));
-                        const tile = document.createElement('a');
-                        tile.href = `#${parentHashPath}`;
-                        tile.className = 'tile';
-                        tile.setAttribute('tabindex', '0');
-                        tile.innerHTML = `
-                            <div class="letter-icon-container">
-                                <span class="letter-icon" style="color: #9ca3af;">..</span>
-                            </div>
-                            <span class="file-name">O úroveň výš</span>
-                        `;
-                        fileListContainer.appendChild(tile);
-                    }
-                    
-                    if (files.length === 0 && !hashPath) {
+                    if (files.length === 0) {
                         fileListContainer.innerHTML = `<p style="color: #9ca3af; grid-column: 1 / -1;">Tento adresář je prázdný.</p>`;
                         return;
                     }
@@ -235,7 +224,6 @@
                             tile.href = `#${newHashPath}`;
                         } else {
                             const filePath = fileName.endsWith('.html') ? fileName.slice(0, -5) : fileName;
-                            // Sestavení relativní cesty k souboru
                             tile.href = filePath;
                         }
 
@@ -258,10 +246,7 @@
                     setupNavigation();
 
                 } catch (err) {
-                    console.error("Chyba při načítání souborů:", err);
-                    errorContainer.style.display = 'block';
-                    errorMessageElement.textContent = err.message;
-                    titleElement.textContent = 'Chyba';
+                    showError(err.message);
                 }
             }
 

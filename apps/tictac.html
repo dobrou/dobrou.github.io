@@ -286,7 +286,6 @@
                 currentPlayer = 'X';
                 isGameActive = true;
                 isOpponentThinking = false;
-                
                 isFocusVisible = false;
 
                 boardElement.innerHTML = '';
@@ -307,13 +306,12 @@
                     cell.addEventListener('click', handleCellClick);
                 });
 
-                // Nastavení prvků pro zaměření
                 focusableElements = [
                     pvpButton, pvcButton, pvaButton,
                     ...cells,
                     resetButton
                 ];
-                focusIndex = focusableElements.indexOf(pvpButton); // Začínáme na prvním tlačítku
+                focusIndex = focusableElements.indexOf(pvpButton);
 
                 updateFocus();
                 updateStatus(`Hráč ${currentPlayer} je na řadě`);
@@ -338,62 +336,68 @@
                 makeMove(cellIndex);
             }
 
-            function handleGlobalKeyDown(event) {
+            // --- OPRAVA: Nové, oddělené funkce pro logiku ovládání ---
+            function navigate(direction) {
                 if (isOpponentThinking) return;
-                const key = event.key;
-                
-                if (key === 'Enter' || key === ' ') {
-                    event.preventDefault();
-                    const currentElement = focusableElements[focusIndex];
-                    if (currentElement.classList.contains('cell')) {
-                        makeMove(parseInt(currentElement.dataset.index));
-                    } else {
-                        currentElement.click();
-                    }
-                    return;
-                }
-
-                if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) return;
-                
-                event.preventDefault();
                 isFocusVisible = true;
                 
                 const oldIndex = focusIndex;
                 let newIndex = oldIndex;
-
-                // Logika navigace
                 const isModeRow = oldIndex >= 0 && oldIndex <= 2;
                 const isCell = oldIndex >= 3 && oldIndex <= 11;
                 const isResetRow = oldIndex === 12;
-                const cellIndex = oldIndex - 3; // index buňky (0-8)
+                const cellIndexInBoard = oldIndex - 3; // index 0-8
 
-                switch (key) {
-                    case 'ArrowLeft':
-                        if (oldIndex > 0) newIndex--;
+                switch (direction) {
+                    case 'left':
+                        if (oldIndex > 0 && oldIndex !== 3 && oldIndex !== 6 && oldIndex !== 9 && oldIndex !== 12) newIndex--;
                         break;
-                    case 'ArrowRight':
-                        if (oldIndex < focusableElements.length - 1) newIndex++;
+                    case 'right':
+                         if (oldIndex < focusableElements.length - 1 && oldIndex !== 2 && oldIndex !== 5 && oldIndex !== 8 && oldIndex !== 11) newIndex++;
                         break;
-                    case 'ArrowUp':
+                    case 'up':
                         if (isCell) {
-                            if (cellIndex >= 3) newIndex -= 3; // Přesun na buňku výše
-                            else newIndex = cellIndex; // Přesun na tlačítko režimu
+                            newIndex = (cellIndexInBoard >= 3) ? oldIndex - 3 : cellIndexInBoard;
                         } else if (isResetRow) {
-                            newIndex = 10; // Přesun na prostřední buňku spodního řádku
+                            newIndex = 10; // Prostřední buňka spodního řádku
                         }
                         break;
-                    case 'ArrowDown':
+                    case 'down':
                         if (isModeRow) {
-                            newIndex += 3; // Přesun na buňku níže
+                            newIndex = oldIndex + 3;
                         } else if (isCell) {
-                            if (cellIndex < 6) newIndex += 3; // Přesun na buňku níže
-                            else newIndex = 12; // Přesun na resetovací tlačítko
+                            newIndex = (cellIndexInBoard < 6) ? oldIndex + 3 : 12;
                         }
                         break;
                 }
                 
                 focusIndex = newIndex;
                 updateFocus();
+            }
+
+            function activateSelection() {
+                if (isOpponentThinking) return;
+                const currentElement = focusableElements[focusIndex];
+                if (currentElement.classList.contains('cell')) {
+                    makeMove(parseInt(currentElement.dataset.index));
+                } else {
+                    currentElement.click();
+                }
+            }
+            
+            function handleGlobalKeyDown(event) {
+                const key = event.key;
+                
+                if (key === 'Enter' || key === ' ') {
+                    event.preventDefault();
+                    activateSelection();
+                }
+
+                const directions = { 'ArrowUp': 'up', 'ArrowDown': 'down', 'ArrowLeft': 'left', 'ArrowRight': 'right' };
+                if (directions[key]) {
+                    event.preventDefault();
+                    navigate(directions[key]);
+                }
             }
             
             function makeMove(cellIndex) {
@@ -513,7 +517,10 @@
 
             function gamepadLoop() {
                 const gamepads = navigator.getGamepads().filter(p => p);
-                if (gamepads.length === 0) return;
+                if (gamepads.length === 0) {
+                    requestAnimationFrame(gamepadLoop); // Pokračovat v cyklu pro případné znovu připojení
+                    return;
+                }
 
                 const now = Date.now();
                 if (now - lastInputTime < INPUT_COOLDOWN) {
@@ -524,7 +531,7 @@
                 for (const gamepad of gamepads) {
                     if (handleGamepadInput(gamepad)) {
                         lastInputTime = now;
-                        break; // Zpracovat pouze jeden vstup za cyklus
+                        break;
                     }
                 }
                 
@@ -542,28 +549,29 @@
                 const stickLeft = gamepad.axes[0] < -deadzone;
                 const stickRight = gamepad.axes[0] > deadzone;
 
-                let inputDetected = false;
-
                 if (dpadUp || stickUp) {
-                    handleGlobalKeyDown({ key: 'ArrowUp', preventDefault: () => {} });
-                    inputDetected = true;
-                } else if (dpadDown || stickDown) {
-                    handleGlobalKeyDown({ key: 'ArrowDown', preventDefault: () => {} });
-                    inputDetected = true;
-                } else if (dpadLeft || stickLeft) {
-                    handleGlobalKeyDown({ key: 'ArrowLeft', preventDefault: () => {} });
-                    inputDetected = true;
-                } else if (dpadRight || stickRight) {
-                    handleGlobalKeyDown({ key: 'ArrowRight', preventDefault: () => {} });
-                    inputDetected = true;
+                    navigate('up');
+                    return true;
+                }
+                if (dpadDown || stickDown) {
+                    navigate('down');
+                    return true;
+                }
+                if (dpadLeft || stickLeft) {
+                    navigate('left');
+                    return true;
+                }
+                if (dpadRight || stickRight) {
+                    navigate('right');
+                    return true;
                 }
 
                 if (gamepad.buttons[0].pressed) {
-                    handleGlobalKeyDown({ key: 'Enter', preventDefault: () => {} });
-                    inputDetected = true;
+                    activateSelection();
+                    return true;
                 }
                 
-                return inputDetected;
+                return false;
             }
 
             function updateFocus() {

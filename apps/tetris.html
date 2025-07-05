@@ -299,6 +299,7 @@
             }
             
             drop() {
+                if (this.gameOver) return;
                 this.piece.pos.y++;
                 if (this.collide()) {
                     this.piece.pos.y--;
@@ -308,7 +309,7 @@
                     this.clearLines();
                     if (this.collide()) {
                         this.gameOver = true;
-                        console.log(`Player ${this.id + 1} Game Over`);
+                        console.log(`Hráč ${this.id + 1} prohrál.`);
                     }
                 }
                 this.dropCounter = 0;
@@ -320,7 +321,7 @@
                     this.piece.pos.y++;
                 }
                 this.piece.pos.y--;
-                this.drop(); // Call drop to handle merge, new piece, etc.
+                this.drop();
             }
 
             move(dir) {
@@ -340,7 +341,7 @@
                     this.piece.pos.x += offset;
                     offset = -(offset + (offset > 0 ? 1 : -1));
                     if (offset > this.piece.matrix[0].length) {
-                        this.rotateMatrix(this.piece.matrix); // Rotate back
+                        this.rotateMatrix(this.piece.matrix);
                         this.piece.pos.x = originalPos;
                         return;
                     }
@@ -408,7 +409,6 @@
             }
 
             draw() {
-                // Clear main board with grid color
                 this.ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid-color').trim();
                 this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
                 
@@ -417,10 +417,9 @@
                     this.drawMatrix(this.piece.matrix, this.piece.pos, this.ctx);
                 }
 
-                // Draw per-player game over screen
                 if (this.gameOver) {
                     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-                    this.ctx.fillRect(0, 0, COLS, ROWS); // Using scaled units
+                    this.ctx.fillRect(0, 0, COLS, ROWS);
                     this.ctx.font = '2px "Press Start 2P"';
                     this.ctx.fillStyle = 'white';
                     this.ctx.textAlign = 'center';
@@ -428,7 +427,6 @@
                     this.ctx.fillText('HRY', COLS / 2, ROWS / 2 + 1.5);
                 }
 
-                // Clear and draw next piece
                 this.nextCtx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid-color').trim();
                 this.nextCtx.fillRect(0, 0, this.nextCanvas.width, this.nextCanvas.height);
                 if (this.nextPiece) {
@@ -443,7 +441,6 @@
                     row.forEach((value, x) => {
                         if (value !== 0) {
                             context.fillStyle = COLORS[value];
-                            // Draw slightly smaller to create grid lines from background
                             context.fillRect(x + offset.x + 0.05, y + offset.y + 0.05, 0.9, 0.9);
                         }
                     });
@@ -459,20 +456,18 @@
         // --- Game Loop and Controls ---
 
         function initGame(playerCount) {
-            // Show instructions and set a timer to hide them
             const instructions = document.getElementById('instructions');
             instructions.style.display = 'block';
             instructions.style.opacity = '1';
             setTimeout(() => {
                 instructions.style.opacity = '0';
-                // After transition, set display to none to free up space
                 setTimeout(() => {
                     instructions.style.display = 'none';
-                }, 1500); // Must match CSS transition duration
-            }, 5000); // Hide after 5 seconds
+                }, 1500);
+            }, 5000);
 
             numPlayers = playerCount;
-            document.getElementById('game-container').innerHTML = ''; // Clear previous setup
+            document.getElementById('game-container').innerHTML = '';
             players = [];
             for (let i = 0; i < numPlayers; i++) {
                 players.push(new Player(i));
@@ -484,17 +479,17 @@
             
             playerGamepadMap.clear();
             try {
-                const connectedPads = navigator.getGamepads();
+                const connectedPads = navigator.getGamepads().filter(p => p);
                 let assignedCount = 0;
                 for (const pad of connectedPads) {
                     if (pad && assignedCount < playerCount) {
                         playerGamepadMap.set(assignedCount, pad.index);
-                        console.log(`Assigned gamepad ${pad.index} to player ${assignedCount + 1} on init.`);
+                        console.log(`Přiřazen ovladač ${pad.index} hráči ${assignedCount + 1}.`);
                         assignedCount++;
                     }
                 }
             } catch (e) {
-                console.error("Could not access gamepads on init:", e);
+                console.error("Chyba při přístupu k ovladačům při inicializaci:", e);
             }
 
             lastTime = 0;
@@ -506,7 +501,7 @@
             const deltaTime = time - lastTime;
             lastTime = time;
 
-            handleGamepadInput();
+            handleGamepadInput(deltaTime); // Pass deltaTime
 
             let allGameOver = true;
             players.forEach(player => {
@@ -519,13 +514,12 @@
 
             if (allGameOver) {
                 document.getElementById('game-over-overlay').style.display = 'flex';
-                cancelAnimationFrame(animationFrameId); // Stop the loop
+                cancelAnimationFrame(animationFrameId);
             } else {
                 animationFrameId = requestAnimationFrame(gameLoop);
             }
         }
         
-        // Keyboard Controls
         const keyMap = {
             ArrowLeft:  p => p.move(-1), ArrowRight: p => p.move(1), ArrowUp:    p => p.rotate(), ArrowDown:  p => p.drop(), Shift:      p => p.hardDrop(),
             KeyA:       p => p.move(-1), KeyD:       p => p.move(1), KeyW:       p => p.rotate(), KeyS:       p => p.drop(), KeyQ:       p => p.hardDrop(),
@@ -550,73 +544,123 @@
             }
         });
         
-        // Gamepad Controls
+        // --- Gamepad Controls (REVISED LOGIC) ---
+        function checkGamepadStatusAndRestartIfNeeded() {
+            try {
+                const connectedPads = navigator.getGamepads().filter(p => p);
+                const connectedCount = connectedPads.length;
+
+                if (connectedCount > 1 && numPlayers !== 2) {
+                    console.log("Druhý ovladač detekován, restartuji pro 2 hráče.");
+                    initGame(2);
+                } else if (connectedCount < 2 && numPlayers === 2) {
+                    console.log("Ovladač odpojen, restartuji pro 1 hráče.");
+                    initGame(1);
+                } else if (connectedCount === 1 && numPlayers === 1 && playerGamepadMap.size === 0) {
+                    console.log("První ovladač detekován, přiřazuji.");
+                    initGame(1);
+                }
+            } catch (e) {
+                console.error("Chyba při kontrole stavu ovladačů:", e);
+            }
+        }
+
         function onGamepadConnected(e) {
-            const gamepad = e.gamepad;
-            console.log(`Gamepad connected: index ${gamepad.index}, id: ${gamepad.id}.`);
-
-            const isAlreadyAssigned = [...playerGamepadMap.values()].includes(gamepad.index);
-            if (isAlreadyAssigned) return;
-
-            const unassignedPlayer = players.find(p => ![...playerGamepadMap.keys()].includes(p.id));
-            
-            if (unassignedPlayer) {
-                playerGamepadMap.set(unassignedPlayer.id, gamepad.index);
-                console.log(`Assigned gamepad ${gamepad.index} to player ${unassignedPlayer.id + 1}`);
-            }
-
-            if (playerGamepadMap.size > 1 && numPlayers !== 2) {
-                initGame(2);
-            }
+            console.log(`Ovladač připojen: index ${e.gamepad.index}.`);
+            checkGamepadStatusAndRestartIfNeeded();
         }
 
         function onGamepadDisconnected(e) {
-            console.log(`Gamepad disconnected: index ${e.gamepad.index}.`);
-            for (const [playerId, gamepadIndex] of playerGamepadMap.entries()) {
-                if (gamepadIndex === e.gamepad.index) {
-                    playerGamepadMap.delete(playerId);
-                    console.log(`Unassigned gamepad ${e.gamepad.index} from player ${playerId + 1}`);
-                    break;
-                }
-            }
+            console.log(`Ovladač odpojen: index ${e.gamepad.index}.`);
+            playerGamepadMap.clear();
+            checkGamepadStatusAndRestartIfNeeded();
         }
 
-        let gamepadStates = {}; // To handle button presses once per press
-        function handleGamepadInput() {
+        let buttonPressStates = {};
+        let dasStates = {}; // Delayed Auto Shift states for each gamepad
+
+        function handleGamepadInput(deltaTime) {
             if (playerGamepadMap.size === 0) return;
             try {
                 const connectedPads = navigator.getGamepads();
                 if (!connectedPads) return;
 
-                let newGamepadStates = {};
+                const DAS_DELAY = 160; // Zpoždění před opakováním (ms)
+                const DAS_RATE = 50;   // Rychlost opakování (ms)
+                const SOFT_DROP_RATE = 50; // Rychlost pohybu dolů (ms)
+
+                let newButtonStates = {};
 
                 for (const [playerId, gamepadIndex] of playerGamepadMap.entries()) {
                     const pad = connectedPads[gamepadIndex];
                     const player = players.find(p => p.id === playerId);
 
                     if (pad && player) {
+                        // Inicializace stavu pro tento ovladač, pokud neexistuje
+                        if (!dasStates[gamepadIndex]) {
+                            dasStates[gamepadIndex] = {
+                                h: { dir: 0, timer: 0 }, // Horizontální
+                                v: { dir: 0, timer: 0 }  // Vertikální
+                            };
+                        }
+                        const state = dasStates[gamepadIndex];
+
+                        // --- Akce na jedno stisknutí ---
                         const wasButtonPressed = (buttonIndex) => {
                             const key = `${pad.index}-${buttonIndex}`;
                             const isPressed = pad.buttons[buttonIndex].pressed;
-                            newGamepadStates[key] = isPressed;
-                            return isPressed && !gamepadStates[key];
+                            newButtonStates[key] = isPressed;
+                            return isPressed && !buttonPressStates[key];
                         };
 
                         if (wasButtonPressed(9)) { initGame(numPlayers); return; }
                         if (player.gameOver) continue;
 
-                        if (pad.axes[0] < -0.5 || pad.buttons[14].pressed) player.move(-1);
-                        if (pad.axes[0] > 0.5 || pad.buttons[15].pressed) player.move(1);
-                        if (pad.axes[1] > 0.5 || pad.buttons[13].pressed) player.drop();
-                        
                         if (wasButtonPressed(0) || wasButtonPressed(12)) player.rotate();
                         if (wasButtonPressed(1)) player.hardDrop();
+
+                        // --- Opakované akce se zpožděním (pohyb) ---
+                        const hDir = (pad.axes[0] < -0.5 || pad.buttons[14].pressed) ? -1 : (pad.axes[0] > 0.5 || pad.buttons[15].pressed) ? 1 : 0;
+                        
+                        if (hDir === 0) {
+                            state.h.timer = 0; // Resetovat časovač při uvolnění
+                        } else {
+                            if (state.h.dir !== hDir) { // První stisk v tomto směru
+                                player.move(hDir);
+                                state.h.timer = DAS_DELAY; // Nastavit časovač pro další automatický posun
+                            } else { // Držení směru
+                                state.h.timer -= deltaTime;
+                                if (state.h.timer <= 0) {
+                                    player.move(hDir);
+                                    state.h.timer += DAS_RATE; // Přidat zpoždění pro *další* posun
+                                }
+                            }
+                        }
+                        state.h.dir = hDir;
+
+                        // --- Opakované akce (pohyb dolů) ---
+                        const vDir = (pad.axes[1] > 0.5 || pad.buttons[13].pressed) ? 1 : 0;
+                        if(vDir === 0) {
+                            state.v.timer = 0;
+                        } else {
+                            if (state.v.dir !== vDir) {
+                                player.drop();
+                                state.v.timer = SOFT_DROP_RATE;
+                            } else {
+                                state.v.timer -= deltaTime;
+                                if (state.v.timer <= 0) {
+                                    player.drop();
+                                    state.v.timer += SOFT_DROP_RATE;
+                                }
+                            }
+                        }
+                        state.v.dir = vDir;
 
                         player.draw();
                     }
                 }
-                gamepadStates = newGamepadStates;
-            } catch (e) { console.error("Error handling gamepad input:", e); }
+                buttonPressStates = newButtonStates;
+            } catch (e) { console.error("Chyba při zpracování vstupu z ovladače:", e); }
         }
 
         window.addEventListener("gamepadconnected", onGamepadConnected);
