@@ -151,7 +151,11 @@
             }
             
             function getPathFromHash() {
-                return window.location.hash.substring(1);
+                try {
+                    return decodeURIComponent(window.location.hash.substring(1));
+                } catch (e) {
+                    return window.location.hash.substring(1);
+                }
             }
 
             // --- Určení API URL ---
@@ -160,13 +164,10 @@
                 if (!hostname.endsWith('.github.io')) return FALLBACK_API_URL + getPathFromHash();
 
                 const owner = hostname.split('.')[0];
-                const pathParts = window.location.pathname.split('/').filter(p => p);
-                let repo = `${owner}.github.io`;
-
-                // Heuristika pro projektové stránky (owner.github.io/repo)
-                if (pathParts.length > 0) {
-                    repo = pathParts[0];
-                }
+                
+                // Oprava: Vždy předpokládáme, že repozitář je hlavní repozitář uživatele (owner.github.io).
+                // Cesta k obsahu se bere pouze z hashe.
+                const repo = `${owner}.github.io`;
                 
                 const contentPath = getPathFromHash();
                 return `https://api.github.com/repos/${owner}/${repo}/contents/${contentPath}`;
@@ -174,6 +175,8 @@
 
             // --- Načítání a vykreslování dat ---
             async function fetchAndDisplayFiles() {
+                // Skryjeme chybovou hlášku při každém novém načítání
+                errorContainer.style.display = 'none';
                 const apiUrl = getApiUrl();
                 const currentPath = getPathFromHash();
                 const pathSegments = currentPath.split('/').filter(p => p);
@@ -195,7 +198,23 @@
                     fileListContainer.innerHTML = '';
                     const files = data.filter(file => file.name.toLowerCase() !== 'index.html');
                     
-                    if (files.length === 0) {
+                    // Přidání dlaždice ".." pro návrat o úroveň výš, pokud nejsme v rootu
+                    if (currentPath) {
+                        const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
+                        const tile = document.createElement('a');
+                        tile.href = `#${parentPath}`;
+                        tile.className = 'tile';
+                        tile.setAttribute('tabindex', '0');
+                        tile.innerHTML = `
+                            <div class="letter-icon-container">
+                                <span class="letter-icon" style="color: #9ca3af;">..</span>
+                            </div>
+                            <span class="file-name">O úroveň výš</span>
+                        `;
+                        fileListContainer.appendChild(tile);
+                    }
+                    
+                    if (files.length === 0 && !currentPath) {
                         fileListContainer.innerHTML = `<p style="color: #9ca3af; grid-column: 1 / -1;">Tento adresář je prázdný.</p>`;
                         return;
                     }
@@ -210,8 +229,9 @@
                             tile.href = `#${newHashPath}`;
                         } else {
                             const filePath = fileName.endsWith('.html') ? fileName.slice(0, -5) : fileName;
-                            const basePath = window.location.pathname.replace(/index\.html$/, '');
-                            tile.href = `${basePath}${currentPath ? currentPath + '/' : ''}${filePath}`;
+                            // Odkazujeme relativně k aktuálnímu adresáři
+                            const fullPath = currentPath ? `${currentPath}/${filePath}` : filePath;
+                            tile.href = fullPath;
                         }
 
                         tile.className = 'tile';
@@ -250,6 +270,8 @@
                 if (tiles.length > 0) {
                     selectedIndex = 0;
                     updateFocus();
+                } else {
+                    selectedIndex = -1;
                 }
             }
             
@@ -343,12 +365,13 @@
                 gamepadLoop = requestAnimationFrame(gamepadHandler);
             }
 
+            // --- Prvotní načtení ---
             window.addEventListener('hashchange', fetchAndDisplayFiles);
             window.addEventListener('gamepadconnected', (e) => { console.log(`Gamepad připojen: ${e.gamepad.id}.`); });
             window.addEventListener('gamepaddisconnected', (e) => { console.log(`Gamepad odpojen: ${e.gamepad.id}.`); });
 
-            // --- Prvotní načtení ---
-            await fetchAndDisplayFiles();
+            // První načtení při startu
+            fetchAndDisplayFiles();
             gamepadHandler();
 
         })();
