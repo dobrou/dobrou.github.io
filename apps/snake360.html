@@ -1,4 +1,52 @@
 <!DOCTYPE html>
+<!--
+================================================================================
+Prompt pro znovuvytvoření této aplikace:
+================================================================================
+
+Vytvořte jednoduchou, statickou HTML webovou stránku s tmavým tématem, která obsahuje hru "Had".
+
+Základní principy:
+- Had se může volně pohybovat o 360 stupňů.
+- Hra musí být napsána v JavaScriptu (ES5) pro zajištění maximální kompatibility se staršími prohlížeči (např. na Tizen TV).
+- Celá hra (HTML, CSS, JS) musí být v jednom souboru.
+
+Herní mechaniky:
+- Hra začíná s jedním hráčem. Další hráči (až do celkového počtu 4) se automaticky přidají, jakmile je detekován vstup z nového, dosud nepřiřazeného ovládacího prvku.
+- Hadi začínají hru mírně natočení od sebe, aby se předešlo okamžitým srážkám.
+- Když had narazí do zdi, nezemře. Místo toho se otočí (ocas se stane hlavou), ztratí jeden bod a v místě nárazu se objeví malá animace exploze.
+- Když hlava jednoho hada narazí do těla jiného, narazivší had je vyřazen. Pokud se srazí dvě hlavy, jsou vyřazeni oba hadi.
+- Hra končí, když ve hře zůstane jeden nebo žádný hráč.
+- Ve hře se objevují různé typy jablek:
+    - 4 normální (zeleno-žlutá): +1 bod, +1 k délce.
+    - 1 zlaté: zdvojnásobí skóre a délku.
+    - 1 shnilé (hnědé): rozpůlí skóre a délku.
+    - 1 modré: rozpůlí délku, skóre se nemění.
+- Při snědení jablka se zobrazí animace jisker.
+- Růst hada po snědení jablka musí být postupný (o jeden segment za snímek), aby se předešlo kolizím.
+
+Ovládání:
+- Dynamické přiřazování ovládání: První použitý ovládací prvek je přiřazen hráči 1, druhý odlišný hráči 2 atd.
+- Podpora více typů ovládání současně:
+    - Klávesnice 1: Šipky vlevo/vpravo.
+    - Klávesnice 2: Klávesy 'A' a 'D'.
+    - Myš: Levé tlačítko pro otočení vlevo, pravé pro otočení vpravo.
+    - Dotyk: Klepnutí na levou/pravou polovinu obrazovky pro otočení.
+    - Gamepad: Podpora více gamepadů. Pro každý gamepad by měl být levý joystick, pravý joystick, D-pad a hlavní tlačítka (face buttons) považovány za samostatné, přiřaditelné ovládací prvky.
+- Na obrazovce "Game Over" musí být možné hru restartovat stisknutím klávesy Enter, hlavního tlačítka na gamepadu nebo kliknutím/klepnutím na tlačítko restartu.
+
+Vizuální styl a UI:
+- Herní plocha musí zabírat co největší část obrazovky a přizpůsobovat se jejímu poměru stran.
+- Skóre hráčů se vykresluje přímo na herní plátno v horní části, pod herními prvky.
+- Panel s nápovědou k ovládání se zobrazí ve spodní části a po 30 sekundách automaticky zmizí.
+- UI prvky (skóre, nápověda) musí být poloprůhledné, aby plně nezakrývaly herní plochu.
+- Tělo hada musí být pro zajištění výkonu vykresleno jako jedna optimalizovaná, tlustá čára se zaoblenými konci. Hlava se vykresluje jako samostatný kruh navrchu.
+
+Kód a stabilita:
+- Kód musí být stabilní a nesmí padat, zejména při dlouhých hadech nebo více hráčích.
+- Kolizní systém musí být robustní (např. grid-based), aby se předešlo falešným detekcím.
+================================================================================
+-->
 <html lang="en">
 <head>
     <meta charset="UTF-8">

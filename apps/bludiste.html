@@ -1,3 +1,47 @@
+<!--
+PROMPT PRO REKREACI APLIKACE:
+
+Vytvořte retro hru v HTML, CSS a JavaScriptu s následujícími vlastnostmi:
+
+Základní mechanika:
+- Hráč ovládá třešničku (🍒) v bludišti.
+- Cílem je najít portál (🌀) a postoupit do dalšího levelu.
+- V bludišti se pohybují nepřátelé (smajlíci), kteří hráče pronásledují. Dotyk ubírá život.
+
+Předměty a vylepšení:
+- Lektvar (🧪): Po sebrání dočasně (na 10 sekund) odstraní všechny pohyblivé nepřátele.
+- Obvaz (🩹): Doplní jeden život.
+- Klíč (🔑): V každém levelu je jeden klíč. Hráč ho musí sebrat, aby odemkl portál (změní se z 🔘 na 🌀).
+- Miska-past (🥣): V každém levelu je jedna. Pokud na ni hráč stoupne, je na 1.5 sekundy znehybněn a bliká. Poté je na 5 sekund imunní vůči této pasti.
+- Únikový lektvar (💥): Objeví se, když je hráč uvězněn ve slepé uličce. Po sebrání dočasně (na 6 sekund) otevře cestu v jedné z okolních zdí.
+
+Hráčovy schopnosti:
+- Skok: Hráč může skočit (mezerník/ťuknutí na displej), aby se vyhnul nepřátelům. Skok je deaktivován v posledním levelu s bossy.
+
+Hra pro dva hráče (kooperace):
+- Režim se aktivuje dynamicky, když se zapojí druhý hráč (stiskem WASD nebo na druhém gamepadu).
+- Druhý hráč ovládá jahodu (🍓).
+- Hráči mají společný, navýšený počet životů (10).
+- Pro postup do dalšího levelu musí oba hráči stát na portálu současně.
+- Nepřátelé vždy pronásledují hráče, který je k nim blíže.
+
+Finální boss level (Level 17):
+- Obsahuje 5 velkých, červených bossů.
+- Boss má rotující lasery, které ničí vnitřní zdi bludiště a ubírají život při dotyku.
+- Boss střílí projektily (🔥), které ubírají 2 životy a také ničí vnitřní zdi.
+
+Ovládání:
+- Klávesnice: Hráč 1 (šipky + mezerník), Hráč 2 (WASD + levý Shift).
+- Gamepad: Plná podpora pro dva hráče (pohyb D-Pad/páčkou, skok tlačítkem A).
+- Dotykové ovládání: Plynulý pohyb tažením prstu, skok krátkým ťuknutím.
+
+Ostatní:
+- Celkem 17 levelů s postupně se zvyšující obtížností.
+- Úvodní animace (Jaro, Léto, Podzim, Zima), kterou lze přeskočit stiskem libovolné klávesy.
+- Cheaty: 'LEVEL' + číslo/písmeno pro skok do levelu, 'KONEC' pro skok k finálnímu bossovi.
+- Responzivní design pro různá zařízení.
+- UI zobrazuje číslo levelu a počet životů.
+-->
 <!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -407,14 +451,14 @@
                 [1,0,1,0,0,0,0,0,1,0,1,1,1,0,1,0,1,0,1,0,1],
                 [1,0,1,0,1,1,1,1,1,0,0,0,1,0,1,0,1,0,0,0,1],
                 [1,0,1,0,1,0,0,0,0,0,0,0,1,0,0,0,1,1,1,0,1],
-                [1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,0,0,1,0,1],
+                [1,0,1,0,1,0,1,1,1,1,1,0,0,0,1,0,0,0,1,0,1],
                 [1,0,1,0,1,0,1,0,0,0,1,0,1,0,1,1,1,0,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,1,0,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],
                 [1,0,0,0,1,0,1,0,1,0,1,0,0,0,1,0,1,0,1,0,1],
                 [1,1,1,1,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0,1],
                 [1,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,1,0,0,0,1],
-                [1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,0,1,1,1,0,1],
+                [1,0,1,1,1,1,1,0,1,1,1,0,1,0,0,0,1,1,1,0,1],
                 [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1],
                 [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
             ],
