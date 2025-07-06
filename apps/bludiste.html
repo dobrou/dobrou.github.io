@@ -144,7 +144,7 @@
         let currentLevel = 1;
         let maze = [];
         let isGameOver = false;
-        let isTwoPlayerKeyboard = false;
+        let isTwoPlayerMode = false;
         
         let escapePotion = null;
         let openedWall = null;
@@ -785,7 +785,7 @@
             players = [new Player(1, 1)];
             
             const pads = navigator.getGamepads();
-            if ((pads && pads[0] && pads[1]) || isTwoPlayerKeyboard) {
+            if (isTwoPlayerMode) {
                 players.push(new Player(1, 2));
                 players[1].emoji = '🍓';
                 if (currentLevel === 1) lives = 10;
@@ -874,15 +874,43 @@
 
         function restartGame() {
             messageModal.classList.add('hidden');
-            isTwoPlayerKeyboard = false;
+            isTwoPlayerMode = false;
             currentLevel = 1;
             initLevel();
         }
 
         function handleGamepadInput() {
-            const pads = navigator.getGamepads();
+            const pads = navigator.getGamepads().filter(p => p);
+
+            // Dynamická aktivace 2. hráče
+            if (!isTwoPlayerMode && pads.length > 1) {
+                const pad2 = pads[1];
+                if (pad2 && (pad2.buttons.some(b => b.pressed) || pad2.axes.some(a => Math.abs(a) > 0.5))) {
+                    console.log(`Druhý gamepad aktivován. Restartuji pro 2 hráče.`);
+                    isTwoPlayerMode = true;
+                    initLevel();
+                    return;
+                }
+            }
             
-            if (pads[0]) {
+            // Ovládání hráče 1 (jakýkoliv aktivní gamepad pokud je sám)
+            if (players.length === 1 && pads.length > 0) {
+                 const activePad = pads.find(p => p && (p.buttons.some(b => b.pressed) || p.axes.some(a => Math.abs(a) > 0.5)));
+                 if(activePad) {
+                    const pad = activePad;
+                    keysPressed['gp0_up'] = pad.axes[1] < -0.5 || pad.buttons[12].pressed;
+                    keysPressed['gp0_down'] = pad.axes[1] > 0.5 || pad.buttons[13].pressed;
+                    keysPressed['gp0_left'] = pad.axes[0] < -0.5 || pad.buttons[14].pressed;
+                    keysPressed['gp0_right'] = pad.axes[0] > 0.5 || pad.buttons[15].pressed;
+                    if (pad.buttons[0].pressed && !pad.buttons[0].lastPressed) {
+                        players[0].jump();
+                    }
+                    pad.buttons.forEach((btn, i) => {
+                        if(!pad.buttons[i]) pad.buttons[i] = {};
+                        pad.buttons[i].lastPressed = btn.pressed
+                    });
+                 }
+            } else if (players.length > 1 && pads[0]) { // Hráč 1 v režimu dvou hráčů
                 const pad = pads[0];
                 keysPressed['gp0_up'] = pad.axes[1] < -0.5 || pad.buttons[12].pressed;
                 keysPressed['gp0_down'] = pad.axes[1] > 0.5 || pad.buttons[13].pressed;
@@ -894,6 +922,7 @@
                 pad.buttons[0].lastPressed = pad.buttons[0].pressed;
             }
 
+            // Ovládání hráče 2
             if (players.length > 1 && pads[1]) {
                 const pad = pads[1];
                 keysPressed['gp1_up'] = pad.axes[1] < -0.5 || pad.buttons[12].pressed;
@@ -910,7 +939,7 @@
         function gameLoop() {
             if (isGameOver) {
                 const pads = navigator.getGamepads();
-                if (pads[0] && pads[0].buttons[0].pressed) {
+                if (pads[0] && pads[0].buttons.some(b => b.pressed)) {
                     restartGame();
                 }
             } else {
@@ -1179,14 +1208,14 @@
 
         function checkPlayerCount() {
             const pads = navigator.getGamepads().filter(p => p);
-            const numPlayers = Math.max(1, pads.length);
             
-            if (numPlayers > players.length) {
-                console.log(`Počet hráčů se změnil na ${numPlayers}. Restartuji level.`);
-                initLevel();
-            } else if (numPlayers < players.length && !isTwoPlayerKeyboard){
-                 console.log(`Počet hráčů se změnil na ${numPlayers}. Restartuji level.`);
-                initLevel();
+            if (!isTwoPlayerMode && pads.length > 1) {
+                 const pad2 = pads[1];
+                 if (pad2 && (pad2.buttons.some(b => b.pressed) || pad2.axes.some(a => Math.abs(a) > 0.5))) {
+                    console.log(`Druhý gamepad aktivován. Restartuji pro 2 hráče.`);
+                    isTwoPlayerMode = true;
+                    initLevel();
+                 }
             }
         }
 
@@ -1200,13 +1229,10 @@
             }
 
             const key = e.key.toLowerCase();
-            if (players.length < 2 && ['w','a','s','d'].includes(key)) {
-                const pads = navigator.getGamepads().filter(p => p);
-                if (pads.length < 2) { 
-                    isTwoPlayerKeyboard = true;
-                    initLevel();
-                    return;
-                }
+            if (!isTwoPlayerMode && ['w','a','s','d'].includes(key)) {
+                isTwoPlayerMode = true;
+                initLevel();
+                return;
             }
 
             if (e.code === 'Space') players[0]?.jump();
@@ -1310,7 +1336,7 @@
             document.getElementById('canvas-wrapper').style.visibility = 'hidden';
 
             const pads = navigator.getGamepads();
-            if ((pads && pads[0] && pads[1]) || isTwoPlayerKeyboard) {
+            if ((pads && pads[0] && pads[1]) || isTwoPlayerMode) {
                 fruit2.style.display = 'inline';
             }
 
