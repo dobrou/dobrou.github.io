@@ -94,7 +94,7 @@
         const BALL_RADIUS = 10;
         const PADDLE_SPEED = 8;
         const BASE_AI_SPEED = 5;
-        const BASE_BALL_SPEED = 3;
+        const BASE_BALL_SPEED = 6; // Zvýšeno 2x
         const WINNING_SCORE = 10;
 
         let ball, player1Paddles, player2Paddles, keys, gamepads;
@@ -109,7 +109,7 @@
         let ballSpeed, aiSpeed, baseBounceFactor;
         let gameSpeedMultiplier = 1.0;
         const MIN_SPEED_MULTIPLIER = 0.5;
-        const MAX_SPEED_MULTIPLIER = 2.0;
+        const MAX_SPEED_MULTIPLIER = 3.0; 
         let speedIndicatorTimeout;
 
         // --- Správa ovládání ---
@@ -296,11 +296,11 @@
             let speedChanged = false;
             // Klávesnice: - a +
             if (keys['-']) {
-                gameSpeedMultiplier -= 0.01;
+                gameSpeedMultiplier -= 0.02;
                 speedChanged = true;
             }
             if (keys['='] || keys['+']) { // Klávesa pro '+'
-                gameSpeedMultiplier += 0.01;
+                gameSpeedMultiplier += 0.02;
                 speedChanged = true;
             }
 
@@ -314,11 +314,11 @@
                 const rbPressed = gamepad.buttons[5]?.pressed;
 
                 if (lbPressed) {
-                    gameSpeedMultiplier -= 0.01;
+                    gameSpeedMultiplier -= 0.02;
                     speedChanged = true;
                 }
                 if (rbPressed) {
-                    gameSpeedMultiplier += 0.01;
+                    gameSpeedMultiplier += 0.02;
                     speedChanged = true;
                 }
             }
@@ -389,6 +389,7 @@
                 const leftStickControl = (i === 0) ? controlTypes.GAMEPAD_0_LEFT : controlTypes.GAMEPAD_1_LEFT;
                 const rightStickControl = (i === 0) ? controlTypes.GAMEPAD_0_RIGHT : controlTypes.GAMEPAD_1_RIGHT;
 
+                // Levý joystick - pohyb
                 const leftStickY = gamepad.axes[1];
                 let primaryPaddle = playerPaddles[0];
                 if (primaryPaddle && Math.abs(leftStickY) > 0.1) {
@@ -403,6 +404,7 @@
                     primaryPaddle.dx = 0; primaryPaddle.dy = 0;
                 }
 
+                // D-Pad - změna velikosti pro všechny pálky hráče
                 let change = 0;
                 if (gamepad.buttons[14]?.pressed) change = -5;
                 if (gamepad.buttons[15]?.pressed) change = 5;
@@ -414,15 +416,20 @@
                     });
                 }
 
+                // Pravý joystick - druhá pálka
                 const rightStickY = gamepad.axes[3];
                 let secondaryPaddle = playerPaddles.find(p => p.control === rightStickControl);
                 if (Math.abs(rightStickY) > 0.1) {
-                    if (!secondaryPaddle) {
-                        secondaryPaddle = createPaddle(playerNum, rightStickControl);
-                        playerPaddles.push(secondaryPaddle);
+                    if (playerNum === 2 && primaryPaddle.control === controlTypes.AI) {
+                        // Nelze přidat druhou pálku, dokud AI hraje
+                    } else {
+                        if (!secondaryPaddle) {
+                            secondaryPaddle = createPaddle(playerNum, rightStickControl);
+                            playerPaddles.push(secondaryPaddle);
+                        }
+                        if (gameOrientation === 'horizontal') secondaryPaddle.dy = rightStickY * PADDLE_SPEED;
+                        else secondaryPaddle.dx = rightStickY * PADDLE_SPEED;
                     }
-                    if (gameOrientation === 'horizontal') secondaryPaddle.dy = rightStickY * PADDLE_SPEED;
-                    else secondaryPaddle.dx = rightStickY * PADDLE_SPEED;
                 } else if (secondaryPaddle) {
                     secondaryPaddle.dx = 0; secondaryPaddle.dy = 0;
                 }
