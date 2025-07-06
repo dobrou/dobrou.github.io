@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser in Browser</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+        /* Loading animation */
+        @keyframes pulse {
+            50% {
+                opacity: .5;
+            }
+        }
+        .animate-pulse-fast {
+            animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        /* Console input focus */
+        #console-input:focus {
+            outline: none;
+        }
+        /* Hide scrollbar for console output but allow scrolling */
+        #console-output::-webkit-scrollbar {
+            display: none;
+        }
+        #console-output {
+            -ms-overflow-style: none; /* IE and Edge */
+            scrollbar-width: none; /* Firefox */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white h-screen flex flex-col">
+
+    <!-- Top Bar: Controls -->
+    <header class="bg-gray-800/80 backdrop-blur-sm border-b border-gray-700 p-2 shadow-lg z-10">
+        <div class="max-w-screen-xl mx-auto flex items-center gap-2">
+            <!-- Back/Forward/Refresh Buttons -->
+            <button id="back-btn" disabled class="p-2 rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-300"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+            </button>
+            <button id="forward-btn" disabled class="p-2 rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-300"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </button>
+            <button id="refresh-btn" class="p-2 rounded-md hover:bg-gray-700 transition-colors">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-300"><path d="M3 2v6h6"/><path d="M21 12A9 9 0 0 0 6 5.3L3 8"/><path d="M21 22v-6h-6"/><path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"/></svg>
+            </button>
+
+            <!-- Address Bar -->
+            <div class="flex-1 relative">
+                <i class="fa-solid fa-lock text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                <input type="text" id="address-bar" placeholder="Enter URL e.g., en.wikipedia.org/wiki/Web_browser" class="w-full bg-gray-900 border border-gray-700 rounded-md py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none transition-shadow">
+            </div>
+
+            <!-- Go Button -->
+            <button id="go-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
+                Go
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden p-2 md:p-4 gap-4">
+        
+        <!-- Left Half: Rendered Page -->
+        <div class="flex-1 flex flex-col bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+            <div id="loader" class="flex-1 flex items-center justify-center bg-gray-800">
+                <div class="text-center">
+                    <svg class="mx-auto h-12 w-12 text-gray-500 animate-pulse-fast" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <p class="mt-2 text-sm text-gray-400">Enter a URL above to start browsing</p>
+                </div>
+            </div>
+            <iframe id="browser-frame" class="w-full h-full border-0 hidden"></iframe>
+        </div>
+
+        <!-- Right Half: Developer Tools -->
+        <div class="flex-1 flex flex-col bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-700 bg-gray-700/50">
+                <button data-tab="dom" class="dev-tab px-4 py-2 text-sm font-medium border-b-2 border-blue-500 text-white">DOM Inspector</button>
+                <button data-tab="console" class="dev-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-white">Console</button>
+                <button data-tab="network" class="dev-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-white">Network</button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="flex-1 overflow-auto relative">
+                <!-- DOM Inspector -->
+                <div id="dom-content" class="dev-tab-content p-4">
+                    <pre id="dom-inspector-content" class="text-xs text-gray-400 whitespace-pre-wrap break-all"></pre>
+                </div>
+                <!-- Console -->
+                <div id="console-content" class="dev-tab-content hidden flex-col h-full">
+                    <div id="console-output" class="flex-1 p-2 text-xs font-mono overflow-y-auto"></div>
+                    <div class="flex items-center border-t border-gray-700 bg-gray-900/50">
+                        <i class="fa-solid fa-chevron-right text-gray-500 px-2"></i>
+                        <input type="text" id="console-input" class="flex-1 p-2 bg-transparent text-white text-xs font-mono" placeholder="Run JavaScript in iframe context...">
+                    </div>
+                </div>
+                <!-- Network -->
+                <div id="network-content" class="dev-tab-content hidden p-2">
+                     <div id="network-log" class="text-xs font-mono text-gray-300"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const iframe = document.getElementById('browser-frame');
+            const loader = document.getElementById('loader');
+            const addressBar = document.getElementById('address-bar');
+            const goBtn = document.getElementById('go-btn');
+            const backBtn = document.getElementById('back-btn');
+            const forwardBtn = document.getElementById('forward-btn');
+            const refreshBtn = document.getElementById('refresh-btn');
+
+            // DevTools Elements
+            const devTabs = document.querySelectorAll('.dev-tab');
+            const devTabContents = document.querySelectorAll('.dev-tab-content');
+            const domInspectorContent = document.getElementById('dom-inspector-content');
+            const consoleOutput = document.getElementById('console-output');
+            const consoleInput = document.getElementById('console-input');
+            const networkLog = document.getElementById('network-log');
+
+            // --- State ---
+            let history = [];
+            let historyIndex = -1;
+
+            // --- Functions ---
+
+            /**
+             * Navigates the iframe to a given URL.
+             * @param {string} url - The URL to load.
+             * @param {boolean} [addToHistory=true] - Whether to add this navigation to the history stack.
+             */
+            function navigateTo(url, addToHistory = true) {
+                if (!url) return;
+
+                let properUrl = url.trim();
+                if (!/^https?:\/\//i.test(properUrl)) {
+                    properUrl = 'https://' + properUrl;
+                }
+
+                showLoader(true);
+                logToNetwork(`Requesting: ${properUrl}`, 'pending');
+                
+                iframe.src = properUrl;
+
+                if (addToHistory) {
+                    if (historyIndex < history.length - 1) {
+                        history = history.slice(0, historyIndex + 1);
+                    }
+                    history.push(properUrl);
+                    historyIndex++;
+                }
+                
+                addressBar.value = properUrl;
+                updateNavButtons();
+            }
+            
+            function showLoader(isLoading) {
+                if(isLoading) {
+                    loader.classList.remove('hidden');
+                    loader.classList.add('flex');
+                    iframe.classList.add('hidden');
+                } else {
+                    loader.classList.add('hidden');
+                    loader.classList.remove('flex');
+                    iframe.classList.remove('hidden');
+                }
+            }
+
+            function updateNavButtons() {
+                backBtn.disabled = historyIndex <= 0;
+                forwardBtn.disabled = historyIndex >= history.length - 1;
+            }
+
+            function updateDomInspector() {
+                const iframeSrc = iframe.getAttribute('src');
+                if (!iframeSrc || iframeSrc === 'about:blank') {
+                    domInspectorContent.textContent = `// DOM Inspector is ready. Load a page to inspect it.`;
+                    return;
+                }
+                const warningMessage = `// --- Cross-Origin Security Warning ---\n// The browser's security policy (CORS) prevents reading the DOM of this iframe because it's from a different origin (${new URL(iframeSrc).origin}).\n// This is a fundamental web security feature.\n// As a fallback, displaying the iframe's own HTML structure.\n// ------------------------------------\n\n`;
+                const iframeHtml = `<iframe \n    id="${iframe.id}" \n    src="${iframeSrc}"\n    class="${iframe.className}"\n>\n    <!-- Content is loaded here from an external source -->\n</iframe>`;
+                domInspectorContent.textContent = warningMessage + iframeHtml;
+            }
+
+            function logToConsole(message, type = 'log') {
+                const entry = document.createElement('div');
+                let icon = '';
+                let colorClass = 'text-gray-300';
+                if (type === 'error') {
+                    colorClass = 'text-red-400';
+                    icon = '<i class="fa-solid fa-circle-exclamation mr-2"></i>';
+                } else if (type === 'warn') {
+                    colorClass = 'text-yellow-400';
+                    icon = '<i class="fa-solid fa-triangle-exclamation mr-2"></i>';
+                } else if (type === 'input') {
+                    colorClass = 'text-blue-400';
+                    icon = '<i class="fa-solid fa-chevron-left text-gray-500 mr-2"></i>';
+                }
+                entry.className = `py-1 px-2 border-b border-gray-700/50 ${colorClass}`;
+                entry.innerHTML = `${icon}${message}`;
+                consoleOutput.appendChild(entry);
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            }
+
+            function logToNetwork(url, status) {
+                 const entry = document.createElement('div');
+                 let statusColor = 'text-yellow-400';
+                 if (status === 'success') statusColor = 'text-green-400';
+                 if (status === 'failed') statusColor = 'text-red-400';
+
+                 entry.innerHTML = `<span class="mr-4 ${statusColor}">${status.toUpperCase()}</span> <span>${url}</span>`;
+                 networkLog.appendChild(entry);
+            }
+
+            function executeConsoleCode(code) {
+                logToConsole(code, 'input');
+                try {
+                    // This will fail for cross-origin iframes, which is expected.
+                    const result = iframe.contentWindow.eval(code);
+                    logToConsole(result === undefined ? 'undefined' : JSON.stringify(result), 'log');
+                } catch (e) {
+                    logToConsole(e.message, 'error');
+                }
+            }
+
+
+            // --- Event Listeners ---
+
+            goBtn.addEventListener('click', () => navigateTo(addressBar.value));
+            addressBar.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') navigateTo(addressBar.value);
+            });
+            backBtn.addEventListener('click', () => {
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    navigateTo(history[historyIndex], false);
+                }
+            });
+            forwardBtn.addEventListener('click', () => {
+                if (historyIndex < history.length - 1) {
+                    historyIndex++;
+                    navigateTo(history[historyIndex], false);
+                }
+            });
+            refreshBtn.addEventListener('click', () => {
+                if (iframe.src && iframe.src !== 'about:blank') {
+                    iframe.contentWindow.location.reload();
+                }
+            });
+
+            iframe.addEventListener('load', () => {
+                showLoader(false);
+                const currentUrl = iframe.src;
+                logToNetwork(currentUrl, 'success');
+                try {
+                    const finalUrl = iframe.contentWindow.location.href;
+                    addressBar.value = finalUrl;
+                    if (history[historyIndex] !== finalUrl) {
+                       history[historyIndex] = finalUrl;
+                    }
+                } catch (e) {
+                    console.warn("Could not access iframe's location due to cross-origin restrictions.");
+                }
+                updateDomInspector();
+            });
+            
+            iframe.addEventListener('error', () => {
+                showLoader(true); // Keep loader if error
+                const failedUrl = iframe.src;
+                logToNetwork(failedUrl, 'failed');
+                logToConsole(`Error: Failed to load URL: ${failedUrl}. It may be blocked from being iframed.`, 'error');
+            });
+
+            // DevTools Tab switching
+            devTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    devTabs.forEach(t => {
+                        t.classList.remove('border-blue-500', 'text-white');
+                        t.classList.add('border-transparent', 'text-gray-400');
+                    });
+                    tab.classList.add('border-blue-500', 'text-white');
+                    tab.classList.remove('border-transparent', 'text-gray-400');
+
+                    const target = tab.dataset.tab;
+                    devTabContents.forEach(content => {
+                        content.classList.add('hidden');
+                    });
+                    document.getElementById(`${target}-content`).classList.remove('hidden');
+                });
+            });
+
+            // Console input
+            consoleInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && consoleInput.value.trim() !== '') {
+                    executeConsoleCode(consoleInput.value);
+                    consoleInput.value = '';
+                }
+            });
+
+            // --- Initial State ---
+            updateNavButtons();
+            updateDomInspector();
+            logToConsole('JavaScript console ready. Note: Execution is subject to iframe cross-origin policies.', 'warn');
+        });
+    </script>
+</body>
+</html>
