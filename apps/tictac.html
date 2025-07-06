@@ -20,7 +20,13 @@
             --focus-color: #007bff;
         }
 
-        /* Základní reset a stylování těla */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--background-color);
@@ -28,47 +34,49 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-            overflow: hidden; /* Skryje posuvníky, které by se mohly objevit kvůli ohňostroji */
         }
 
-        /* Hlavní kontejner hry */
         .game-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 1.5rem;
+            justify-content: center;
+            gap: 2vh;
             text-align: center;
+            width: 100%;
+            height: 100%;
+            padding: 2vmin;
+            box-sizing: border-box;
         }
 
         h1 {
-            font-size: 2.5rem;
+            font-size: clamp(2rem, 6vmin, 4rem);
             margin: 0;
             font-weight: 700;
             letter-spacing: 2px;
         }
 
-        /* Výběr herního režimu */
         .mode-container {
             display: flex;
             justify-content: center;
-            gap: 0.75rem;
+            gap: 2vmin;
         }
 
-        .mode-button {
+        .mode-button, #resetButton {
             background-color: transparent;
             color: var(--text-color);
             border: 2px solid var(--border-color);
             border-radius: 8px;
-            padding: 10px 12px; 
-            font-size: 0.9rem;
+            padding: 1.5vmin 2.5vmin; 
+            font-size: clamp(0.8rem, 2.5vmin, 1.2rem);
             font-weight: bold;
             cursor: pointer;
-            transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+            transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
             white-space: nowrap;
+        }
+        
+        #resetButton {
+             padding: 1.8vmin 3.5vmin;
         }
 
         .mode-button.active {
@@ -76,27 +84,27 @@
             border-color: var(--text-color);
         }
 
-        .mode-button:not(.active):hover {
+        .mode-button:not(.active):hover, #resetButton:hover {
             background-color: var(--cell-color);
+            transform: translateY(-2px);
         }
 
-        /* Herní plocha */
         .board {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            width: 320px;
-            height: 320px;
+            gap: 1.5vmin;
+            /* OPRAVA: Dynamická velikost herní plochy */
+            width: 65vmin;
+            max-width: 500px;
+            aspect-ratio: 1 / 1;
             transition: opacity 0.3s ease;
         }
         
-        /* Styl, když AI/Počítač přemýšlí */
         .board.thinking {
             opacity: var(--disabled-opacity);
             pointer-events: none;
         }
 
-        /* Buňky */
         .cell {
             background-color: var(--cell-color);
             border: 2px solid var(--border-color);
@@ -104,7 +112,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 4rem;
+            font-size: 15vmin;
             font-weight: bold;
             line-height: 1;
             cursor: pointer;
@@ -117,10 +125,9 @@
         }
 
         .cell:focus, .mode-button:focus, #resetButton:focus {
-            outline: none; /* Odstranění výchozího outline */
+            outline: none;
         }
         
-        /* Vlastní indikátor zaměření pro klávesnici a gamepad */
         .focus-visible {
             border-color: var(--focus-color) !important;
             box-shadow: 0 0 10px var(--focus-color) !important;
@@ -134,7 +141,6 @@
         .cell.X { color: var(--x-color); }
         .cell.O { color: var(--o-color); }
 
-        /* Stavový displej a resetovací tlačítko */
         .status-container {
             min-height: 3rem; 
             display: flex;
@@ -143,7 +149,7 @@
         }
         
         #status {
-            font-size: 1.5rem;
+            font-size: clamp(1.2rem, 4vmin, 2rem);
             font-weight: 400;
         }
         
@@ -152,24 +158,6 @@
             color: var(--o-color);
         }
 
-        #resetButton {
-            background-color: var(--cell-color);
-            color: var(--text-color);
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            padding: 12px 24px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.2s ease, transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-        
-        #resetButton:hover {
-            background-color: var(--accent-color);
-            transform: translateY(-2px);
-        }
-
-        /* Animace vítězství */
         .winning-cell {
             background-color: #2c3e50 !important; 
             animation: pulse 0.8s infinite alternate;
@@ -180,7 +168,6 @@
             to { transform: scale(1.05); }
         }
 
-        /* Animace ohňostroje */
         .fireworks-container {
             position: fixed;
             top: 0;
@@ -208,23 +195,6 @@
                 opacity: 0;
             }
         }
-
-        /* Responzivní design */
-        @media (max-width: 480px) {
-            .board {
-                width: 90vw;
-                height: 90vw;
-            }
-            h1 { font-size: 2rem; }
-            #status { font-size: 1.2rem; }
-            .mode-container {
-                gap: 0.5rem;
-            }
-            .mode-button {
-                padding: 8px 10px;
-                font-size: 0.8rem;
-            }
-        }
     </style>
 </head>
 <body>
@@ -243,7 +213,6 @@
         </div>
 
         <div class="board" id="board" role="grid" aria-label="Herní plocha">
-            <!-- Buňky jsou generovány JavaScriptem -->
         </div>
 
         <button id="resetButton">Resetovat hru</button>
@@ -264,15 +233,14 @@
             let currentPlayer = 'X';
             let isGameActive = true;
             let cells = [];
-            let gameMode = 'pvp'; // 'pvp', 'pva', nebo 'pvc'
+            let gameMode = 'pvp';
             let isOpponentThinking = false;
 
-            // Stav ovládání
+            // OPRAVA: Přepracovaný stav ovládání
             let focusableElements = [];
             let focusIndex = 0;
             let isFocusVisible = false;
-            let lastInputTime = 0;
-            const INPUT_COOLDOWN = 150; // ms
+            const gamepadStates = {}; // Ukládá stav tlačítek pro každý gamepad
 
             const winningConditions = [
                 [0, 1, 2], [3, 4, 5], [6, 7, 8], // Řádky
@@ -499,18 +467,23 @@
                 }, 500);
             }
 
-            // --- Ovládání gamepadem a klávesnicí ---
+            // --- OPRAVA: Přepracovaná logika gamepadu ---
             function setupInput() {
                 document.addEventListener('keydown', handleGlobalKeyDown);
+                
                 window.addEventListener("gamepadconnected", (e) => {
+                    console.log(`Gamepad připojen na indexu ${e.gamepad.index}`);
+                    gamepadStates[e.gamepad.index] = {
+                        buttons: Array(e.gamepad.buttons.length).fill(false),
+                        axes: Array(e.gamepad.axes.length).fill(0)
+                    };
                     isFocusVisible = true;
                     updateFocus();
-                    updateStatus("Gamepad připojen!");
-                    setTimeout(() => updateStatus(`Hráč ${currentPlayer} je na řadě`), 1500);
                 });
 
-                window.addEventListener("gamepaddisconnected", () => {
-                    updateStatus("Gamepad odpojen.");
+                window.addEventListener("gamepaddisconnected", (e) => {
+                     console.log(`Gamepad odpojen z indexu ${e.gamepad.index}`);
+                    delete gamepadStates[e.gamepad.index];
                 });
             }
 
@@ -520,59 +493,44 @@
                     requestAnimationFrame(gamepadLoop);
                     return;
                 }
-
-                const now = Date.now();
-                if (now - lastInputTime < INPUT_COOLDOWN) {
-                    requestAnimationFrame(gamepadLoop);
-                    return;
-                }
                 
                 for (const gamepad of gamepads) {
-                    if (handleGamepadInput(gamepad)) {
-                        lastInputTime = now;
-                        break;
+                    if (!gamepadStates[gamepad.index]) continue; // Přeskočit, pokud stav není inicializován
+
+                    // Zpracování tlačítek
+                    for (let i = 0; i < gamepad.buttons.length; i++) {
+                        const buttonPressed = gamepad.buttons[i].pressed;
+                        const prevButtonPressed = gamepadStates[gamepad.index].buttons[i];
+                        if (buttonPressed && !prevButtonPressed) {
+                            // Detekováno stisknutí tlačítka
+                            if (i === 0) activateSelection(); // Tlačítko A/X
+                            if (i === 12) navigate('up');    // D-pad nahoru
+                            if (i === 13) navigate('down');  // D-pad dolů
+                            if (i === 14) navigate('left');  // D-pad doleva
+                            if (i === 15) navigate('right'); // D-pad doprava
+                        }
+                        gamepadStates[gamepad.index].buttons[i] = buttonPressed;
                     }
+
+                    // Zpracování analogových páček
+                    const deadzone = 0.5;
+                    const prevAxes = gamepadStates[gamepad.index].axes;
+                    const currentAxes = gamepad.axes;
+                    
+                    // Vertikální osa
+                    if (currentAxes[1] < -deadzone && prevAxes[1] >= -deadzone) navigate('up');
+                    if (currentAxes[1] > deadzone && prevAxes[1] <= deadzone) navigate('down');
+                    
+                    // Horizontální osa
+                    if (currentAxes[0] < -deadzone && prevAxes[0] >= -deadzone) navigate('left');
+                    if (currentAxes[0] > deadzone && prevAxes[0] <= deadzone) navigate('right');
+                    
+                    gamepadStates[gamepad.index].axes = [...currentAxes];
                 }
                 
                 requestAnimationFrame(gamepadLoop);
             }
             
-            function handleGamepadInput(gamepad) {
-                const deadzone = 0.5;
-                const dpadUp = gamepad.buttons[12].pressed;
-                const dpadDown = gamepad.buttons[13].pressed;
-                const dpadLeft = gamepad.buttons[14].pressed;
-                const dpadRight = gamepad.buttons[15].pressed;
-                const stickUp = gamepad.axes[1] < -deadzone;
-                const stickDown = gamepad.axes[1] > deadzone;
-                const stickLeft = gamepad.axes[0] < -deadzone;
-                const stickRight = gamepad.axes[0] > deadzone;
-
-                if (dpadUp || stickUp) {
-                    navigate('up');
-                    return true;
-                }
-                if (dpadDown || stickDown) {
-                    navigate('down');
-                    return true;
-                }
-                if (dpadLeft || stickLeft) {
-                    navigate('left');
-                    return true;
-                }
-                if (dpadRight || stickRight) {
-                    navigate('right');
-                    return true;
-                }
-
-                if (gamepad.buttons[0].pressed) {
-                    activateSelection();
-                    return true;
-                }
-                
-                return false;
-            }
-
             function updateFocus() {
                 focusableElements.forEach((el, index) => {
                     el.classList.toggle('focus-visible', isFocusVisible && index === focusIndex);
@@ -735,7 +693,7 @@
             // Spuštění hry!
             initializeGame('pvp');
             setupInput();
-            gamepadLoop(); // OPRAVA: Spustit smyčku pro gamepad hned na začátku
+            gamepadLoop();
         });
     </script>
 

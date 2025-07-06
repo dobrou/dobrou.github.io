@@ -198,13 +198,13 @@
                 id: playerIndex + 1,
                 snake: [],
                 score: 0,
-                angle: (playerIndex % 2 === 0) ? Math.PI / 4 : Math.PI + Math.PI / 4, // FIX: Start at an offset angle
+                angle: (playerIndex % 2 === 0) ? Math.PI / 4 : Math.PI + Math.PI / 4,
                 turnSpeed: 0,
                 control: null,
                 colors: playerColors[playerIndex],
                 active: true,
                 spawnTimer: 30,
-                growthPending: 0, // FIX: Gradual growth system
+                growthPending: 0,
             };
 
             var startX = (canvas.width / (MAX_PLAYERS + 1)) * (playerIndex + 1);
@@ -354,8 +354,6 @@
                     break;
                 }
             }
-
-            // FIX: Gradual growth logic
             if (!foodEaten) {
                  if (player.growthPending > 0) {
                     player.growthPending--;
@@ -396,14 +394,28 @@
         }
 
         function drawSnake(player) {
+            if (player.snake.length < 2) return;
+
             var headColor = getComputedStyle(document.documentElement).getPropertyValue(player.colors.head);
             var bodyColor = getComputedStyle(document.documentElement).getPropertyValue(player.colors.body);
-            player.snake.forEach(function(segment, index) {
-                ctx.beginPath();
-                ctx.arc(segment.x, segment.y, SNAKE_RADIUS, 0, 2 * Math.PI);
-                ctx.fillStyle = index === 0 ? headColor : bodyColor;
-                ctx.fill();
-            });
+            
+            // Draw body as a single line
+            ctx.beginPath();
+            ctx.strokeStyle = bodyColor;
+            ctx.lineWidth = SNAKE_RADIUS * 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.moveTo(player.snake[0].x, player.snake[0].y);
+            for (var i = 1; i < player.snake.length; i++) {
+                ctx.lineTo(player.snake[i].x, player.snake[i].y);
+            }
+            ctx.stroke();
+
+            // Draw head as a circle on top
+            ctx.beginPath();
+            ctx.arc(player.snake[0].x, player.snake[0].y, SNAKE_RADIUS, 0, 2 * Math.PI);
+            ctx.fillStyle = headColor;
+            ctx.fill();
         }
         
         function drawParticles() {
@@ -536,10 +548,7 @@
 
         function handleInputs() {
             players.forEach(function(p) { p.turnSpeed = 0; });
-
-            var p1_turn = 0, p2_turn = 0, p3_turn = 0, p4_turn = 0;
             
-            // --- Read all inputs ---
             var arrow_turn = keysPressed['ArrowRight'] ? 1 : (keysPressed['ArrowLeft'] ? -1 : 0);
             var ad_turn = keysPressed['d'] ? 1 : (keysPressed['a'] ? -1 : 0);
             
@@ -556,7 +565,6 @@
                 gamepad_turns['gp' + i + '-face'] = rightTurn ? 1 : (leftTurn ? -1 : 0);
             }
             
-            // --- Dynamically assign and apply controls ---
             var all_inputs = [
                 { id: 'pointer', value: pointerTurnDirection },
                 { id: 'arrows', value: arrow_turn },
@@ -569,7 +577,7 @@
             }
             
             all_inputs.forEach(function(input) {
-                if (Math.abs(input.value) > 0.1) { // Deadzone
+                if (Math.abs(input.value) > 0.1) {
                     var player = null;
                     for(var i = 0; i < players.length; i++) {
                         if (players[i].control === input.id) {

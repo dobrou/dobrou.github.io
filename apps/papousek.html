@@ -62,7 +62,6 @@
         #silence-countdown-bar {
             transition: width 0.1s linear;
         }
-        /* OPRAVA POSKAKOVÁNÍ: Používáme 'visibility' místo 'display' */
         .invisible {
             visibility: hidden;
         }
@@ -96,7 +95,6 @@
             </div>
         </div>
 
-        <!-- NOVÉ: Kontejner pro ovládací tlačítka -->
         <div class="flex space-x-4">
             <button id="toggleButton" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800 transition-all duration-300 ease-in-out text-lg">
                 Začít poslouchat
@@ -221,15 +219,19 @@
                 const microphone = audioContext.createMediaStreamSource(stream);
                 const javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
                 
+                const muteNode = audioContext.createGain();
+                muteNode.gain.setValueAtTime(0, audioContext.currentTime);
+                
                 const preRollBufferLength = audioContext.sampleRate * preRollLengthInSeconds;
                 preRollBuffer = new Float32Array(preRollBufferLength);
                 preRollBufferWriteIndex = 0;
 
                 microphone.connect(analyser);
                 analyser.connect(javascriptNode);
-                javascriptNode.connect(audioContext.destination);
+                javascriptNode.connect(muteNode);
+                muteNode.connect(audioContext.destination);
 
-                audioNodes = { microphone, analyser, javascriptNode };
+                audioNodes = { microphone, analyser, javascriptNode, muteNode };
 
                 javascriptNode.onaudioprocess = (event) => {
                     if (!isListening) return;
@@ -354,29 +356,37 @@
                 const source = audioContext.createBufferSource();
                 source.buffer = audioBuffer;
                 
-                let lastNode = source; // Začátek audio řetězce
+                // OPRAVA HLASITOSTI: Hlavní zesilovač pro všechny zvuky
+                const masterGain = audioContext.createGain();
+                masterGain.gain.value = 2.5; // Zesílení všech zvuků
+                masterGain.connect(audioContext.destination);
 
-                // Náhodný výběr efektu
+                let lastNode = source;
+
                 const effectRoll = Math.random();
 
-                if (effectRoll < 0.5) { // 50% šance na Chipmunk
+                if (effectRoll < 0.5) {
                     source.playbackRate.value = CHIPMUNK_PITCH;
                     updateStatus('Opakuji... (Chipmunk)', 'dot-green');
-                } else if (effectRoll < 0.8) { // 30% šance na Hluboký hlas
+                } else if (effectRoll < 0.8) {
                     source.playbackRate.value = DEEP_VOICE_PITCH;
                     updateStatus('Opakuji... (Hluboký hlas)', 'dot-green');
-                } else { // 20% šance na Robota
+                } else {
                     updateStatus('Opakuji... (Robot)', 'dot-green');
                     const biquadFilter = audioContext.createBiquadFilter();
                     biquadFilter.type = "bandpass";
-                    biquadFilter.frequency.value = 1500; // Frekvence pro "plechový" zvuk
-                    biquadFilter.Q.value = 15; // Kvalita filtru, vyšší = užší pásmo
+                    biquadFilter.frequency.value = 1500;
+                    biquadFilter.Q.value = 15;
+
+                    const robotGain = audioContext.createGain();
+                    robotGain.gain.value = 8.0;
 
                     lastNode.connect(biquadFilter);
-                    lastNode = biquadFilter;
+                    biquadFilter.connect(robotGain);
+                    lastNode = robotGain;
                 }
 
-                lastNode.connect(audioContext.destination);
+                lastNode.connect(masterGain); // Všechny efekty jdou přes hlavní zesilovač
                 source.start();
                 
                 source.onended = () => {
@@ -412,6 +422,7 @@
                 audioNodes.javascriptNode.onaudioprocess = null;
                 audioNodes.javascriptNode.disconnect();
             }
+            if (audioNodes.muteNode) audioNodes.muteNode.disconnect();
             
             isRecording = false;
             recordingBuffer = [];
