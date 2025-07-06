@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Hra: Počítání Ovoce</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --celebration-duration: 4s;
+        }
+        html, body {
+            overscroll-behavior: none;
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            touch-action: manipulation;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #111827; /* bg-gray-900 */
+        }
+        .fruit {
+            position: absolute;
+            font-size: clamp(2.5rem, 10vw, 4rem);
+            user-select: none;
+            cursor: grab;
+            transition: transform 0.2s ease-in-out;
+            animation: fall-in 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            text-shadow: 0 0 8px rgba(0,0,0,0.5);
+        }
+        .fruit:active {
+            cursor: grabbing;
+            transform: scale(1.1);
+            z-index: 100;
+        }
+        .firework-particle {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 1;
+            animation: explode 1.5s ease-out forwards;
+            background-color: var(--color);
+            box-shadow: 0 0 10px var(--color), 0 0 20px var(--color);
+        }
+        .celebration-emoji {
+            position: absolute;
+            font-size: clamp(8rem, 40vw, 15rem);
+            transform: translate(-50%, -50%) scale(0);
+            opacity: 0.9;
+            animation: pop-in-out var(--celebration-duration) cubic-bezier(0.68, -0.6, 0.32, 1.6) forwards;
+            pointer-events: none;
+            z-index: 200;
+        }
+        .input-shake {
+            animation: shake-error 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        .numpad-btn {
+            transition: background-color 0.15s, transform 0.1s, border-width 0.1s;
+            font-weight: 900;
+            border-bottom: 5px solid rgba(0,0,0,0.3);
+            color: #1f2937;
+        }
+        .numpad-btn:active {
+            transform: scale(0.95) translateY(3px);
+            border-bottom-width: 2px;
+        }
+        .settings-overlay {
+            background-color: rgba(0,0,0,0.7);
+            z-index: 999;
+        }
+
+        @keyframes fall-in {
+            from {
+                transform: translateY(-100vh) rotate(-90deg);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+        }
+        @keyframes explode {
+            from {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            to {
+                transform: translate(var(--x), var(--y)) scale(0);
+                opacity: 0;
+            }
+        }
+        @keyframes pop-in-out {
+            0%, 100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            10%, 90% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+        @keyframes shake-error {
+            10%, 90% { transform: translateX(-1px); }
+            20%, 80% { transform: translateX(2px); }
+            30%, 50%, 70% { transform: translateX(-4px); }
+            40%, 60% { transform: translateX(4px); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container" class="w-full max-w-2xl h-full sm:h-auto sm:max-h-[95vh] mx-auto bg-gray-800 rounded-none sm:rounded-2xl shadow-xl flex flex-col relative">
+        
+        <div id="fruit-container" class="relative w-full flex-grow bg-gray-900 sm:rounded-t-lg border-b-4 border-gray-700 overflow-hidden" style="min-height: 33vh;">
+        </div>
+
+        <div id="controls-container" class="p-4 bg-gray-800 sm:rounded-b-lg flex flex-col md:flex-row items-center justify-around gap-4">
+            <div id="answer-display" class="w-32 h-20 text-center text-6xl font-bold border-4 border-gray-600 rounded-lg flex items-center justify-center bg-gray-700 text-white">
+                <span id="answer-value"></span>
+            </div>
+
+            <div id="numpad" class="grid grid-cols-3 gap-3 w-full max-w-xs">
+                <button data-key="1" class="numpad-btn text-4xl p-3 rounded-lg">1</button>
+                <button data-key="2" class="numpad-btn text-4xl p-3 rounded-lg">2</button>
+                <button data-key="3" class="numpad-btn text-4xl p-3 rounded-lg">3</button>
+                <button data-key="4" class="numpad-btn text-4xl p-3 rounded-lg">4</button>
+                <button data-key="5" class="numpad-btn text-4xl p-3 rounded-lg">5</button>
+                <button data-key="6" class="numpad-btn text-4xl p-3 rounded-lg">6</button>
+                <button data-key="7" class="numpad-btn text-4xl p-3 rounded-lg">7</button>
+                <button data-key="8" class="numpad-btn text-4xl p-3 rounded-lg">8</button>
+                <button data-key="9" class="numpad-btn text-4xl p-3 rounded-lg">9</button>
+                <button data-key="0" class="numpad-btn text-4xl p-3 rounded-lg col-span-2">0</button>
+                <button data-key="del" class="numpad-btn text-4xl p-3 rounded-lg">⌫</button>
+            </div>
+        </div>
+        
+        <div id="settings-modal" class="settings-overlay absolute inset-0 w-full h-full flex items-center justify-center hidden">
+            <div class="bg-gray-700 p-8 rounded-xl shadow-2xl w-11/12 max-w-sm text-white text-center">
+                <h2 class="text-2xl font-bold mb-4">Nastavení</h2>
+                <label for="max-number-input" class="block mb-2 font-semibold">Nejvyšší číslo (5-99):</label>
+                <input type="number" id="max-number-input" class="w-full p-3 rounded-lg text-center text-2xl font-bold bg-gray-800 border-2 border-gray-600 focus:border-sky-500 focus:outline-none">
+                <div class="mt-6 flex justify-around gap-4">
+                    <button id="cancel-settings-btn" class="w-full p-3 bg-gray-600 hover:bg-gray-500 rounded-lg font-bold transition-colors">Zrušit</button>
+                    <button id="save-settings-btn" class="w-full p-3 bg-sky-600 hover:bg-sky-500 rounded-lg font-bold transition-colors">Uložit</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    
+    <script>
+        const appContainer = document.getElementById('app-container');
+        const fruitContainer = document.getElementById('fruit-container');
+        const controlsContainer = document.getElementById('controls-container');
+        const answerDisplay = document.getElementById('answer-display');
+        const answerValue = document.getElementById('answer-value');
+        const numpad = document.getElementById('numpad');
+        const body = document.body;
+        const settingsModal = document.getElementById('settings-modal');
+        const maxNumberInput = document.getElementById('max-number-input');
+        const saveSettingsBtn = document.getElementById('save-settings-btn');
+        const cancelSettingsBtn = document.getElementById('cancel-settings-btn');
+
+        const FRUITS = ['🍎', '🍌', '🍊', '🍇', '🍓', '🥝', '🍉', '🍍', '🍑', '🍒'];
+        let MAX_FRUITS = 15;
+        const CELEBRATION_TIME_MS = 4000;
+        
+        let correctAnswer = 0;
+        let currentInput = '';
+        let isDragging = false;
+        let activeFruit = null;
+        let offsetX, offsetY;
+        let incorrectFeedbackTimeout;
+        let firstInteraction = true;
+        let physicalKeyboardUsed = false;
+
+        const KEY_COLORS = {
+            '1': '#80d8ff', '2': '#a7ffeb', '3': '#ffff8d',
+            '4': '#ffc2b3', '5': '#d1c4e9', '6': '#b2dfdb',
+            '7': '#ffcdd2', '8': '#dcedc8', '9': '#b3e5fc',
+            '0': '#e0e0e0', 'del': '#ff8a80'
+        };
+
+        let audioCtx;
+
+        function setupAudio() {
+            if (!audioCtx) {
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch(e) { console.error("Web Audio API is not supported"); }
+            }
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            const now = audioCtx.currentTime;
+            
+            if (type === 'click') {
+                const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+                o.connect(g); g.connect(audioCtx.destination);
+                o.type = 'sine'; o.frequency.setValueAtTime(523.25, now);
+                g.gain.setValueAtTime(0.15, now); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+                o.start(now); o.stop(now + 0.5);
+            } else if (type === 'error') {
+                const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+                o.connect(g); g.connect(audioCtx.destination);
+                o.type = 'sawtooth'; o.frequency.setValueAtTime(110, now);
+                o.frequency.exponentialRampToValueAtTime(82.41, now + 0.2);
+                g.gain.setValueAtTime(0.1, now); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+                o.start(now); o.stop(now + 0.3);
+            } else if (type === 'success') {
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((n, i) => {
+                    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+                    o.connect(g); g.connect(audioCtx.destination);
+                    o.type = 'triangle'; o.frequency.setValueAtTime(n, now + i * 0.15);
+                    g.gain.setValueAtTime(0.15, now + i * 0.15); g.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.15 + 0.4);
+                    o.start(now + i * 0.15); o.stop(now + i * 0.15 + 0.4);
+                });
+            }
+        }
+
+        function requestFullscreen() {
+            const promise = body.requestFullscreen?.() || body.webkitRequestFullscreen?.() || body.msRequestFullscreen?.();
+            if (promise instanceof Promise) promise.catch(err => console.warn("Fullscreen failed:", err));
+        }
+
+        function createFireworks() {
+            const fireworkCount = 150;
+            const containerRect = fruitContainer.getBoundingClientRect();
+            for (let i = 0; i < fireworkCount; i++) {
+                const p = document.createElement('div'); p.classList.add('firework-particle');
+                const a = Math.random() * Math.PI, v = (Math.random() * (containerRect.width / 2.5)) + (containerRect.width / 8);
+                const x = Math.cos(a) * v, y = Math.sin(a) * v * -1;
+                const s = Math.random() * 12 + 6, c = `hsl(${Math.random() * 360}, 100%, 70%)`;
+                p.style.setProperty('--x', `${x}px`); p.style.setProperty('--y', `${y}px`); p.style.setProperty('--color', c);
+                p.style.width = `${s}px`; p.style.height = `${s}px`;
+                p.style.left = `${Math.random() * 100}%`; p.style.top = `${100}%`;
+                fruitContainer.appendChild(p); setTimeout(() => p.remove(), 1500);
+            }
+        }
+
+        function showCelebrationEmoji() {
+            const e = document.createElement('div'); e.textContent = '😊'; e.classList.add('celebration-emoji');
+            appContainer.appendChild(e);
+            const cRect = controlsContainer.getBoundingClientRect(), aRect = appContainer.getBoundingClientRect();
+            
+            if (physicalKeyboardUsed) {
+                 e.style.top = `85%`; 
+            } else {
+                e.style.top = `${cRect.top - aRect.top + cRect.height / 2}px`;
+                e.style.left = `${cRect.left - aRect.left + cRect.width / 2}px`;
+            }
+            setTimeout(() => e.remove(), CELEBRATION_TIME_MS);
+        }
+        
+        function styleNumpad() {
+            numpad.querySelectorAll('button').forEach(b => {
+                if (KEY_COLORS[b.dataset.key]) b.style.backgroundColor = KEY_COLORS[b.dataset.key];
+            });
+        }
+
+        function setupNewRound() {
+            appContainer.querySelector('.celebration-emoji')?.remove();
+            fruitContainer.innerHTML = ''; currentInput = ''; updateAnswerDisplay();
+            answerDisplay.classList.remove('border-green-500', 'border-red-500');
+            numpad.style.pointerEvents = 'auto';
+            
+            correctAnswer = Math.floor(Math.random() * MAX_FRUITS) + 1;
+            const usedPositions = [];
+            for (let i = 0; i < correctAnswer; i++) {
+                const f = document.createElement('div'); f.classList.add('fruit');
+                f.textContent = FRUITS[Math.floor(Math.random() * FRUITS.length)]; f.style.animationDelay = `${i * 0.1}s`;
+                
+                let p, o, a = 0;
+                const fruitSizeBuffer = 80; // Safe buffer for fruit size
+                const maxX = fruitContainer.clientWidth - fruitSizeBuffer;
+                const maxY = fruitContainer.clientHeight - fruitSizeBuffer;
+                const maxAttempts = 100;
+
+                do {
+                    p = { top: Math.max(0, Math.random() * maxY), left: Math.max(0, Math.random() * maxX) };
+                    o = usedPositions.some(pos => Math.sqrt(Math.pow(pos.left - p.left, 2) + Math.pow(pos.top - p.top, 2)) < fruitSizeBuffer);
+                    a++;
+                } while (o && a < maxAttempts);
+
+                if (!o) {
+                    usedPositions.push(p); f.style.top = `${p.top}px`; f.style.left = `${p.left}px`;
+                    fruitContainer.appendChild(f); addDragListeners(f);
+                }
+            }
+            correctAnswer = fruitContainer.children.length;
+        }
+
+        function handleCorrectAnswer() {
+            playSound('success'); numpad.style.pointerEvents = 'none';
+            createFireworks(); showCelebrationEmoji();
+            setTimeout(setupNewRound, CELEBRATION_TIME_MS);
+        }
+
+        function handleIncorrectAnswer() {
+            playSound('error'); answerDisplay.classList.add('input-shake', 'border-red-500');
+            setTimeout(() => answerDisplay.classList.remove('input-shake', 'border-red-500'), 400);
+        }
+        
+        function updateAnswerDisplay() { answerValue.textContent = currentInput; }
+
+        function checkAnswer() {
+            clearTimeout(incorrectFeedbackTimeout);
+            const u = currentInput, c = String(correctAnswer);
+            if (u === "") return;
+            if (u === c) {
+                answerDisplay.classList.add('border-green-500'); 
+                setTimeout(handleCorrectAnswer, 1000);
+            } else if (!c.startsWith(u) || u.length >= c.length) {
+                incorrectFeedbackTimeout = setTimeout(handleIncorrectAnswer, 1000);
+            }
+        }
+        
+        function openSettingsModal() {
+            maxNumberInput.value = MAX_FRUITS;
+            settingsModal.classList.remove('hidden');
+        }
+        function closeSettingsModal() { settingsModal.classList.add('hidden'); }
+        function saveSettings() {
+            let newMax = parseInt(maxNumberInput.value, 10);
+            if (isNaN(newMax) || newMax < 5) newMax = 5;
+            if (newMax > 99) newMax = 99;
+            MAX_FRUITS = newMax;
+            localStorage.setItem('maxFruits', MAX_FRUITS);
+            closeSettingsModal();
+            setupNewRound();
+        }
+        function loadSettings() {
+            const savedMax = localStorage.getItem('maxFruits');
+            if (savedMax) MAX_FRUITS = parseInt(savedMax, 10);
+        }
+        
+        function handleInput(key, source = 'virtual') {
+             if (firstInteraction) {
+                requestFullscreen(); setupAudio();
+                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+                firstInteraction = false;
+            }
+            
+            if (source === 'virtual') {
+                 playSound('click');
+            }
+
+            if (source === 'physical' && !physicalKeyboardUsed) {
+                physicalKeyboardUsed = true;
+                numpad.classList.add('hidden');
+                controlsContainer.classList.add('justify-center');
+                controlsContainer.classList.remove('justify-around', 'md:flex-row');
+            }
+
+            clearTimeout(incorrectFeedbackTimeout);
+            answerDisplay.classList.remove('border-red-500', 'border-green-500');
+            
+            if (key === 'del') {
+                currentInput = currentInput.slice(0, -1);
+            } else if (key === 'clear') {
+                currentInput = '';
+            } else { // Is a number
+                const correctLength = String(correctAnswer).length;
+                if (currentInput.length === correctLength && correctLength > 0) {
+                    currentInput = key;
+                } else if (currentInput.length < 2) {
+                    currentInput += key;
+                }
+            }
+            updateAnswerDisplay();
+            checkAnswer();
+        }
+
+        numpad.addEventListener('click', (e) => {
+            const key = e.target.closest('button')?.dataset.key;
+            if (!key) return;
+            handleInput(key, 'virtual');
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (settingsModal.classList.contains('hidden')) { // Only handle game input if settings not open
+                if (e.key >= '0' && e.key <= '9') {
+                    handleInput(e.key, 'physical');
+                } else if (['Backspace', 'Delete', 'Enter', ' '].includes(e.key)) {
+                    e.preventDefault();
+                    handleInput('clear', 'physical');
+                } else if (e.key.toLowerCase() === 'x') {
+                    openSettingsModal();
+                }
+            }
+        });
+        
+        appContainer.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 3) {
+                openSettingsModal();
+            }
+        }, { passive: true });
+
+        saveSettingsBtn.addEventListener('click', saveSettings);
+        cancelSettingsBtn.addEventListener('click', closeSettingsModal);
+
+        function addDragListeners(element) {
+            element.addEventListener('mousedown', dragStart);
+            element.addEventListener('touchstart', dragStart, { passive: false });
+        }
+        function dragStart(e) {
+            e.preventDefault(); activeFruit = e.target; isDragging = true; activeFruit.style.zIndex = 1000;
+            const r = activeFruit.getBoundingClientRect();
+            if (e.type === 'touchstart') {
+                offsetX = e.touches[0].clientX - r.left; offsetY = e.touches[0].clientY - r.top;
+            } else {
+                offsetX = e.clientX - r.left; offsetY = e.clientY - r.top;
+            }
+            window.addEventListener('mousemove', drag); window.addEventListener('touchmove', drag, { passive: false });
+            window.addEventListener('mouseup', dragEnd); window.addEventListener('touchend', dragEnd);
+        }
+        function drag(e) {
+            if (!isDragging || !activeFruit) return; e.preventDefault();
+            const cR = fruitContainer.getBoundingClientRect(); let x, y;
+            if (e.type === 'touchmove') {
+                x = e.touches[0].clientX - cR.left - offsetX; y = e.touches[0].clientY - cR.top - offsetY;
+            } else {
+                x = e.clientX - cR.left - offsetX; y = e.clientY - cR.top - offsetY;
+            }
+            x = Math.max(0, Math.min(x, cR.width - activeFruit.clientWidth));
+            y = Math.max(0, Math.min(y, cR.height - activeFruit.clientHeight));
+            activeFruit.style.left = `${x}px`; activeFruit.style.top = `${y}px`;
+        }
+        function dragEnd() {
+            if (!isDragging || !activeFruit) return; isDragging = false; activeFruit.style.zIndex = 1; activeFruit = null;
+            window.removeEventListener('mousemove', drag); window.removeEventListener('touchmove', drag);
+            window.removeEventListener('mouseup', dragEnd); window.removeEventListener('touchend', dragEnd);
+        }
+
+        window.onload = () => {
+            loadSettings();
+            styleNumpad();
+            setupNewRound();
+        };
+    </script>
+</body>
+</html>
