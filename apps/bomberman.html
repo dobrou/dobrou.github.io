@@ -1,0 +1,738 @@
+<!-- 
+PROMPT:
+Create single file html app.
+Game like Atomic Bomberman
+
+Players:
+- Support multiplayer. Game starts in single player mode.
+- As soon as secondary player controls are detected and used, switch game to multi player mode.
+- use some nice unicode images for players and bouses and maybe walls if available
+- add some enemies in single player mode
+
+Controls:
+- support keyboard and mouse controls
+- support mobile phone touch cotrol, not by extra buttons on ui, but using swipes, gestures, and touch areas
+- support gamepad controls, including multiple gamepads
+
+UI:
+- on phones, switch app to fullscreen
+- hide mouse cursor if not used in game
+
+Code:
+- do not use any external javascript references
+- support browser like Tizen on Samsung TV
+- at beginning of the document, keep always up to date comment, that describes prompt used to create this whole app and can be used to recrete it any time
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Atomic Arena</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #1a1a1a;
+            color: #fff;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+        }
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        canvas {
+            background-color: #000;
+            border: 2px solid #444;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+            cursor: none; /* Hide cursor by default over canvas */
+        }
+        #info-panel {
+            margin-top: 15px;
+            padding: 10px;
+            background: #222;
+            border-radius: 8px;
+            min-width: 300px;
+            border: 1px solid #444;
+        }
+        #message-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 40px;
+            border-radius: 15px;
+            border: 2px solid #555;
+            text-align: center;
+            z-index: 100;
+            font-size: 1.5em;
+            display: none; /* Hidden by default */
+        }
+        #message-box button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 1em;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="info-panel">
+            <div id="player1-info">Player 1: Alive</div>
+            <div id="player2-info" style="display: none;">Player 2: Alive</div>
+        </div>
+    </div>
+
+    <div id="message-box">
+        <p id="message-text"></p>
+        <button id="message-button">Restart</button>
+    </div>
+
+    <script>
+        // --- Core Game Setup ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const infoPanel = {
+            p1: document.getElementById('player1-info'),
+            p2: document.getElementById('player2-info')
+        };
+        const messageBox = document.getElementById('message-box');
+        const messageText = document.getElementById('message-text');
+        const messageButton = document.getElementById('message-button');
+
+        // --- Game Constants ---
+        const GRID_COLS = 15; // Must be odd
+        const GRID_ROWS = 13; // Must be odd
+        const CELL_SIZE = Math.min(Math.floor((window.innerWidth - 40) / GRID_COLS), Math.floor((window.innerHeight - 120) / GRID_ROWS));
+
+        canvas.width = GRID_COLS * CELL_SIZE;
+        canvas.height = GRID_ROWS * CELL_SIZE;
+
+        const TILE = {
+            EMPTY: 0,
+            INDESTRUCTIBLE: 1,
+            DESTRUCTIBLE: 2
+        };
+
+        const POWERUP_TYPE = {
+            BOMB_COUNT: 0,
+            BLAST_RADIUS: 1
+        };
+        
+        const UNICODE = {
+            PLAYER1: '🚶',
+            PLAYER2: '🏃',
+            ENEMY: '👾',
+            BOMB: '💣',
+            EXPLOSION: '💥',
+            WALL_DESTRUCTIBLE: '🧱',
+            WALL_INDESTRUCTIBLE: '⬛',
+            POWERUP_BOMB: '➕',
+            POWERUP_RADIUS: '⚡'
+        };
+
+        // --- Game State ---
+        let grid = [];
+        let players = [];
+        let bombs = [];
+        let explosions = [];
+        let powerups = [];
+        let enemies = [];
+        let gameActive = true;
+        let multiplayerActive = false;
+        let mousePos = { x: -1, y: -1 };
+        let cursorTimeout;
+        
+        // --- Utility to draw text centered in a cell ---
+        function drawTextInCell(text, x, y, size) {
+            ctx.font = `${size || CELL_SIZE * 0.8}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, x * CELL_SIZE + CELL_SIZE / 2, y * CELL_SIZE + CELL_SIZE / 2);
+        }
+
+        // --- Player Class ---
+        class Player {
+            constructor(x, y, char, id) {
+                this.id = id;
+                this.x = x;
+                this.y = y;
+                this.char = char;
+                this.alive = true;
+                this.bombCountMax = 1;
+                this.blastRadius = 1;
+                this.moveCooldown = 150; // ms
+                this.lastMoveTime = 0;
+            }
+
+            draw() {
+                if (!this.alive) return;
+                drawTextInCell(this.char, this.x, this.y);
+            }
+
+            canMove(dx, dy) {
+                const now = Date.now();
+                if (now - this.lastMoveTime < this.moveCooldown) return false;
+                
+                const newX = this.x + dx;
+                const newY = this.y + dy;
+                if (newX < 0 || newX >= GRID_COLS || newY < 0 || newY >= GRID_ROWS) return false;
+                
+                const targetTile = grid[newY][newX];
+                if (targetTile === TILE.INDESTRUCTIBLE || targetTile === TILE.DESTRUCTIBLE) return false;
+                
+                if (bombs.some(bomb => bomb.x === newX && bomb.y === newY)) return false;
+                
+                return true;
+            }
+
+            move(dx, dy) {
+                if (!this.alive || !gameActive) return;
+                if (this.canMove(dx, dy)) {
+                    this.x += dx;
+                    this.y += dy;
+                    this.lastMoveTime = Date.now();
+                    this.checkPowerup();
+                    this.checkEnemyCollision();
+                }
+            }
+            
+            checkPowerup() {
+                for (let i = powerups.length - 1; i >= 0; i--) {
+                    const powerup = powerups[i];
+                    if (powerup.x === this.x && powerup.y === this.y) {
+                        if (powerup.type === POWERUP_TYPE.BOMB_COUNT) this.bombCountMax++;
+                        else if (powerup.type === POWERUP_TYPE.BLAST_RADIUS) this.blastRadius++;
+                        powerups.splice(i, 1);
+                    }
+                }
+            }
+            
+            checkEnemyCollision() {
+                if (enemies.some(enemy => enemy.x === this.x && enemy.y === this.y)) {
+                    this.alive = false;
+                }
+            }
+
+            placeBomb() {
+                if (!this.alive || !gameActive) return;
+                const existingBombs = bombs.filter(b => b.ownerId === this.id).length;
+                if (existingBombs >= this.bombCountMax) return;
+                if (bombs.some(b => b.x === this.x && b.y === this.y)) return;
+                
+                bombs.push(new Bomb(this.x, this.y, this.blastRadius, this.id));
+            }
+        }
+        
+        // --- Enemy Class ---
+        class Enemy {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.char = UNICODE.ENEMY;
+                this.moveCooldown = 800; // Slower than players
+                this.lastMoveTime = Date.now();
+            }
+            
+            draw() {
+                drawTextInCell(this.char, this.x, this.y);
+            }
+            
+            update() {
+                const now = Date.now();
+                if (now - this.lastMoveTime > this.moveCooldown) {
+                    this.lastMoveTime = now;
+                    const directions = [{dx:0, dy:1}, {dx:0, dy:-1}, {dx:1, dy:0}, {dx:-1, dy:0}];
+                    const dir = directions[Math.floor(Math.random() * directions.length)];
+                    
+                    const newX = this.x + dir.dx;
+                    const newY = this.y + dir.dy;
+                    
+                    if (newX >= 0 && newX < GRID_COLS && newY >= 0 && newY < GRID_ROWS &&
+                        grid[newY][newX] === TILE.EMPTY &&
+                        !bombs.some(b => b.x === newX && b.y === newY) &&
+                        !players.some(p => p.x === newX && p.y === newY)) {
+                       this.x = newX;
+                       this.y = newY;
+                    }
+                }
+                
+                // Check collision with players
+                for (const player of players) {
+                    if (player.alive && player.x === this.x && player.y === this.y) {
+                        player.alive = false;
+                    }
+                }
+            }
+        }
+
+        // --- Bomb Class ---
+        class Bomb {
+            constructor(x, y, radius, ownerId) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.ownerId = ownerId;
+                this.timer = 3000;
+                this.startTime = Date.now();
+            }
+
+            update() {
+                if (Date.now() - this.startTime > this.timer) {
+                    this.explode();
+                    return true;
+                }
+                return false;
+            }
+
+            explode() {
+                explosions.push(new Explosion(this.x, this.y, this.radius));
+                for (let i = bombs.length - 1; i >= 0; i--) {
+                    const otherBomb = bombs[i];
+                    if (otherBomb !== this && explosions[explosions.length-1].isInPath(otherBomb.x, otherBomb.y)) {
+                       otherBomb.timer = 0;
+                    }
+                }
+            }
+
+            draw() {
+                const size = CELL_SIZE * (0.6 + (Math.sin(Date.now() / 100) * 0.2));
+                drawTextInCell(UNICODE.BOMB, this.x, this.y, size);
+            }
+        }
+        
+        // --- Powerup Class ---
+        class Powerup {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.type = Math.random() < 0.6 ? POWERUP_TYPE.BLAST_RADIUS : POWERUP_TYPE.BOMB_COUNT;
+                this.char = this.type === POWERUP_TYPE.BOMB_COUNT ? UNICODE.POWERUP_BOMB : UNICODE.POWERUP_RADIUS;
+            }
+            
+            draw() {
+                ctx.fillStyle = '#3a3a3a';
+                ctx.fillRect(this.x * CELL_SIZE, this.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                drawTextInCell(this.char, this.x, this.y, CELL_SIZE * 0.6);
+            }
+        }
+
+        // --- Explosion Class ---
+        class Explosion {
+            constructor(x, y, radius) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.duration = 500;
+                this.startTime = Date.now();
+                this.blastMap = this.calculateBlastMap();
+            }
+
+            calculateBlastMap() {
+                const map = [{x: this.x, y: this.y}];
+                const directions = [{dx:0, dy:1}, {dx:0, dy:-1}, {dx:1, dy:0}, {dx:-1, dy:0}];
+                
+                for (const dir of directions) {
+                    for (let i = 1; i <= this.radius; i++) {
+                        const nx = this.x + dir.dx * i;
+                        const ny = this.y + dir.dy * i;
+
+                        if (nx < 0 || nx >= GRID_COLS || ny < 0 || ny >= GRID_ROWS) break;
+                        map.push({x: nx, y: ny});
+                        
+                        if (grid[ny][nx] === TILE.INDESTRUCTIBLE) break;
+                        if (grid[ny][nx] === TILE.DESTRUCTIBLE) {
+                            grid[ny][nx] = TILE.EMPTY;
+                            if (Math.random() < 0.4) { // 40% chance
+                                powerups.push(new Powerup(nx, ny));
+                            }
+                            break;
+                        }
+                    }
+                }
+                return map;
+            }
+
+            update() {
+                // Player collision
+                for (const player of players) {
+                    if (player.alive && this.isInPath(player.x, player.y)) {
+                        player.alive = false;
+                    }
+                }
+                // Enemy collision
+                enemies = enemies.filter(enemy => !this.isInPath(enemy.x, enemy.y));
+                
+                return Date.now() - this.startTime > this.duration;
+            }
+
+            isInPath(x, y) {
+                return this.blastMap.some(p => p.x === x && p.y === y);
+            }
+
+            draw() {
+                const progress = (Date.now() - this.startTime) / this.duration;
+                const size = CELL_SIZE * (1.2 - progress);
+                for (const point of this.blastMap) {
+                    drawTextInCell(UNICODE.EXPLOSION, point.x, point.y, size);
+                }
+            }
+        }
+
+        // --- Game Initialization ---
+        function initGame() {
+            gameActive = true;
+            multiplayerActive = false;
+            grid = [];
+            players = [];
+            bombs = [];
+            explosions = [];
+            powerups = [];
+            enemies = [];
+            
+            messageBox.style.display = 'none';
+
+            // Create grid
+            for (let y = 0; y < GRID_ROWS; y++) {
+                grid[y] = [];
+                for (let x = 0; x < GRID_COLS; x++) {
+                    if (y % 2 !== 0 && x % 2 !== 0) {
+                        grid[y][x] = TILE.INDESTRUCTIBLE;
+                    } else {
+                        const isSpawnArea = (x <= 1 && y <= 1) || (x >= GRID_COLS - 2 && y >= GRID_ROWS - 2) || (x <=1 && y >= GRID_ROWS - 2) || (x >= GRID_COLS - 2 && y <= 1);
+                        grid[y][x] = !isSpawnArea && Math.random() > 0.2 ? TILE.DESTRUCTIBLE : TILE.EMPTY;
+                    }
+                }
+            }
+
+            // Create player 1
+            players.push(new Player(0, 0, UNICODE.PLAYER1, 0));
+            
+            // Create enemies for single player
+            for(let i=0; i<4; i++) {
+                let ex, ey;
+                do {
+                    ex = Math.floor(Math.random() * GRID_COLS);
+                    ey = Math.floor(Math.random() * GRID_ROWS);
+                } while (grid[ey][ex] !== TILE.EMPTY || (ex < 5 && ey < 5)); // Don't spawn too close to P1
+                enemies.push(new Enemy(ex, ey));
+            }
+            
+            infoPanel.p1.textContent = 'Player 1: Alive';
+            infoPanel.p2.style.display = 'none';
+        }
+        
+        function activateMultiplayer() {
+            if (multiplayerActive) return;
+            multiplayerActive = true;
+            enemies = []; // Remove enemies in multiplayer
+            players.push(new Player(GRID_COLS - 1, GRID_ROWS - 1, UNICODE.PLAYER2, 1));
+            infoPanel.p2.style.display = 'block';
+            infoPanel.p2.textContent = 'Player 2: Alive';
+        }
+
+        // --- Drawing Functions ---
+        function drawGrid() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let y = 0; y < GRID_ROWS; y++) {
+                for (let x = 0; x < GRID_COLS; x++) {
+                    ctx.fillStyle = '#3a3a3a';
+                    ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                    if (grid[y][x] === TILE.INDESTRUCTIBLE) {
+                        drawTextInCell(UNICODE.WALL_INDESTRUCTIBLE, x, y);
+                    } else if (grid[y][x] === TILE.DESTRUCTIBLE) {
+                        drawTextInCell(UNICODE.WALL_DESTRUCTIBLE, x, y);
+                    }
+                }
+            }
+        }
+
+        function drawMouseCursor() {
+            if(mousePos.x < 0) return;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(mousePos.x, mousePos.y, 10, 0, 2 * Math.PI);
+            ctx.stroke();
+        }
+
+        // --- Update Logic ---
+        function update() {
+            if (!gameActive) return;
+
+            handleInput();
+            
+            if (!multiplayerActive) {
+                enemies.forEach(e => e.update());
+            }
+
+            bombs = bombs.filter(bomb => !bomb.update());
+            explosions = explosions.filter(explosion => !explosion.update());
+            
+            checkGameOver();
+        }
+
+        function draw() {
+            drawGrid();
+            powerups.forEach(p => p.draw());
+            bombs.forEach(bomb => bomb.draw());
+            explosions.forEach(exp => exp.draw());
+            if (!multiplayerActive) enemies.forEach(e => e.draw());
+            players.forEach(player => player.draw());
+            drawMouseCursor();
+        }
+        
+        function updateUI() {
+            if (!players[0]) return;
+            infoPanel.p1.textContent = `P1 ${UNICODE.PLAYER1}: ${players[0].alive ? 'Alive' : 'KO'} | ${UNICODE.BOMB} ${players[0].bombCountMax} | ${UNICODE.EXPLOSION} ${players[0].blastRadius}`;
+            if(multiplayerActive && players[1]) {
+                infoPanel.p2.textContent = `P2 ${UNICODE.PLAYER2}: ${players[1].alive ? 'Alive' : 'KO'} | ${UNICODE.BOMB} ${players[1].bombCountMax} | ${UNICODE.EXPLOSION} ${players[1].blastRadius}`;
+            } else {
+                 infoPanel.p2.textContent = `Enemies ${UNICODE.ENEMY}: ${enemies.length}`;
+                 infoPanel.p2.style.display = 'block';
+            }
+        }
+
+        function checkGameOver() {
+            const alivePlayers = players.filter(p => p.alive);
+            if (multiplayerActive) {
+                if (alivePlayers.length <= 1) {
+                    gameActive = false;
+                    const winner = alivePlayers.length === 1 ? `Player ${alivePlayers[0].id + 1} Wins!` : "It's a Draw!";
+                    showEndGameMessage(winner);
+                }
+            } else {
+                if (alivePlayers.length === 0) {
+                    gameActive = false;
+                    showEndGameMessage("Game Over!");
+                } else if (enemies.length === 0) {
+                    gameActive = false;
+                    showEndGameMessage("You Win!");
+                }
+            }
+        }
+        
+        function showEndGameMessage(message) {
+            messageText.textContent = message;
+            messageBox.style.display = 'block';
+        }
+        
+        messageButton.addEventListener('click', () => {
+             initGame();
+             gameLoop();
+        });
+
+        // --- Main Game Loop ---
+        function gameLoop() {
+            if (!gameActive && players.length > 0) {
+                 draw();
+                 updateUI();
+                 return;
+            }
+            update();
+            draw();
+            updateUI();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- Input Handling ---
+        const keys = {};
+        let touchStartX = 0;
+        let touchStartY = 0;
+        const swipeThreshold = 30;
+
+        function handleInput() {
+            handleKeyboardInput();
+            handleGamepadInput();
+        }
+
+        function handleKeyboardInput() {
+            if (!players[0] || !players[0].alive) return;
+            if (keys['w'] || keys['W']) players[0].move(0, -1);
+            if (keys['s'] || keys['S']) players[0].move(0, 1);
+            if (keys['a'] || keys['A']) players[0].move(-1, 0);
+            if (keys['d'] || keys['D']) players[0].move(1, 0);
+            
+            if (keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight']) {
+                if (!multiplayerActive) activateMultiplayer();
+                if (players[1] && players[1].alive) {
+                    if (keys['ArrowUp']) players[1].move(0, -1);
+                    if (keys['ArrowDown']) players[1].move(0, 1);
+                    if (keys['ArrowLeft']) players[1].move(-1, 0);
+                    if (keys['ArrowRight']) players[1].move(1, 0);
+                }
+            }
+        }
+        
+        function handleGamepadInput() {
+            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+            if (!gamepads) return;
+
+            for (let i = 0; i < gamepads.length; i++) {
+                const gp = gamepads[i];
+                if (!gp) continue;
+
+                const playerIndex = i;
+                if (playerIndex > 1) continue;
+
+                if (playerIndex === 1 && !multiplayerActive) {
+                    if (gp.buttons.some(b => b.pressed) || Math.abs(gp.axes[0]) > 0.5 || Math.abs(gp.axes[1]) > 0.5) {
+                        activateMultiplayer();
+                    }
+                }
+                
+                const player = players[playerIndex];
+                if (!player || !player.alive) continue;
+
+                const axisX = gp.axes[0];
+                const axisY = gp.axes[1];
+
+                if (axisY < -0.5 || gp.buttons[12]?.pressed) player.move(0, -1);
+                else if (axisY > 0.5 || gp.buttons[13]?.pressed) player.move(0, 1);
+                else if (axisX < -0.5 || gp.buttons[14]?.pressed) player.move(-1, 0);
+                else if (axisX > 0.5 || gp.buttons[15]?.pressed) player.move(1, 0);
+                
+                if (gp.buttons[0]?.pressed) player.placeBomb();
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            if (e.code === 'Space' && players[0]) {
+                e.preventDefault();
+                players[0].placeBomb();
+            }
+            if (e.key === 'Enter' || e.key === 'Control') {
+                 e.preventDefault();
+                 if (!multiplayerActive) activateMultiplayer();
+                 if (players[1]) players[1].placeBomb();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mousePos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            canvas.style.cursor = '';
+            clearTimeout(cursorTimeout);
+            cursorTimeout = setTimeout(() => { canvas.style.cursor = 'none'; }, 2000);
+
+            if (!players[0] || !players[0].alive) return;
+            const gridX = Math.floor(mousePos.x / CELL_SIZE);
+            const gridY = Math.floor(mousePos.y / CELL_SIZE);
+            
+            const dx = gridX - players[0].x;
+            const dy = gridY - players[0].y;
+            
+            if (Math.abs(dx) > Math.abs(dy)) {
+                if (dx !== 0) players[0].move(Math.sign(dx), 0);
+            } else {
+                if (dy !== 0) players[0].move(0, Math.sign(dy));
+            }
+        });
+        
+        canvas.addEventListener('mouseleave', () => { mousePos = { x: -1, y: -1 }; });
+
+        canvas.addEventListener('click', (e) => {
+            if (isMobile()) {
+                // On mobile, tap is for bombs
+                if (players[0]) players[0].placeBomb();
+            } else {
+                // On desktop, click is for bombs
+                if (players[0]) players[0].placeBomb();
+            }
+        });
+        
+        function handleTouchStart(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (!touchStartX || !touchStartY || !players[0] || !players[0].alive) return;
+
+            const touch = e.touches[0];
+            const diffX = touch.clientX - touchStartX;
+            const diffY = touch.clientY - touchStartY;
+
+            if (Math.abs(diffX) > swipeThreshold || Math.abs(diffY) > swipeThreshold) {
+                if (Math.abs(diffX) > Math.abs(diffY)) {
+                    players[0].move(Math.sign(diffX), 0);
+                } else {
+                    players[0].move(0, Math.sign(diffY));
+                }
+                // Reset start after a swipe to allow for continuous swiping
+                touchStartX = touch.clientX;
+                touchStartY = touch.clientY;
+            }
+        }
+        
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            touchStartX = 0;
+            touchStartY = 0;
+        }
+
+        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+        canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+        function isMobile() { return /Mobi|Android/i.test(navigator.userAgent); }
+
+        function requestFullscreen() {
+            const el = document.documentElement;
+            if (el.requestFullscreen) el.requestFullscreen();
+            else if (el.mozRequestFullScreen) el.mozRequestFullScreen();
+            else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+            else if (el.msRequestFullscreen) el.msRequestFullscreen();
+        }
+
+        if (isMobile()) {
+            const fsButton = document.createElement('button');
+            fsButton.textContent = 'Tap to Play Fullscreen';
+            fsButton.style.padding = '20px';
+            fsButton.style.fontSize = '1.2em';
+            fsButton.style.border = 'none';
+            fsButton.style.background = '#007bff';
+            fsButton.style.color = 'white';
+            fsButton.style.borderRadius = '10px';
+            fsButton.style.cursor = 'pointer';
+            document.getElementById('game-container').prepend(fsButton);
+            
+            fsButton.addEventListener('click', () => {
+                requestFullscreen();
+                fsButton.style.display = 'none';
+                initGame();
+                gameLoop();
+            }, { once: true });
+        } else {
+            initGame();
+            gameLoop();
+        }
+
+    </script>
+</body>
+</html>
