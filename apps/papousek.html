@@ -142,7 +142,7 @@
         let preRollBufferWriteIndex = 0;
         let preRollLengthInSeconds = 1;
 
-        let lastRecordingBuffer = null; // NOVÉ: Pro uložení poslední nahrávky
+        let lastRecordingBuffer = null;
 
         let countdownAnimationId = null;
         let silenceStartTime = 0;
@@ -174,7 +174,6 @@
             }
         });
 
-        // NOVÉ: Event listener pro manuální přehrání
         playButton.addEventListener('click', () => {
             if(lastRecordingBuffer) {
                 playBuffer(lastRecordingBuffer);
@@ -303,12 +302,11 @@
             hideCountdown();
             updateStatus('Zpracovávám...', 'dot-green');
             
-            // Sestavíme a uložíme buffer, poté ho přehrajeme
             const processedBuffer = processAndGetFinalBuffer();
             if(processedBuffer) {
                 lastRecordingBuffer = processedBuffer;
                 playBuffer(lastRecordingBuffer);
-                playButton.disabled = false; // Povolíme tlačítko pro přehrání
+                playButton.disabled = false;
                 playButton.classList.replace('bg-gray-300', 'bg-green-500');
                 playButton.classList.replace('text-gray-500', 'text-white');
             }
@@ -356,13 +354,31 @@
                 const source = audioContext.createBufferSource();
                 source.buffer = audioBuffer;
                 
-                const randomPitch = Math.random() < 0.7 ? CHIPMUNK_PITCH : DEEP_VOICE_PITCH;
-                source.playbackRate.value = randomPitch;
-                
-                source.connect(audioContext.destination);
-                source.start();
+                let lastNode = source; // Začátek audio řetězce
 
-                updateStatus('Opakuji...', 'dot-green');
+                // Náhodný výběr efektu
+                const effectRoll = Math.random();
+
+                if (effectRoll < 0.5) { // 50% šance na Chipmunk
+                    source.playbackRate.value = CHIPMUNK_PITCH;
+                    updateStatus('Opakuji... (Chipmunk)', 'dot-green');
+                } else if (effectRoll < 0.8) { // 30% šance na Hluboký hlas
+                    source.playbackRate.value = DEEP_VOICE_PITCH;
+                    updateStatus('Opakuji... (Hluboký hlas)', 'dot-green');
+                } else { // 20% šance na Robota
+                    updateStatus('Opakuji... (Robot)', 'dot-green');
+                    const biquadFilter = audioContext.createBiquadFilter();
+                    biquadFilter.type = "bandpass";
+                    biquadFilter.frequency.value = 1500; // Frekvence pro "plechový" zvuk
+                    biquadFilter.Q.value = 15; // Kvalita filtru, vyšší = užší pásmo
+
+                    lastNode.connect(biquadFilter);
+                    lastNode = biquadFilter;
+                }
+
+                lastNode.connect(audioContext.destination);
+                source.start();
+                
                 source.onended = () => {
                     if(isListening) {
                         updateStatus('Poslouchám...', 'dot-blue');

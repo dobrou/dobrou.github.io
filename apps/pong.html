@@ -72,14 +72,15 @@
         const MAX_PADDLE_SIZE = 200;
         const BALL_RADIUS = 10;
         const PADDLE_SPEED = 8;
-        const BASE_AI_SPEED = 5; // Zpomalená AI
-        const BASE_BALL_SPEED = 4; // Zpomalený míček
+        const BASE_AI_SPEED = 5;
+        const BASE_BALL_SPEED = 2; // Zpomalený míček 2x
         const WINNING_SCORE = 10;
 
         let ball, player1Paddles, player2Paddles, keys, gamepads;
         let scores = { p1: 0, p2: 0 };
         let gameOver = false;
         let audioCtx;
+        let isAudioUnlocked = false;
         let particles = [];
         let fireworks = [];
         let fireworksInterval;
@@ -101,12 +102,17 @@
         };
 
         // --- Generování zvuku ---
-        function setupAudio() {
+        function unlockAudio() {
+            if (isAudioUnlocked) return;
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            isAudioUnlocked = true;
         }
         
         function playSound(type) {
-            if (!audioCtx) return;
+            if (!isAudioUnlocked) return;
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             const now = audioCtx.currentTime;
@@ -164,13 +170,18 @@
             
             ballSpeed = BASE_BALL_SPEED * speedFactor;
             aiSpeed = BASE_AI_SPEED * speedFactor;
-            baseBounceFactor = gameOrientation === 'horizontal' ? 0.25 : 0.15;
+
+            const aspectRatio = canvas.width / canvas.height;
+            if (gameOrientation === 'horizontal') {
+                baseBounceFactor = aspectRatio > 1.8 ? 0.05 : 0.10;
+            } else {
+                baseBounceFactor = aspectRatio < 0.6 ? 0.04 : 0.08;
+            }
 
             ball = { x: canvas.width / 2, y: canvas.height / 2, radius: BALL_RADIUS, dx: ballSpeed, dy: ballSpeed };
             
-            // Start with one paddle for P1 and one for AI
-            player1Paddles = [createPaddle(1, null)]; // P1 starts with no specific control type
-            player2Paddles = [createPaddle(2, controlTypes.AI)]; // P2 starts as AI
+            player1Paddles = [createPaddle(1, null)];
+            player2Paddles = [createPaddle(2, controlTypes.AI)];
             
             keys = {};
             gamepads = {};
@@ -189,14 +200,16 @@
             if ('DeviceOrientationEvent' in window) window.addEventListener('deviceorientation', e => { if(e.gamma !== null) { handleGyro(e); } });
             canvas.addEventListener('touchstart', handleTouch, { passive: false });
             canvas.addEventListener('touchmove', handleTouch, { passive: false });
-            const startListener = e => { setupAudio(); if (gameOver) { e.preventDefault(); init(); } };
-            document.body.addEventListener('click', startListener);
-            document.body.addEventListener('touchend', startListener);
+            
+            document.body.addEventListener('pointerdown', unlockAudio, { once: true });
+
+            const restartListener = e => { if (gameOver) { e.preventDefault(); init(); } };
+            document.body.addEventListener('click', restartListener);
+            document.body.addEventListener('touchend', restartListener);
         }
         
         // --- Zpracování vstupu ---
         function handleTouch(e) {
-            setupAudio();
             e.preventDefault();
             for (const touch of e.touches) {
                 if (gameOrientation === 'horizontal') {
@@ -220,7 +233,6 @@
         }
 
         function handleGyro(e) {
-            setupAudio();
             player1Paddles[0].control = controlTypes.GYRO;
             const paddle = player1Paddles[0];
             if (gameOrientation === 'horizontal') {
@@ -245,7 +257,6 @@
         function handleKeyboardInput() {
             const p1Paddle = player1Paddles[0];
             if (p1Paddle) {
-                // Pohyb hráče 1 (W/S)
                 if (keys['w'] || keys['s']) {
                     p1Paddle.control = controlTypes.KEYBOARD_WS;
                     let vel = 0;
@@ -257,7 +268,6 @@
                     p1Paddle.dx = 0;
                     p1Paddle.dy = 0;
                 }
-                // Změna velikosti hráče 1 (A/D)
                 let p1Change = 0;
                 if (keys['a']) p1Change = -5;
                 if (keys['d']) p1Change = 5;
@@ -270,7 +280,6 @@
 
             const p2Paddle = player2Paddles[0];
             if (p2Paddle) {
-                // Pohyb hráče 2 (Šipky)
                 if (keys['arrowup'] || keys['arrowdown']) {
                     if (p2Paddle.control === controlTypes.AI) p2Paddle.control = controlTypes.KEYBOARD_ARROWS;
                     let vel = 0;
@@ -282,7 +291,6 @@
                     p2Paddle.dx = 0;
                     p2Paddle.dy = 0;
                 }
-                // Změna velikosti hráče 2 (J/L)
                 let p2Change = 0;
                 if (keys['j']) p2Change = -5;
                 if (keys['l']) p2Change = 5;
@@ -293,7 +301,6 @@
                 }
             }
         }
-
 
         function handleGamepadInput() {
             const connectedGamepads = navigator.getGamepads();
@@ -306,7 +313,7 @@
                 const leftStickControl = (i === 0) ? controlTypes.GAMEPAD_0_LEFT : controlTypes.GAMEPAD_1_LEFT;
                 const rightStickControl = (i === 0) ? controlTypes.GAMEPAD_0_RIGHT : controlTypes.GAMEPAD_1_RIGHT;
 
-                // Levý joystick
+                // Levý joystick - pohyb
                 const leftStickY = gamepad.axes[1];
                 let primaryPaddle = playerPaddles[0];
                 if (primaryPaddle && Math.abs(leftStickY) > 0.1) {
@@ -322,7 +329,19 @@
                     primaryPaddle.dy = 0;
                 }
 
-                // Pravý joystick
+                // D-Pad - změna velikosti primární pálky
+                if (primaryPaddle) {
+                    let change = 0;
+                    if (gamepad.buttons[14]?.pressed) change = -5; // D-pad left
+                    if (gamepad.buttons[15]?.pressed) change = 5; // D-pad right
+                    if (change !== 0) {
+                        const sizeTarget = gameOrientation === 'horizontal' ? 'height' : 'width';
+                        primaryPaddle[sizeTarget] += change;
+                        primaryPaddle[sizeTarget] = Math.max(MIN_PADDLE_SIZE, Math.min(MAX_PADDLE_SIZE, primaryPaddle[sizeTarget]));
+                    }
+                }
+
+                // Pravý joystick - druhá pálka
                 const rightStickY = gamepad.axes[3];
                 let secondaryPaddle = playerPaddles.find(p => p.control === rightStickControl);
                 if (Math.abs(rightStickY) > 0.1) {
@@ -348,7 +367,6 @@
                      else paddle.x += paddle.dx;
                 }
                 
-                // AI ovládání
                 if (paddle.control === controlTypes.AI) {
                     if (gameOrientation === 'horizontal') {
                         const p2Center = paddle.y + paddle.height / 2;
@@ -387,7 +405,7 @@
                     if ((isPlayer1Paddle && ball.dx < 0 && ball.x - ball.radius < paddle.x + paddle.width && ball.y > paddle.y && ball.y < paddle.y + paddle.height) ||
                         (!isPlayer1Paddle && ball.dx > 0 && ball.x + ball.radius > paddle.x && ball.y > paddle.y && ball.y < paddle.y + paddle.height)) {
                         hit = true;
-                        ball.dx *= -1; // Odebráno zrychlení
+                        ball.dx *= -1;
                         const sizeRatio = paddle.height / PADDLE_HEIGHT_DEFAULT;
                         ball.dy = (ball.y - (paddle.y + paddle.height / 2)) * (baseBounceFactor / sizeRatio);
                     }
@@ -396,7 +414,7 @@
                      if ((isPlayer1Paddle && ball.dy < 0 && ball.y - ball.radius < paddle.y + paddle.height && ball.x > paddle.x && ball.x < paddle.x + paddle.width) ||
                         (!isPlayer1Paddle && ball.dy > 0 && ball.y + ball.radius > paddle.y && ball.x > paddle.x && ball.x < paddle.x + paddle.width)) {
                         hit = true;
-                        ball.dy *= -1; // Odebráno zrychlení
+                        ball.dy *= -1;
                         const sizeRatio = paddle.width / PADDLE_HEIGHT_DEFAULT;
                         ball.dx = (ball.x - (paddle.x + paddle.width / 2)) * (baseBounceFactor / sizeRatio);
                     }

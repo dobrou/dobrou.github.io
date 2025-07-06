@@ -138,7 +138,8 @@
         
         // --- Herní stav ---
         let players = [];
-        let enemies, portal, potion, bosses, projectiles, bandage, trapBowls;
+        let enemies, portal, potion, bosses, projectiles, bandage, trapBowls, keys;
+        let collectedKeys, totalKeys;
         let lives = 5;
         let currentLevel = 1;
         let maze = [];
@@ -796,6 +797,8 @@
             bosses = [];
             projectiles = [];
             trapBowls = [];
+            keys = [];
+            collectedKeys = 0;
             
             clearTimeout(escapePotionTimeout);
             clearTimeout(potionEffectTimeout);
@@ -821,11 +824,21 @@
             do {
                 portalPos = getRandomEmptyTile();
             } while (players.some(p => Math.abs(portalPos.x - p.x) < gridSize / 2 && Math.abs(portalPos.y - p.y) < gridSize / 2));
-            portal = new GameObject(portalPos.x, portalPos.y, '🌀');
+            portal = new GameObject(portalPos.x, portalPos.y, '🔘');
+            portal.isLocked = true;
             
             potion = null;
             bandage = null;
             if (currentLevel < mazeLevels.length) {
+                totalKeys = 1;
+                for(let i = 0; i < totalKeys; i++) {
+                    let keyPos;
+                    do {
+                       keyPos = getRandomEmptyTile();
+                    } while (isWall(keyPos.x, keyPos.y));
+                    keys.push(new GameObject(keyPos.x, keyPos.y, '🔑'));
+                }
+
                 let potionPos;
                  do {
                     potionPos = getRandomEmptyTile();
@@ -845,6 +858,9 @@
                     trapPos = getRandomEmptyTile();
                 } while(isWall(trapPos.x, trapPos.y));
                 trapBowls.push(new TrapBowl(trapPos.x, trapPos.y));
+            } else {
+                portal.isLocked = false;
+                portal.emoji = '🌀';
             }
 
             updateUI();
@@ -1032,10 +1048,12 @@
                 }
             });
 
-            if (players.length > 1) {
-                if (portal.x === players[0].x && portal.y === players[0].y && players[1] && portal.x === players[1].x && portal.y === players[1].y) { nextLevel(); }
-            } else {
-                if (portal.x === players[0].x && portal.y === players[0].y) { nextLevel(); }
+            if (!portal.isLocked) {
+                if (players.length > 1) {
+                    if (portal.x === players[0].x && portal.y === players[0].y && players[1] && portal.x === players[1].x && portal.y === players[1].y) { nextLevel(); }
+                } else {
+                    if (portal.x === players[0].x && portal.y === players[0].y) { nextLevel(); }
+                }
             }
 
             if (potion && players.some(p => p.x === potion.x && p.y === potion.y)) {
@@ -1057,6 +1075,19 @@
                 if (lives < (players.length > 1 ? 10 : 5)) { lives++; updateUI(); }
             }
             
+            for (let i = keys.length - 1; i >= 0; i--) {
+                const key = keys[i];
+                if (players.some(p => p.x === key.x && p.y === key.y)) {
+                    keys.splice(i, 1);
+                    collectedKeys++;
+                    updateUI();
+                    if (keys.length === 0) {
+                        portal.isLocked = false;
+                        portal.emoji = '🌀';
+                    }
+                }
+            }
+
             players.forEach(p_instance => {
                 if (p_instance.escapePotion && p_instance.x === p_instance.escapePotion.x && p_instance.y === p_instance.escapePotion.y) {
                     p_instance.escapePotion = null;
@@ -1116,6 +1147,7 @@
             if(bandage) bandage.draw();
             players.forEach(p => { if(p.escapePotion) p.escapePotion.draw() });
             trapBowls.forEach(t => t.draw());
+            keys.forEach(k => k.draw());
             players.forEach(p => p.draw());
             enemies.forEach(enemy => enemy.draw());
             bosses.forEach(b => b.draw());
