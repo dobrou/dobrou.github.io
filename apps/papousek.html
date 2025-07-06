@@ -206,6 +206,20 @@
             countdownAnimationId = null;
         }
 
+        // NOVÁ FUNKCE: Vytvoří křivku pro zkreslení
+        function makeDistortionCurve(amount) {
+            const k = typeof amount === 'number' ? amount : 50;
+            const n_samples = 44100;
+            const curve = new Float32Array(n_samples);
+            const deg = Math.PI / 180;
+            for (let i = 0; i < n_samples; ++i) {
+                const x = i * 2 / n_samples - 1;
+                curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+            }
+            return curve;
+        }
+
+
         async function startListening() {
             try {
                 if (!audioContext) {
@@ -227,7 +241,8 @@
                 preRollBufferWriteIndex = 0;
 
                 microphone.connect(analyser);
-                analyser.connect(javascriptNode);
+                microphone.connect(javascriptNode);
+                
                 javascriptNode.connect(muteNode);
                 muteNode.connect(audioContext.destination);
 
@@ -356,9 +371,8 @@
                 const source = audioContext.createBufferSource();
                 source.buffer = audioBuffer;
                 
-                // OPRAVA HLASITOSTI: Hlavní zesilovač pro všechny zvuky
                 const masterGain = audioContext.createGain();
-                masterGain.gain.value = 2.5; // Zesílení všech zvuků
+                masterGain.gain.value = 2.5; 
                 masterGain.connect(audioContext.destination);
 
                 let lastNode = source;
@@ -373,20 +387,23 @@
                     updateStatus('Opakuji... (Hluboký hlas)', 'dot-green');
                 } else {
                     updateStatus('Opakuji... (Robot)', 'dot-green');
+                    
+                    // VYLEPŠENÝ ROBOTICKÝ EFEKT
+                    const distortion = audioContext.createWaveShaper();
+                    distortion.curve = makeDistortionCurve(800); // Výraznější zkreslení
+                    distortion.oversample = '4x';
+
                     const biquadFilter = audioContext.createBiquadFilter();
                     biquadFilter.type = "bandpass";
-                    biquadFilter.frequency.value = 1500;
-                    biquadFilter.Q.value = 15;
+                    biquadFilter.frequency.value = 2000;
+                    biquadFilter.Q.value = 10;
 
-                    const robotGain = audioContext.createGain();
-                    robotGain.gain.value = 8.0;
-
-                    lastNode.connect(biquadFilter);
-                    biquadFilter.connect(robotGain);
-                    lastNode = robotGain;
+                    lastNode.connect(distortion);
+                    distortion.connect(biquadFilter);
+                    lastNode = biquadFilter;
                 }
 
-                lastNode.connect(masterGain); // Všechny efekty jdou přes hlavní zesilovač
+                lastNode.connect(masterGain);
                 source.start();
                 
                 source.onended = () => {
