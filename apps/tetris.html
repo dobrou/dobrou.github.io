@@ -9,17 +9,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0b132b;
+            --bg-color: #1a1a2e;
             --grid-color: #000;
-            --text-color: #cbeef3;
-            --accent-color: #1c2541;
-            --border-color: #00f5d4;
+            --text-color: #f0f0f0;
+            --accent-color: #0f3460;
+            --border-color: #00c9ff; /* Změněno z červené na modrou */
             --font-family: 'Press Start 2P', cursive;
         }
 
         body {
             background-color: var(--bg-color);
-            background-image: linear-gradient(to bottom right, #0b132b, #1c2541);
+            background-image: linear-gradient(to bottom right, #1a1a2e, #16213e);
             color: var(--text-color);
             font-family: var(--font-family);
             display: flex;
@@ -47,12 +47,13 @@
             padding: 1rem;
             background-color: var(--accent-color);
             border-radius: 10px;
-            box-shadow: 0 0 20px var(--border-color), inset 0 0 10px rgba(0,0,0,0.5);
+            box-shadow: 0 0 25px var(--border-color), inset 0 0 15px rgba(0,0,0,0.6);
         }
 
         h1 {
             font-size: 1.5rem;
             margin-bottom: 1rem;
+            color: var(--border-color);
             text-shadow: 3px 3px 5px #000;
         }
 
@@ -67,14 +68,14 @@
         }
         
         #game-over-overlay {
-            position: fixed; /* Use fixed to cover the whole screen */
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
+            background-color: rgba(0, 0, 0, 0.85);
             color: white;
-            display: none; /* Initially hidden */
+            display: none;
             flex-direction: column;
             justify-content: center;
             align-items: center;
@@ -84,13 +85,14 @@
 
         #game-over-overlay h2 {
             font-size: 3rem;
-            color: var(--text-color);
+            color: var(--border-color);
             margin-bottom: 1rem;
             text-shadow: 4px 4px 0px #000;
         }
 
         #game-over-overlay p {
             font-size: 1.2rem;
+            color: var(--text-color);
         }
 
         .info-area {
@@ -102,20 +104,20 @@
         }
 
         .info-box {
-            background: rgba(0,0,0,0.3);
+            background: rgba(0,0,0,0.4);
             border: 2px solid var(--border-color);
             padding: 1rem;
             margin-bottom: 1rem;
             border-radius: 5px;
             text-align: center;
-            box-shadow: inset 0 0 8px rgba(0,0,0,0.6);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.7);
         }
 
         .info-box h2 {
             font-size: 1rem;
             margin-top: 0;
             margin-bottom: 0.5rem;
-            color: var(--text-color);
+            color: var(--border-color);
         }
 
         .info-box p, .info-box canvas {
@@ -174,13 +176,13 @@
         const BLOCK_SIZE = 30;
         const COLORS = [
             null,
-            '#00f5d4', // T (Teal)
-            '#fce181', // O (Yellow)
-            '#5dadec', // L (Blue)
-            '#80dfff', // J (Light Blue)
-            '#a9f04d', // I (Green)
-            '#42e695', // S (Mint Green)
-            '#4682b4', // Z (Steel Blue)
+            '#ae81ff', // T (Purple)
+            '#f8e71c', // O (Yellow)
+            '#ff9f1c', // L (Orange)
+            '#4a90e2', // J (Blue)
+            '#50e3c2', // I (Cyan)
+            '#b8e986', // S (Lime Green)
+            '#ff6188', // Z (Pink)
         ];
         const SHAPES = [
             [],
@@ -195,7 +197,7 @@
 
         let players = [];
         let numPlayers = 1;
-        let playerGamepadMap = new Map(); // Map<playerId, gamepadIndex>
+        let playerGamepadMap = new Map();
         let animationFrameId;
 
         // --- Player Class ---
@@ -210,7 +212,7 @@
                 this.nextPiece = this.newPiece();
                 this.gameOver = false;
                 this.dropCounter = 0;
-                this.dropInterval = 1000; // ms
+                this.dropInterval = 1000;
 
                 this.setupDOM();
                 this.reset();
@@ -268,7 +270,7 @@
             
             newPiece() {
                 const rand = Math.floor(Math.random() * (SHAPES.length - 1)) + 1;
-                const piece = JSON.parse(JSON.stringify(SHAPES[rand])); // Deep copy
+                const piece = JSON.parse(JSON.stringify(SHAPES[rand]));
                 return {
                     pos: { x: Math.floor(COLS / 2) - Math.floor(piece[0].length / 2), y: 0 },
                     matrix: piece,
@@ -498,10 +500,11 @@
 
         let lastTime = 0;
         function gameLoop(time = 0) {
+            if (!lastTime) lastTime = time;
             const deltaTime = time - lastTime;
             lastTime = time;
 
-            handleGamepadInput(deltaTime); // Pass deltaTime
+            handleGamepadInput(deltaTime);
 
             let allGameOver = true;
             players.forEach(player => {
@@ -544,7 +547,7 @@
             }
         });
         
-        // --- Gamepad Controls (REVISED LOGIC) ---
+        // --- Gamepad Controls (FIXED) ---
         function checkGamepadStatusAndRestartIfNeeded() {
             try {
                 const connectedPads = navigator.getGamepads().filter(p => p);
@@ -577,7 +580,7 @@
         }
 
         let buttonPressStates = {};
-        let dasStates = {}; // Delayed Auto Shift states for each gamepad
+        let dasStates = {};
 
         function handleGamepadInput(deltaTime) {
             if (playerGamepadMap.size === 0) return;
@@ -585,9 +588,9 @@
                 const connectedPads = navigator.getGamepads();
                 if (!connectedPads) return;
 
-                const DAS_DELAY = 160; // Zpoždění před opakováním (ms)
-                const DAS_RATE = 50;   // Rychlost opakování (ms)
-                const SOFT_DROP_RATE = 50; // Rychlost pohybu dolů (ms)
+                const DAS_DELAY = 180;
+                const DAS_RATE = 45;
+                const SOFT_DROP_RATE = 50;
 
                 let newButtonStates = {};
 
@@ -596,19 +599,17 @@
                     const player = players.find(p => p.id === playerId);
 
                     if (pad && player) {
-                        // Inicializace stavu pro tento ovladač, pokud neexistuje
                         if (!dasStates[gamepadIndex]) {
                             dasStates[gamepadIndex] = {
-                                h: { dir: 0, timer: 0 }, // Horizontální
-                                v: { dir: 0, timer: 0 }  // Vertikální
+                                h: { dir: 0, timer: 0 },
+                                v: { dir: 0, timer: 0 }
                             };
                         }
                         const state = dasStates[gamepadIndex];
 
-                        // --- Akce na jedno stisknutí ---
                         const wasButtonPressed = (buttonIndex) => {
-                            const key = `${pad.index}-${buttonIndex}`;
-                            const isPressed = pad.buttons[buttonIndex].pressed;
+                            const key = `${gamepadIndex}-${buttonIndex}`;
+                            const isPressed = pad.buttons[buttonIndex] && pad.buttons[buttonIndex].pressed;
                             newButtonStates[key] = isPressed;
                             return isPressed && !buttonPressStates[key];
                         };
@@ -619,29 +620,29 @@
                         if (wasButtonPressed(0) || wasButtonPressed(12)) player.rotate();
                         if (wasButtonPressed(1)) player.hardDrop();
 
-                        // --- Opakované akce se zpožděním (pohyb) ---
-                        const hDir = (pad.axes[0] < -0.5 || pad.buttons[14].pressed) ? -1 : (pad.axes[0] > 0.5 || pad.buttons[15].pressed) ? 1 : 0;
+                        const hDir = (pad.axes[0] < -0.7 || (pad.buttons[14] && pad.buttons[14].pressed)) ? -1 : (pad.axes[0] > 0.7 || (pad.buttons[15] && pad.buttons[15].pressed)) ? 1 : 0;
                         
                         if (hDir === 0) {
-                            state.h.timer = 0; // Resetovat časovač při uvolnění
+                            state.h.timer = 0;
+                            state.h.dir = 0;
                         } else {
-                            if (state.h.dir !== hDir) { // První stisk v tomto směru
+                            if (state.h.dir !== hDir) {
                                 player.move(hDir);
-                                state.h.timer = DAS_DELAY; // Nastavit časovač pro další automatický posun
-                            } else { // Držení směru
+                                state.h.timer = DAS_DELAY;
+                            } else {
                                 state.h.timer -= deltaTime;
                                 if (state.h.timer <= 0) {
                                     player.move(hDir);
-                                    state.h.timer += DAS_RATE; // Přidat zpoždění pro *další* posun
+                                    state.h.timer += DAS_RATE;
                                 }
                             }
+                            state.h.dir = hDir;
                         }
-                        state.h.dir = hDir;
 
-                        // --- Opakované akce (pohyb dolů) ---
-                        const vDir = (pad.axes[1] > 0.5 || pad.buttons[13].pressed) ? 1 : 0;
+                        const vDir = (pad.axes[1] > 0.7 || (pad.buttons[13] && pad.buttons[13].pressed)) ? 1 : 0;
                         if(vDir === 0) {
                             state.v.timer = 0;
+                            state.v.dir = 0;
                         } else {
                             if (state.v.dir !== vDir) {
                                 player.drop();
@@ -653,10 +654,8 @@
                                     state.v.timer += SOFT_DROP_RATE;
                                 }
                             }
+                            state.v.dir = vDir;
                         }
-                        state.v.dir = vDir;
-
-                        player.draw();
                     }
                 }
                 buttonPressStates = newButtonStates;
@@ -666,7 +665,6 @@
         window.addEventListener("gamepadconnected", onGamepadConnected);
         window.addEventListener("gamepaddisconnected", onGamepadDisconnected);
 
-        // --- Initial Load ---
         window.onload = () => {
             initGame(1);
         };
