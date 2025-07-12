@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dědovy trubky v4.1</title>
+    <title>Dědovy trubky v4.2</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
@@ -263,23 +263,20 @@
 
         // --- Drawing Functions ---
         function drawUI() {
-            ctx.font = `${TILE_SIZE * 0.9}px 'Press Start 2P'`;
-            ctx.fillStyle = '#ffcc00';
+            ctx.font = `${TILE_SIZE}px 'Press Start 2P'`;
             ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
-            const lifeText = `x${playerLives}`;
-            // Simple robot icon
-            const iconX = 10;
-            const iconY = 10;
-            const iconSize = TILE_SIZE * 0.8;
-            ctx.fillStyle = '#f1c40f';
-            ctx.fillRect(iconX, iconY, iconSize, iconSize);
-            ctx.fillStyle = '#34495e';
-            ctx.fillRect(iconX + iconSize / 3, iconY + iconSize / 4, iconSize / 3, iconSize / 3);
             
-            ctx.fillStyle = '#ffcc00';
-            ctx.fillText(lifeText, iconX + iconSize + 5, iconY + 2);
+            // Draw hearts for lives
+            let hearts = '';
+            for (let i = 0; i < playerLives; i++) {
+                hearts += '❤️';
+            }
+            ctx.fillText(hearts, 10, 8);
 
+            // Draw level text
+            ctx.font = `${TILE_SIZE * 0.9}px 'Press Start 2P'`;
+            ctx.fillStyle = '#ffcc00';
             ctx.textAlign = 'right';
             ctx.fillText(`Level: ${currentLevel + 1}`, canvas.width - 10, 10);
         }
