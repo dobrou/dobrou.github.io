@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dědovy trubky v4.2</title>
+    <title>Dědovy trubky v4.3</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
@@ -74,7 +74,7 @@
             font-size: 0.7rem;
             margin-top: 15px;
             color: #ccc;
-            display: none; /* Initially hidden */
+            display: none;
         }
 
         #restart-button {
@@ -89,16 +89,27 @@
             cursor: pointer;
             box-shadow: 0 5px 0 #cca300;
             transition: all 0.1s ease-in-out;
-            display: none; /* Initially hidden */
+            display: none;
         }
 
         #restart-button:hover {
             background-color: #ffd633;
         }
-
-        #restart-button:active {
-            transform: translateY(3px);
-            box-shadow: 0 2px 0 #cca300;
+        
+        #water-alert {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 0, 0, 0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 1rem;
+            z-index: 101;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
         }
 
     </style>
@@ -110,6 +121,7 @@
 
     <div id="game-container">
         <canvas id="gameCanvas"></canvas>
+        <div id="water-alert">Děda omylem vypustil vodu!</div>
     </div>
 
     <div id="message-box">
@@ -125,6 +137,7 @@
         const messageText = document.getElementById('message-text');
         const restartButton = document.getElementById('restart-button');
         const restartInfo = document.getElementById('restart-info');
+        const waterAlert = document.getElementById('water-alert');
 
         const TILE_SIZE = 24;
         let currentLevel = 0;
@@ -139,86 +152,62 @@
 
         const COLORS = { wall: '#7f8c8d', path: '#2c3e50', exit: '#2ecc71', water: 'rgba(52, 152, 219, 0.8)' };
 
-        // --- Pathfinding (BFS) ---
         function findShortestPath(grid, start, end) {
             const queue = [[start]];
             const visited = new Set([`${start.x},${start.y}`]);
             const directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
-
             while (queue.length > 0) {
                 const path = queue.shift();
                 const { x, y } = path[path.length - 1];
-
-                if (x === end.x && y === end.y) {
-                    return path;
-                }
-
+                if (x === end.x && y === end.y) return path;
                 for (const [dx, dy] of directions) {
-                    const nextX = x + dx;
-                    const nextY = y + dy;
-                    const key = `${nextX},${nextY}`;
-
+                    const nextX = x + dx, nextY = y + dy, key = `${nextX},${nextY}`;
                     if (grid[nextY]?.[nextX] !== undefined && grid[nextY][nextX] !== 1 && !visited.has(key)) {
                         visited.add(key);
-                        const newPath = [...path, { x: nextX, y: nextY }];
-                        queue.push(newPath);
+                        queue.push([...path, { x: nextX, y: nextY }]);
                     }
                 }
             }
-            return null; // No path found
+            return null;
         }
 
-        // --- Level Generation ---
         function generateLevel(width, height) {
             width = width % 2 === 0 ? width + 1 : width;
             height = height % 2 === 0 ? height + 1 : height;
             let grid = Array(height).fill(null).map(() => Array(width).fill(1));
-            let stack = [];
-            let startX = 1, startY = 1;
-            grid[startY][startX] = 0;
-            stack.push([startX, startY]);
-
+            let stack = [[1, 1]];
+            grid[1][1] = 0;
             while (stack.length > 0) {
                 let [x, y] = stack[stack.length - 1];
                 let neighbors = [];
                 for (let [dx, dy] of [[0, -2], [0, 2], [-2, 0], [2, 0]]) {
                     let nx = x + dx, ny = y + dy;
-                    if (ny > 0 && ny < height - 1 && nx > 0 && nx < width - 1 && grid[ny][nx] === 1) {
-                        neighbors.push([nx, ny]);
-                    }
+                    if (ny > 0 && ny < height - 1 && nx > 0 && nx < width - 1 && grid[ny][nx] === 1) neighbors.push([nx, ny]);
                 }
                 if (neighbors.length > 0) {
                     let [nx, ny] = neighbors[Math.floor(Math.random() * neighbors.length)];
                     grid[ny][nx] = 0;
                     grid[y + (ny - y) / 2][x + (nx - x) / 2] = 0;
                     stack.push([nx, ny]);
-                } else {
-                    stack.pop();
-                }
+                } else stack.pop();
             }
-            
             const wallsToRemove = Math.floor((width * height) / 20);
             for (let i = 0; i < wallsToRemove; i++) {
-                const rx = Math.floor(Math.random() * (width - 2)) + 1;
-                const ry = Math.floor(Math.random() * (height - 2)) + 1;
-                if(grid[ry][rx] === 1) {
-                    grid[ry][rx] = 0;
-                }
+                const rx = Math.floor(Math.random() * (width - 2)) + 1, ry = Math.floor(Math.random() * (height - 2)) + 1;
+                if(grid[ry][rx] === 1) grid[ry][rx] = 0;
             }
-
             grid[1][1] = 2;
             grid[height - 2][width - 2] = 3;
+            grid[height - 2][1] = 3; // Second exit
             return grid;
         }
 
-        // --- Game Initialization ---
         function initLevel(levelIndex) {
             gameActive = true;
             let size = 15 + Math.floor(levelIndex / 3) * 2;
             maze = generateLevel(size, size);
             
-            const rows = maze.length;
-            const cols = maze[0].length;
+            const rows = maze.length, cols = maze[0].length;
             canvas.width = cols * TILE_SIZE;
             canvas.height = rows * TILE_SIZE;
 
@@ -226,7 +215,7 @@
             waterQueue = [];
             waterStarted = false;
 
-            let playerPos, exitPos;
+            let playerPos, exits = [];
             for (let y = 0; y < rows; y++) {
                 for (let x = 0; x < cols; x++) {
                     if (maze[y][x] === 2) {
@@ -234,12 +223,14 @@
                         playerPos = {x, y};
                         maze[y][x] = 0;
                     } else if (maze[y][x] === 3) {
-                        exitPos = {x, y};
+                        exits.push({x, y});
                     }
                 }
             }
             
-            const criticalPath = findShortestPath(maze, playerPos, exitPos);
+            const path1 = findShortestPath(maze, playerPos, exits[0]);
+            const path2 = findShortestPath(maze, playerPos, exits[1]);
+            const criticalPath = (path1 && path2) ? (path1.length <= path2.length ? path1 : path2) : (path1 || path2);
             const criticalPathSet = new Set(criticalPath.map(p => `${p.x},${p.y}`));
 
             let validSources = [];
@@ -251,7 +242,7 @@
                     }
                 }
             }
-            waterSource = validSources.length > 0 ? validSources[Math.floor(Math.random() * validSources.length)] : {x: cols - 2, y: 1};
+            waterSource = validSources.length > 0 ? validSources[Math.floor(Math.random() * validSources.length)] : {x: cols - 2, y: Math.floor(rows/2)};
 
             waterSpreadInterval = Math.max(80, 400 - (levelIndex * 8));
             lastWaterSpreadTime = 0;
@@ -261,20 +252,13 @@
             restartInfo.style.display = 'none';
         }
 
-        // --- Drawing Functions ---
         function drawUI() {
             ctx.font = `${TILE_SIZE}px 'Press Start 2P'`;
             ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
-            
-            // Draw hearts for lives
             let hearts = '';
-            for (let i = 0; i < playerLives; i++) {
-                hearts += '❤️';
-            }
+            for (let i = 0; i < playerLives; i++) hearts += '❤️';
             ctx.fillText(hearts, 10, 8);
-
-            // Draw level text
             ctx.font = `${TILE_SIZE * 0.9}px 'Press Start 2P'`;
             ctx.fillStyle = '#ffcc00';
             ctx.textAlign = 'right';
@@ -293,9 +277,7 @@
         }
 
         function drawPlayer() {
-            const robotX = player.x * TILE_SIZE + TILE_SIZE / 2;
-            const robotY = player.y * TILE_SIZE + TILE_SIZE / 2;
-            const radius = TILE_SIZE / 3;
+            const robotX = player.x * TILE_SIZE + TILE_SIZE / 2, robotY = player.y * TILE_SIZE + TILE_SIZE / 2, radius = TILE_SIZE / 3;
             ctx.fillStyle = '#f1c40f';
             ctx.beginPath(); ctx.arc(robotX, robotY, radius, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = '#34495e';
@@ -306,18 +288,14 @@
             ctx.fillStyle = COLORS.water;
             for (let y = 0; y < floodedMap.length; y++) {
                 for (let x = 0; x < floodedMap[0].length; x++) {
-                    if (floodedMap[y][x]) {
-                        ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-                    }
+                    if (floodedMap[y][x]) ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
                 }
             }
         }
         
-        // --- Game Logic ---
         function movePlayer(dx, dy) {
             if (!gameActive) return;
-            const newX = player.x + dx;
-            const newY = player.y + dy;
+            const newX = player.x + dx, newY = player.y + dy;
             if (maze[newY]?.[newX] !== undefined && maze[newY][newX] !== 1) {
                 player.x = newX;
                 player.y = newY;
@@ -325,9 +303,7 @@
         }
 
         function spreadWater() {
-            const nextWaterFront = [];
-            const addedToNextFront = new Set();
-            const directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+            const nextWaterFront = [], addedToNextFront = new Set(), directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
             if (waterQueue.length === 0) return;
             for (const tile of waterQueue) {
                 if (!floodedMap[tile.y][tile.x]) floodedMap[tile.y][tile.x] = true;
@@ -342,15 +318,19 @@
             waterQueue = nextWaterFront;
         }
 
+        function showWaterAlert() {
+            waterAlert.style.opacity = 1;
+            setTimeout(() => { waterAlert.style.opacity = 0; }, 2500);
+        }
+
         function checkGameState() {
             if (floodedMap[player.y][player.x]) {
                 gameActive = false;
                 playerLives--;
-
                 if (playerLives > 0) {
                     messageText.innerHTML = `Ztratil jsi život!<br>Zbývá: ${playerLives}`;
                     messageBox.style.display = 'flex';
-                    setTimeout(startGame, 2000); // Restart current level
+                    setTimeout(startGame, 2000);
                 } else {
                     messageText.innerHTML = `Konec hry!<br>Voda tě dostala!`;
                     restartButton.style.display = 'block';
@@ -359,7 +339,6 @@
                 }
                 return;
             }
-
             if (maze[player.y][player.x] === 3) {
                 gameActive = false;
                 currentLevel++;
@@ -374,12 +353,12 @@
                 lastTimestamp = timestamp;
                 lastWaterSpreadTime = timestamp;
             }
-
             if (timestamp - lastTimestamp > waterSpreadInterval * 2.5) { 
                 if (timestamp - lastWaterSpreadTime > waterSpreadInterval) {
                     if (!waterStarted) {
                         waterQueue.push(waterSource);
                         waterStarted = true;
+                        showWaterAlert();
                     } else {
                         spreadWater();
                     }
@@ -392,19 +371,13 @@
         function handleGamepadInput() {
             if (gamepadIndex === null || !navigator.getGamepads()[gamepadIndex]) return;
             const gamepad = navigator.getGamepads()[gamepadIndex];
-            
             if (!gameActive) {
-                if (restartButton.style.display === 'block' && gamepad.buttons[0].pressed) {
-                    restartGame();
-                }
+                if (restartButton.style.display === 'block' && gamepad.buttons[0].pressed) restartGame();
                 return;
             }
-
             const now = Date.now();
             if (now - lastMoveTime < moveDelay) return;
-
-            const deadzone = 0.5;
-            const axes = gamepad.axes;
+            const deadzone = 0.5, axes = gamepad.axes;
             let moved = false;
             if (axes[1] < -deadzone) { movePlayer(0, -1); moved = true; }
             else if (axes[1] > deadzone) { movePlayer(0, 1); moved = true; }
@@ -423,31 +396,24 @@
 
         function gameLoop(timestamp) {
             handleGamepadInput();
-            if (gameActive) {
-                update(timestamp);
-            }
+            if (gameActive) update(timestamp);
             draw();
             requestAnimationFrame(gameLoop);
         }
 
         function startGame() {
-            // This function starts a level, using the current 'currentLevel' value
             initLevel(currentLevel);
         }
 
         function restartGame() {
-            // This function resets the whole game to the beginning
             currentLevel = 0;
             playerLives = 5;
             startGame();
         }
 
-        // --- Event Listeners ---
         window.addEventListener('keydown', (e) => {
             if (!gameActive) {
-                if (e.key.toLowerCase() === 'r' && restartButton.style.display === 'block') {
-                    restartGame();
-                }
+                if (e.key.toLowerCase() === 'r' && restartButton.style.display === 'block') restartGame();
                 return;
             }
             switch (e.key) {
@@ -462,7 +428,6 @@
         window.addEventListener("gamepadconnected", (e) => { gamepadIndex = e.gamepad.index; });
         window.addEventListener("gamepaddisconnected", () => { gamepadIndex = null; });
 
-        // --- Start Game ---
         window.onload = () => {
             startGame();
             requestAnimationFrame(gameLoop);
