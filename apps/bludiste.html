@@ -18,11 +18,12 @@ Předměty a vylepšení:
 Hráčovy schopnosti:
 - Skok: Hráč může skočit (mezerník/ťuknutí na displej), aby se vyhnul nepřátelům. Skok je deaktivován v posledním levelu s bossy.
 
-Hra pro dva hráče (kooperace):
-- Režim se aktivuje dynamicky, když se zapojí druhý hráč (stiskem WASD nebo na druhém gamepadu).
-- Druhý hráč ovládá jahodu (🍓).
-- Hráči mají společný, navýšený počet životů (10).
-- Pro postup do dalšího levelu musí oba hráči stát na portálu současně.
+Hra pro více hráčů (kooperace):
+- Režim se aktivuje dynamicky, když se zapojí další hráči.
+- Hráč 2 (Jahoda 🍓) se aktivuje stiskem WASD nebo na druhém gamepadu.
+- Hráč 3 (Malina 🍇) se aktivuje stiskem IJKL nebo na třetím gamepadu.
+- Hráči mají společný, navýšený počet životů (10 pro 2 hráče, 15 pro 3 hráče).
+- Pro postup do dalšího levelu musí všichni hráči stát na portálu současně.
 - Nepřátelé vždy pronásledují hráče, který je k nim blíže.
 
 Finální boss level (Level 17):
@@ -31,13 +32,13 @@ Finální boss level (Level 17):
 - Boss střílí projektily (🔥), které ubírají 2 životy a také ničí vnitřní zdi.
 
 Ovládání:
-- Klávesnice: Hráč 1 (šipky + mezerník), Hráč 2 (WASD + levý Shift).
-- Gamepad: Plná podpora pro dva hráče (pohyb D-Pad/páčkou, skok tlačítkem A).
+- Klávesnice: Hráč 1 (šipky + mezerník), Hráč 2 (WASD + levý Shift), Hráč 3 (IJKL + pravý Shift).
+- Gamepad: Plná podpora pro tři hráče (pohyb D-Pad/páčkou, skok tlačítkem A). Jakýkoliv gamepad může ovládat hráče 1, pokud hraje sám.
 - Dotykové ovládání: Plynulý pohyb tažením prstu, skok krátkým ťuknutím.
 
 Ostatní:
 - Celkem 17 levelů s postupně se zvyšující obtížností.
-- Úvodní animace (Jaro, Léto, Podzim, Zima), kterou lze přeskočit stiskem libovolné klávesy.
+- Úvodní animace (Jaro, Léto, Podzim, Zima), kterou lze přeskočit stiskem libovolné klávesy nebo kliknutím.
 - Cheaty: 'LEVEL' + číslo/písmeno pro skok do levelu, 'KONEC' pro skok k finálnímu bossovi.
 - Responzivní design pro různá zařízení.
 - UI zobrazuje číslo levelu a počet životů.
@@ -935,23 +936,23 @@ Ostatní:
 
             // Dynamická aktivace hráčů
             if (activePlayerCount < 2 && pads.length >= 2) {
-                const pad2 = pads[1];
-                if (pad2 && (pad2.buttons.some(b => b.pressed) || pad2.axes.some(a => Math.abs(a) > 0.5))) {
+                 const pad2 = pads[1];
+                 if (pad2 && (pad2.buttons.some(b => b.pressed) || pad2.axes.some(a => Math.abs(a) > 0.5))) {
                     console.log(`Druhý gamepad aktivován. Restartuji pro 2 hráče.`);
                     activePlayerCount = 2;
                     initLevel();
                     return;
-                }
+                 }
             }
             if (activePlayerCount < 3 && pads.length >= 3) {
                 const pad3 = pads[2];
                 if (pad3 && (pad3.buttons.some(b => b.pressed) || pad3.axes.some(a => Math.abs(a) > 0.5))) {
-                    console.log(`Třetí gamepad aktivován. Restartuji pro 3 hráče.`);
-                    activePlayerCount = 3;
-                    initLevel();
-                    return;
+                   console.log(`Třetí gamepad aktivován. Restartuji pro 3 hráče.`);
+                   activePlayerCount = 3;
+                   initLevel();
+                   return;
                 }
-            }
+           }
             
             // Ovládání hráče 1 (jakýkoliv aktivní gamepad pokud je sám)
             if (players[0]) {
@@ -972,7 +973,7 @@ Ostatní:
                         if(!pad.buttons[i]) pad.buttons[i] = {};
                         pad.buttons[i].lastPressed = btn.pressed
                     });
-                }
+                 }
             }
 
             // Ovládání hráče 2
