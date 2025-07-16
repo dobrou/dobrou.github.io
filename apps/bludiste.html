@@ -167,47 +167,47 @@ Ostatní:
         </button>
     </div>
 
-    <script type="module">
+    <script>
         // --- Základní nastavení hry ---
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+        var canvas = document.getElementById('gameCanvas');
+        var ctx = canvas.getContext('2d');
 
-        const levelDisplay = document.getElementById('level-display');
-        const livesDisplay = document.getElementById('lives-display');
-        const messageModal = document.getElementById('message-modal');
-        const messageTitle = document.getElementById('message-title');
-        const messageText = document.getElementById('message-text');
-        const restartButton = document.getElementById('restart-button');
+        var levelDisplay = document.getElementById('level-display');
+        var livesDisplay = document.getElementById('lives-display');
+        var messageModal = document.getElementById('message-modal');
+        var messageTitle = document.getElementById('message-title');
+        var messageText = document.getElementById('message-text');
+        var restartButton = document.getElementById('restart-button');
 
-        let TILE_SIZE = 32;
-        let gridSize;
+        var TILE_SIZE = 32;
+        var gridSize;
         
         // --- Herní stav ---
-        let players = [];
-        let enemies, portal, potion, bosses, projectiles, bandage, trapBowls, keys;
-        let collectedKeys, totalKeys;
-        let lives = 5;
-        let currentLevel = 1;
-        let maze = [];
-        let isGameOver = false;
-        let activePlayerCount = 1;
+        var players = [];
+        var enemies, portal, potion, bosses, projectiles, bandage, trapBowls, keys;
+        var collectedKeys, totalKeys;
+        var lives = 5;
+        var currentLevel = 1;
+        var maze = [];
+        var isGameOver = false;
+        var activePlayerCount = 1;
         
-        let escapePotion = null;
-        let openedWall = null;
-        let escapePotionTimeout = null;
-        let potionEffectActive = false;
-        let potionEffectTimeout = null;
+        var escapePotion = null;
+        var openedWall = null;
+        var escapePotionTimeout = null;
+        var potionEffectActive = false;
+        var potionEffectTimeout = null;
 
-        const keysPressed = {};
-        let cheatCodeBuffer = '';
-        let lastPlayerMove = 0;
-        const moveCooldown = 110;
-        let introPlaying = true;
-        let introTimeouts = [];
+        var keysPressed = {};
+        var cheatCodeBuffer = '';
+        var lastPlayerMove = 0;
+        var moveCooldown = 110;
+        var introPlaying = true;
+        var introTimeouts = [];
 
 
         // --- Definice levelů ---
-        const mazeLevels = [
+        var mazeLevels = [
             // Level 1
             [
                 [1,1,1,1,1,1,1,1,1,1,1,1,1],
@@ -443,7 +443,7 @@ Ostatní:
             // Level 12
             [
                 [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                [1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1],
+                [1,0,1,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,1],
                 [1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1,1,0,1],
@@ -453,7 +453,7 @@ Ostatní:
                 [1,0,1,0,0,0,0,0,1,0,1,1,1,0,1,0,1,0,1,0,1],
                 [1,0,1,0,1,1,1,1,1,0,0,0,1,0,1,0,1,0,0,0,1],
                 [1,0,1,0,1,0,0,0,0,0,0,0,1,0,0,0,1,1,1,0,1],
-                [1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,0,0,1,0,1],
+                [1,0,1,0,1,0,1,1,1,1,1,0,0,0,1,0,0,0,1,0,1],
                 [1,0,1,0,1,0,1,0,0,0,1,0,1,0,1,1,1,0,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,1,0,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],
@@ -461,7 +461,7 @@ Ostatní:
                 [1,1,1,1,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0,1],
                 [1,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,1,0,0,0,1],
                 [1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,0,1,1,1,0,1],
-                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
                 [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
             ],
             // Level 13
@@ -519,245 +519,240 @@ Ostatní:
         ];
 
         // --- Herní objekty ---
-        class GameObject {
-            constructor(x, y, emoji) {
-                this.x = x;
-                this.y = y;
-                this.emoji = emoji;
-            }
-
-            draw() {
-                if (!this.emoji) return;
-                let drawSize = TILE_SIZE * 0.8;
-                if (this.isJumping) {
-                    const jumpProgress = (Date.now() - this.jumpStartTime) / this.jumpDuration;
-                    const jumpHeight = Math.sin(jumpProgress * Math.PI); // Parabolická křivka
-                    drawSize *= 1 + jumpHeight * 0.5; // Zvětšení až o 50%
-                }
-                
-                if(this.isTrapped && Math.floor(Date.now() / 150) % 2 === 0) {
-                    return; // Blikání
-                }
-
-                ctx.font = `${drawSize}px sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(this.emoji, this.x * TILE_SIZE + TILE_SIZE / 2, this.y * TILE_SIZE + TILE_SIZE / 2);
-            }
+        function GameObject(x, y, emoji) {
+            this.x = x;
+            this.y = y;
+            this.emoji = emoji;
         }
 
-        class Player extends GameObject {
-            constructor(x, y) {
-                super(x, y, '🍒');
-                this.isJumping = false;
-                this.jumpDuration = 500; // ms
-                this.jumpStartTime = 0;
-                this.isTrapped = false;
-                this.isTrapImmune = false;
+        GameObject.prototype.draw = function() {
+            if (!this.emoji) return;
+            var drawSize = TILE_SIZE * 0.8;
+            if (this.isJumping) {
+                var jumpProgress = (Date.now() - this.jumpStartTime) / this.jumpDuration;
+                var jumpHeight = Math.sin(jumpProgress * Math.PI); // Parabolická křivka
+                drawSize *= 1 + jumpHeight * 0.5; // Zvětšení až o 50%
+            }
+            
+            if(this.isTrapped && Math.floor(Date.now() / 150) % 2 === 0) {
+                return; // Blikání
             }
 
-            jump() {
-                if (this.isJumping || isGameOver || this.isTrapped || currentLevel === mazeLevels.length) return;
-                this.isJumping = true;
-                this.jumpStartTime = Date.now();
-                setTimeout(() => {
-                    this.isJumping = false;
-                }, this.jumpDuration);
-            }
+            ctx.font = drawSize + 'px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(this.emoji, this.x * TILE_SIZE + TILE_SIZE / 2, this.y * TILE_SIZE + TILE_SIZE / 2);
+        }
 
-            move(dx, dy) {
-                if (isGameOver || this.isJumping || this.isTrapped) return;
-                const nextX = this.x + dx;
-                const nextY = this.y + dy;
-                if (!isWall(nextX, nextY)) {
-                    this.x = nextX;
-                    this.y = nextY;
-                }
+        function Player(x, y) {
+            GameObject.call(this, x, y, '🍒');
+            this.isJumping = false;
+            this.jumpDuration = 500; // ms
+            this.jumpStartTime = 0;
+            this.isTrapped = false;
+            this.isTrapImmune = false;
+        }
+        Player.prototype = Object.create(GameObject.prototype);
+        Player.prototype.constructor = Player;
+
+        Player.prototype.jump = function() {
+            if (this.isJumping || isGameOver || this.isTrapped || currentLevel === mazeLevels.length) return;
+            this.isJumping = true;
+            this.jumpStartTime = Date.now();
+            var self = this;
+            setTimeout(function() {
+                self.isJumping = false;
+            }, this.jumpDuration);
+        }
+
+        Player.prototype.move = function(dx, dy) {
+            if (isGameOver || this.isJumping || this.isTrapped) return;
+            var nextX = this.x + dx;
+            var nextY = this.y + dy;
+            if (!isWall(nextX, nextY)) {
+                this.x = nextX;
+                this.y = nextY;
             }
         }
         
-        class TrapBowl extends GameObject {
-            constructor(x, y) {
-                super(x, y, '🥣');
-            }
+        function TrapBowl(x, y) {
+            GameObject.call(this, x, y, '🥣');
+        }
+        TrapBowl.prototype = Object.create(GameObject.prototype);
+        TrapBowl.prototype.constructor = TrapBowl;
+
+        function Projectile(x, y, dx, dy) {
+            GameObject.call(this, x, y, '🔥');
+            this.px = x * TILE_SIZE + TILE_SIZE / 2;
+            this.py = y * TILE_SIZE + TILE_SIZE / 2;
+            this.dx = dx;
+            this.dy = dy;
+            this.speed = 4;
+        }
+        Projectile.prototype = Object.create(GameObject.prototype);
+        Projectile.prototype.constructor = Projectile;
+        
+        Projectile.prototype.update = function() {
+            this.px += this.dx * this.speed;
+            this.py += this.dy * this.speed;
+            this.x = Math.floor(this.px / TILE_SIZE);
+            this.y = Math.floor(this.py / TILE_SIZE);
+        }
+        
+        Projectile.prototype.draw = function() {
+            ctx.font = (TILE_SIZE * 0.7) + 'px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(this.emoji, this.px, this.py);
         }
 
-        class Projectile extends GameObject {
-            constructor(x, y, dx, dy) {
-                super(x, y, '🔥');
-                this.px = x * TILE_SIZE + TILE_SIZE / 2;
-                this.py = y * TILE_SIZE + TILE_SIZE / 2;
-                this.dx = dx;
-                this.dy = dy;
-                this.speed = 4;
-            }
-            
-            update() {
-                this.px += this.dx * this.speed;
-                this.py += this.dy * this.speed;
-                this.x = Math.floor(this.px / TILE_SIZE);
-                this.y = Math.floor(this.py / TILE_SIZE);
-            }
-            
-            draw() {
-                ctx.font = `${TILE_SIZE * 0.7}px sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(this.emoji, this.px, this.py);
-            }
+        function Enemy(x, y) {
+            GameObject.call(this, x, y, null);
+            this.moveDelay = 350 - (currentLevel * 15);
+            this.lastMove = Date.now();
+            this.mouthOpen = false;
+            this.lastMouthToggle = Date.now();
         }
+        Enemy.prototype = Object.create(GameObject.prototype);
+        Enemy.prototype.constructor = Enemy;
 
-        class Enemy extends GameObject {
-            constructor(x, y) {
-                super(x, y, null);
-                this.moveDelay = 350 - (currentLevel * 15);
-                this.lastMove = Date.now();
-                this.mouthOpen = false;
+        Enemy.prototype.draw = function(sizeModifier) {
+            sizeModifier = sizeModifier === undefined ? 1 : sizeModifier;
+            if (Date.now() - this.lastMouthToggle > 300) {
+                this.mouthOpen = !this.mouthOpen;
                 this.lastMouthToggle = Date.now();
             }
 
-            draw(sizeModifier = 1) {
-                if (Date.now() - this.lastMouthToggle > 300) {
-                    this.mouthOpen = !this.mouthOpen;
-                    this.lastMouthToggle = Date.now();
+            var currentTileSize = TILE_SIZE * sizeModifier;
+            var centerX = this.x * TILE_SIZE + TILE_SIZE / 2;
+            var centerY = this.y * TILE_SIZE + TILE_SIZE / 2;
+            var radius = currentTileSize * 0.4;
+
+            ctx.fillStyle = 'yellow';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(centerX - currentTileSize * 0.15, centerY - currentTileSize * 0.1, currentTileSize * 0.05, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(centerX + currentTileSize * 0.15, centerY - currentTileSize * 0.1, currentTileSize * 0.05, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 2 * sizeModifier;
+            ctx.beginPath();
+            if (this.mouthOpen) {
+                ctx.arc(centerX, centerY + currentTileSize * 0.05, radius * 0.5, 0.1 * Math.PI, 0.9 * Math.PI, false);
+            } else {
+                ctx.moveTo(centerX - radius * 0.3, centerY + currentTileSize * 0.15);
+                ctx.lineTo(centerX + radius * 0.3, centerY + currentTileSize * 0.15);
+            }
+            ctx.stroke();
+        }
+
+        Enemy.prototype.move = function() {
+            if (Date.now() - this.lastMove < this.moveDelay) return;
+            this.lastMove = Date.now();
+
+            var target = players[0];
+            if (players.length > 1 && players[1]) {
+                var dist1 = Math.hypot(this.x - players[0].x, this.y - players[0].y);
+                var dist2 = Math.hypot(this.x - players[1].x, this.y - players[1].y);
+                if (dist2 < dist1) {
+                    target = players[1];
                 }
-
-                const currentTileSize = TILE_SIZE * sizeModifier;
-                const centerX = this.x * TILE_SIZE + TILE_SIZE / 2;
-                const centerY = this.y * TILE_SIZE + TILE_SIZE / 2;
-                const radius = currentTileSize * 0.4;
-
-                ctx.fillStyle = 'yellow';
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.fillStyle = 'black';
-                ctx.beginPath();
-                ctx.arc(centerX - currentTileSize * 0.15, centerY - currentTileSize * 0.1, currentTileSize * 0.05, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(centerX + currentTileSize * 0.15, centerY - currentTileSize * 0.1, currentTileSize * 0.05, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.strokeStyle = 'black';
-                ctx.lineWidth = 2 * sizeModifier;
-                ctx.beginPath();
-                if (this.mouthOpen) {
-                    ctx.arc(centerX, centerY + currentTileSize * 0.05, radius * 0.5, 0.1 * Math.PI, 0.9 * Math.PI, false);
-                } else {
-                    ctx.moveTo(centerX - radius * 0.3, centerY + currentTileSize * 0.15);
-                    ctx.lineTo(centerX + radius * 0.3, centerY + currentTileSize * 0.15);
-                }
-                ctx.stroke();
             }
 
-            move() {
-                if (Date.now() - this.lastMove < this.moveDelay) return;
-                this.lastMove = Date.now();
-
-                let target = players[0];
-                if (players.length > 1 && players[1]) {
-                    const dist1 = Math.hypot(this.x - players[0].x, this.y - players[0].y);
-                    const dist2 = Math.hypot(this.x - players[1].x, this.y - players[1].y);
-                    if (dist2 < dist1) {
-                        target = players[1];
-                    }
-                }
-
-                const dx = Math.sign(target.x - this.x);
-                const dy = Math.sign(target.y - this.y);
-                
-                if (Math.random() > 0.5) { 
-                    if (dx !== 0 && !isWall(this.x + dx, this.y)) { this.x += dx; }
-                    else if (dy !== 0 && !isWall(this.x, this.y + dy)) { this.y += dy; }
-                } else {
-                    if (dy !== 0 && !isWall(this.x, this.y + dy)) { this.y += dy; }
-                    else if (dx !== 0 && !isWall(this.x + dx, this.y)) { this.x += dx; }
-                }
+            var dx = Math.sign(target.x - this.x);
+            var dy = Math.sign(target.y - this.y);
+            
+            if (Math.random() > 0.5) { 
+                if (dx !== 0 && !isWall(this.x + dx, this.y)) { this.x += dx; }
+                else if (dy !== 0 && !isWall(this.x, this.y + dy)) { this.y += dy; }
+            } else {
+                if (dy !== 0 && !isWall(this.x, this.y + dy)) { this.y += dy; }
+                else if (dx !== 0 && !isWall(this.x + dx, this.y)) { this.x += dx; }
             }
         }
         
-        class Boss extends Enemy {
-            constructor(x, y) {
-                super(x, y);
-                this.moveDelay = 800;
-                this.shootCooldown = 2000;
-                this.lastShot = Date.now();
-                this.lasers = [
-                    { angle: Math.random() * Math.PI * 2, length: TILE_SIZE * 4, speed: 0.02 },
-                    { angle: Math.random() * Math.PI * 2, length: TILE_SIZE * 4, speed: -0.02 }
-                ];
-            }
+        function Boss(x, y) {
+            Enemy.call(this, x, y);
+            this.moveDelay = 800;
+            this.shootCooldown = 2000;
+            this.lastShot = Date.now();
+            this.lasers = [
+                { angle: Math.random() * Math.PI * 2, length: TILE_SIZE * 4, speed: 0.02 },
+                { angle: Math.random() * Math.PI * 2, length: TILE_SIZE * 4, speed: -0.02 }
+            ];
+        }
+        Boss.prototype = Object.create(Enemy.prototype);
+        Boss.prototype.constructor = Boss;
             
-            updateLasers() {
-                this.lasers.forEach(laser => {
-                    laser.angle += laser.speed;
-                });
-            }
+        Boss.prototype.updateLasers = function() {
+            this.lasers.forEach(function(laser) {
+                laser.angle += laser.speed;
+            });
+        }
 
-            draw() {
-                // Nakreslí tělo bosse červeně
-                const centerX = this.x * TILE_SIZE + TILE_SIZE / 2;
-                const centerY = this.y * TILE_SIZE + TILE_SIZE / 2;
-                const radius = TILE_SIZE * 2.5 * 0.4;
-                ctx.fillStyle = '#C70039'; // Tmavě červená
+        Boss.prototype.draw = function() {
+            var centerX = this.x * TILE_SIZE + TILE_SIZE / 2;
+            var centerY = this.y * TILE_SIZE + TILE_SIZE / 2;
+            var radius = TILE_SIZE * 2.5 * 0.4;
+            ctx.fillStyle = '#C70039';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.fill();
+            Enemy.prototype.draw.call(this, 2.5);
+            this.drawLasers();
+        }
+
+        Boss.prototype.drawLasers = function() {
+            var centerX = this.x * TILE_SIZE + TILE_SIZE / 2;
+            var centerY = this.y * TILE_SIZE + TILE_SIZE / 2;
+
+            this.lasers.forEach(function(laser) {
+                var endX = centerX + Math.cos(laser.angle) * laser.length;
+                var endY = centerY + Math.sin(laser.angle) * laser.length;
+                
                 ctx.beginPath();
-                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.moveTo(centerX, centerY);
+                ctx.lineTo(endX, endY);
+                ctx.strokeStyle = 'rgba(255, 0, 0, 0.15)';
+                ctx.lineWidth = 10;
+                ctx.stroke();
 
-                // Kreslení obličeje zůstává stejné (přes metodu super)
-                super.draw(2.5);
-                this.drawLasers();
-            }
-
-            drawLasers() {
-                const centerX = this.x * TILE_SIZE + TILE_SIZE / 2;
-                const centerY = this.y * TILE_SIZE + TILE_SIZE / 2;
-
-                this.lasers.forEach(laser => {
-                    const endX = centerX + Math.cos(laser.angle) * laser.length;
-                    const endY = centerY + Math.sin(laser.angle) * laser.length;
-                    
-                    // Efekt záře
-                    ctx.beginPath();
-                    ctx.moveTo(centerX, centerY);
-                    ctx.lineTo(endX, endY);
-                    ctx.strokeStyle = 'rgba(255, 0, 0, 0.15)';
-                    ctx.lineWidth = 10;
-                    ctx.stroke();
-
-                    ctx.beginPath();
-                    ctx.moveTo(centerX, centerY);
-                    ctx.lineTo(endX, endY);
-                    ctx.strokeStyle = 'rgba(255, 100, 100, 0.5)';
-                    ctx.lineWidth = 5;
-                    ctx.stroke();
-                    
-                    // Jádro laseru
-                    ctx.beginPath();
-                    ctx.moveTo(centerX, centerY);
-                    ctx.lineTo(endX, endY);
-                    ctx.strokeStyle = '#ff6666'; // Světlá červeno-růžová
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                });
-            }
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.lineTo(endX, endY);
+                ctx.strokeStyle = 'rgba(255, 100, 100, 0.5)';
+                ctx.lineWidth = 5;
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.lineTo(endX, endY);
+                ctx.strokeStyle = '#ff6666';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+        }
             
-            shoot() {
-                if (isGameOver || Date.now() - this.lastShot < this.shootCooldown) return;
-                
-                this.lastShot = Date.now();
-                const target = players[Math.floor(Math.random() * players.length)];
-                const dx = target.x - this.x;
-                const dy = target.y - this.y;
-                const distance = Math.sqrt(dx*dx + dy*dy);
-                
-                if (distance > 0) {
-                    const dirX = dx / distance;
-                    const dirY = dy / distance;
-                    projectiles.push(new Projectile(this.x, this.y, dirX, dirY));
-                }
+        Boss.prototype.shoot = function() {
+            if (isGameOver || Date.now() - this.lastShot < this.shootCooldown) return;
+            
+            this.lastShot = Date.now();
+            var target = players[Math.floor(Math.random() * players.length)];
+            var dx = target.x - this.x;
+            var dy = target.y - this.y;
+            var distance = Math.sqrt(dx*dx + dy*dy);
+            
+            if (distance > 0) {
+                var dirX = dx / distance;
+                var dirY = dy / distance;
+                projectiles.push(new Projectile(this.x, this.y, dirX, dirY));
             }
         }
 
@@ -769,10 +764,12 @@ Ostatní:
 
         function isPlayerInDeadEnd(player) {
             if (isGameOver) return false;
-            const { x, y } = player;
-            const neighbors = [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }];
-            let wallCount = 0;
-            for (const n of neighbors) {
+            var x = player.x;
+            var y = player.y;
+            var neighbors = [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }];
+            var wallCount = 0;
+            for (var i = 0; i < neighbors.length; i++) {
+                var n = neighbors[i];
                 if (isWall(x + n.dx, y + n.dy)) {
                     wallCount++;
                 }
@@ -781,38 +778,38 @@ Ostatní:
         }
 
         function getRandomEmptyTile() {
-            let emptyTiles = [];
-            for (let y = 0; y < gridSize; y++) {
-                for (let x = 0; x < gridSize; x++) {
-                    if (maze[y][x] === 0) { emptyTiles.push({ x, y }); }
+            var emptyTiles = [];
+            for (var y = 0; y < gridSize; y++) {
+                for (var x = 0; x < gridSize; x++) {
+                    if (maze[y][x] === 0) { emptyTiles.push({ x: x, y: y }); }
                 }
             }
             return emptyTiles.length > 0 ? emptyTiles[Math.floor(Math.random() * emptyTiles.length)] : { x: 1, y: 1 };
         }
         
         function resetEnemyPositions() {
-            enemies.forEach(enemy => {
-                let pos;
+            enemies.forEach(function(enemy) {
+                var pos;
                 do {
                     pos = getRandomEmptyTile();
-                } while (players.some(p => Math.abs(pos.x - p.x) < 5 && Math.abs(pos.y - p.y) < 5));
+                } while (players.some(function(p) { return Math.abs(pos.x - p.x) < 5 && Math.abs(pos.y - p.y) < 5; }));
                 enemy.x = pos.x;
                 enemy.y = pos.y;
             });
         }
 
         function respawnPlayersAndPortal() {
-            players.forEach((pl, index) => {
+            players.forEach(function(pl, index) {
                 pl.x = 1;
                 pl.y = 1 + index;
             });
             if (enemies.length > 0) {
                 resetEnemyPositions();
             }
-            let portalPos;
+            var portalPos;
             do {
                 portalPos = getRandomEmptyTile();
-            } while (players.some(p => Math.abs(portalPos.x - p.x) < gridSize / 2 && Math.abs(portalPos.y - p.y) < gridSize / 2));
+            } while (players.some(function(p) { return Math.abs(portalPos.x - p.x) < gridSize / 2 && Math.abs(portalPos.y - p.y) < gridSize / 2; }));
             portal.x = portalPos.x;
             portal.y = portalPos.y;
         }
@@ -820,8 +817,8 @@ Ostatní:
         // --- Funkce pro inicializaci ---
         function initLevel() {
             isGameOver = false;
-            let mazeData = mazeLevels[Math.min(currentLevel - 1, mazeLevels.length - 1)];
-            maze = mazeData.map(row => [...row]);
+            var mazeData = mazeLevels[Math.min(currentLevel - 1, mazeLevels.length - 1)];
+            maze = mazeData.map(function(row) { return row.slice(); });
             gridSize = maze.length;
 
             TILE_SIZE = Math.max(5, Math.floor(Math.min(window.innerWidth / gridSize, (window.innerHeight - 100) / gridSize)));
@@ -865,17 +862,17 @@ Ostatní:
                 bosses.push(new Boss(Math.floor(gridSize/2), 1));
                 bosses.push(new Boss(Math.floor(gridSize/2), gridSize - 2));
             } else {
-                const enemyCount = Math.min(1 + Math.floor(currentLevel / 2), 3);
-                for (let i = 0; i < enemyCount; i++) {
+                var enemyCount = Math.min(1 + Math.floor(currentLevel / 2), 3);
+                for (var i = 0; i < enemyCount; i++) {
                     enemies.push(new Enemy(0, 0));
                 }
                 resetEnemyPositions();
             }
 
-            let portalPos;
+            var portalPos;
             do {
                 portalPos = getRandomEmptyTile();
-            } while (players.some(p => Math.abs(portalPos.x - p.x) < gridSize / 2 && Math.abs(portalPos.y - p.y) < gridSize / 2));
+            } while (players.some(function(p) { return Math.abs(portalPos.x - p.x) < gridSize / 2 && Math.abs(portalPos.y - p.y) < gridSize / 2; }));
             portal = new GameObject(portalPos.x, portalPos.y, '🔘');
             portal.isLocked = true;
             
@@ -883,21 +880,21 @@ Ostatní:
             bandage = null;
             if (currentLevel < mazeLevels.length) {
                 totalKeys = 1;
-                for(let i = 0; i < totalKeys; i++) {
-                    let keyPos;
+                for(var i = 0; i < totalKeys; i++) {
+                    var keyPos;
                     do {
                        keyPos = getRandomEmptyTile();
                     } while (isWall(keyPos.x, keyPos.y));
                     keys.push(new GameObject(keyPos.x, keyPos.y, '🔑'));
                 }
 
-                let potionPos;
+                var potionPos;
                  do {
                     potionPos = getRandomEmptyTile();
                 } while ((potionPos.x === players[0].x && potionPos.y === players[0].y) || (potionPos.x === portal.x && potionPos.y === portal.y));
                 potion = new GameObject(potionPos.x, potionPos.y, '🧪');
 
-                let bandagePos;
+                var bandagePos;
                  do {
                     bandagePos = getRandomEmptyTile();
                 } while ((bandagePos.x === players[0].x && bandagePos.y === players[0].y) || 
@@ -905,7 +902,7 @@ Ostatní:
                          (potion && bandagePos.x === potion.x && bandagePos.y === potion.y));
                 bandage = new GameObject(bandagePos.x, bandagePos.y, '🩹');
                 
-                let trapPos;
+                var trapPos;
                 do {
                     trapPos = getRandomEmptyTile();
                 } while(isWall(trapPos.x, trapPos.y));
@@ -920,7 +917,7 @@ Ostatní:
 
         function updateUI() {
             levelDisplay.textContent = currentLevel;
-            const maxLives = players.length === 3 ? 15 : (players.length === 2 ? 10 : 5);
+            var maxLives = players.length === 3 ? 15 : (players.length === 2 ? 10 : 5);
             livesDisplay.textContent = "❤️".repeat(lives) + "🖤".repeat(Math.max(0, maxLives - lives));
         }
 
@@ -932,21 +929,22 @@ Ostatní:
         }
 
         function handleGamepadInput() {
-            const pads = navigator.getGamepads().filter(p => p);
-
+            if (!navigator.getGamepads) return;
+            var pads = navigator.getGamepads();
+            
             // Dynamická aktivace hráčů
-            if (activePlayerCount < 2 && pads.length >= 2) {
-                 const pad2 = pads[1];
-                 if (pad2 && (pad2.buttons.some(b => b.pressed) || pad2.axes.some(a => Math.abs(a) > 0.5))) {
+            if (activePlayerCount < 2 && pads && pads[1]) {
+                 var pad2 = pads[1];
+                 if (pad2 && (pad2.buttons.some(function(b) { return b.pressed; }) || pad2.axes.some(function(a) { return Math.abs(a) > 0.5; }))) {
                     console.log(`Druhý gamepad aktivován. Restartuji pro 2 hráče.`);
                     activePlayerCount = 2;
                     initLevel();
                     return;
                  }
             }
-            if (activePlayerCount < 3 && pads.length >= 3) {
-                const pad3 = pads[2];
-                if (pad3 && (pad3.buttons.some(b => b.pressed) || pad3.axes.some(a => Math.abs(a) > 0.5))) {
+            if (activePlayerCount < 3 && pads && pads[2]) {
+                var pad3 = pads[2];
+                if (pad3 && (pad3.buttons.some(function(b) { return b.pressed; }) || pad3.axes.some(function(a) { return Math.abs(a) > 0.5; }))) {
                    console.log(`Třetí gamepad aktivován. Restartuji pro 3 hráče.`);
                    activePlayerCount = 3;
                    initLevel();
@@ -954,60 +952,29 @@ Ostatní:
                 }
            }
             
-            // Ovládání hráče 1 (jakýkoliv aktivní gamepad pokud je sám)
-            if (players[0]) {
-                let p1Pad = pads[0];
-                if (players.length === 1 && pads.length > 0 && !p1Pad) {
-                    p1Pad = pads.find(p => p && (p.buttons.some(b => b.pressed) || p.axes.some(a => Math.abs(a) > 0.5)));
-                }
-                if (p1Pad) {
-                    const pad = p1Pad;
-                    keysPressed['gp0_up'] = pad.axes[1] < -0.5 || pad.buttons[12].pressed;
-                    keysPressed['gp0_down'] = pad.axes[1] > 0.5 || pad.buttons[13].pressed;
-                    keysPressed['gp0_left'] = pad.axes[0] < -0.5 || pad.buttons[14].pressed;
-                    keysPressed['gp0_right'] = pad.axes[0] > 0.5 || pad.buttons[15].pressed;
+            // Ovládání hráčů
+            for (var i = 0; i < players.length; i++) {
+                if (pads[i] && players[i]) {
+                    var pad = pads[i];
+                    keysPressed['gp' + i + '_up'] = pad.axes[1] < -0.5 || pad.buttons[12].pressed;
+                    keysPressed['gp' + i + '_down'] = pad.axes[1] > 0.5 || pad.buttons[13].pressed;
+                    keysPressed['gp' + i + '_left'] = pad.axes[0] < -0.5 || pad.buttons[14].pressed;
+                    keysPressed['gp' + i + '_right'] = pad.axes[0] > 0.5 || pad.buttons[15].pressed;
                     if (pad.buttons[0].pressed && !pad.buttons[0].lastPressed) {
-                        players[0].jump();
+                        players[i].jump();
                     }
-                    pad.buttons.forEach((btn, i) => {
-                        if(!pad.buttons[i]) pad.buttons[i] = {};
-                        pad.buttons[i].lastPressed = btn.pressed
-                    });
-                 }
-            }
-
-            // Ovládání hráče 2
-            if (players.length > 1 && pads[1] && players[1]) {
-                const pad = pads[1];
-                keysPressed['gp1_up'] = pad.axes[1] < -0.5 || pad.buttons[12].pressed;
-                keysPressed['gp1_down'] = pad.axes[1] > 0.5 || pad.buttons[13].pressed;
-                keysPressed['gp1_left'] = pad.axes[0] < -0.5 || pad.buttons[14].pressed;
-                keysPressed['gp1_right'] = pad.axes[0] > 0.5 || pad.buttons[15].pressed;
-                 if (pad.buttons[0].pressed && !pad.buttons[0].lastPressed) {
-                    players[1].jump();
+                    pad.buttons[0].lastPressed = pad.buttons[0].pressed;
                 }
-                pad.buttons[0].lastPressed = pad.buttons[0].pressed;
-            }
-
-            // Ovládání hráče 3
-            if (players.length > 2 && pads[2] && players[2]) {
-                const pad = pads[2];
-                keysPressed['gp2_up'] = pad.axes[1] < -0.5 || pad.buttons[12].pressed;
-                keysPressed['gp2_down'] = pad.axes[1] > 0.5 || pad.buttons[13].pressed;
-                keysPressed['gp2_left'] = pad.axes[0] < -0.5 || pad.buttons[14].pressed;
-                keysPressed['gp2_right'] = pad.axes[0] > 0.5 || pad.buttons[15].pressed;
-                 if (pad.buttons[0].pressed && !pad.buttons[0].lastPressed) {
-                    players[2].jump();
-                }
-                pad.buttons[0].lastPressed = pad.buttons[0].pressed;
             }
         }
 
         function gameLoop() {
             if (isGameOver) {
-                const pads = navigator.getGamepads();
-                if (pads[0] && pads[0].buttons.some(b => b.pressed)) {
-                    restartGame();
+                if (navigator.getGamepads) {
+                    var pads = navigator.getGamepads();
+                    if (pads[0] && pads[0].buttons.some(function(b) { return b.pressed; })) {
+                        restartGame();
+                    }
                 }
             } else {
                 handleGamepadInput();
@@ -1018,9 +985,9 @@ Ostatní:
         }
 
         function update() {
-            const now = Date.now();
+            var now = Date.now();
             if (now - lastPlayerMove > moveCooldown) {
-                let moved = false;
+                var moved = false;
                 if (keysPressed['arrowup'] || keysPressed['gp0_up']) { if(players[0]) players[0].move(0, -1); moved = true; } 
                 else if (keysPressed['arrowdown'] || keysPressed['gp0_down']) { if(players[0]) players[0].move(0, 1); moved = true; } 
                 else if (keysPressed['arrowleft'] || keysPressed['gp0_left']) { if(players[0]) players[0].move(-1, 0); moved = true; } 
@@ -1044,23 +1011,23 @@ Ostatní:
             }
 
             if (!potionEffectActive) {
-                enemies.forEach(enemy => enemy.move());
+                enemies.forEach(function(enemy) { enemy.move(); });
             }
-            bosses.forEach(b => {
+            bosses.forEach(function(b) {
                 b.move();
                 b.shoot();
                 b.updateLasers();
                 
-                const bossCenterX = b.x * TILE_SIZE + TILE_SIZE / 2;
-                const bossCenterY = b.y * TILE_SIZE + TILE_SIZE / 2;
-                b.lasers.forEach(laser => {
-                    const endX = bossCenterX + Math.cos(laser.angle) * laser.length;
-                    const endY = bossCenterY + Math.sin(laser.angle) * laser.length;
-                    for (let i = 0.1; i <= 1; i += 0.1) {
-                        const checkPx = bossCenterX + (endX - bossCenterX) * i;
-                        const checkPy = bossCenterY + (endY - bossCenterY) * i;
-                        const gx = Math.floor(checkPx / TILE_SIZE);
-                        const gy = Math.floor(checkPy / TILE_SIZE);
+                var bossCenterX = b.x * TILE_SIZE + TILE_SIZE / 2;
+                var bossCenterY = b.y * TILE_SIZE + TILE_SIZE / 2;
+                b.lasers.forEach(function(laser) {
+                    var endX = bossCenterX + Math.cos(laser.angle) * laser.length;
+                    var endY = bossCenterY + Math.sin(laser.angle) * laser.length;
+                    for (var i = 0.1; i <= 1; i += 0.1) {
+                        var checkPx = bossCenterX + (endX - bossCenterX) * i;
+                        var checkPy = bossCenterY + (endY - bossCenterY) * i;
+                        var gx = Math.floor(checkPx / TILE_SIZE);
+                        var gy = Math.floor(checkPy / TILE_SIZE);
                         
                         if (isWall(gx, gy) && gx > 0 && gx < gridSize - 1 && gy > 0 && gy < gridSize - 1) {
                             maze[gy][gx] = 0;
@@ -1069,11 +1036,11 @@ Ostatní:
                 });
             });
 
-            for (let i = projectiles.length - 1; i >= 0; i--) {
-                const p = projectiles[i];
+            for (var i = projectiles.length - 1; i >= 0; i--) {
+                var p = projectiles[i];
                 p.update();
 
-                players.forEach(playerInstance => {
+                players.forEach(function(playerInstance) {
                      if (!playerInstance.isJumping && p.x === playerInstance.x && p.y === playerInstance.y) {
                         lives -= 2;
                         projectiles.splice(i, 1);
@@ -1084,8 +1051,8 @@ Ostatní:
                     }
                 });
                 
-                const gridX = p.x;
-                const gridY = p.y;
+                var gridX = p.x;
+                var gridY = p.y;
                 if (isWall(gridX, gridY)) {
                     if (gridX > 0 && gridX < gridSize - 1 && gridY > 0 && gridY < gridSize - 1) {
                         maze[gridY][gridX] = 0;
@@ -1095,7 +1062,7 @@ Ostatní:
                 }
             }
             
-            players.forEach(p_instance => {
+            players.forEach(function(p_instance) {
                 if (isPlayerInDeadEnd(p_instance) && !p_instance.escapePotion && !openedWall) {
                     p_instance.escapePotion = new GameObject(p_instance.x, p_instance.y, '💥');
                 } else if (!isPlayerInDeadEnd(p_instance)) {
@@ -1103,12 +1070,12 @@ Ostatní:
                 }
             });
 
-            let collisionDetected = false;
-            players.forEach(p_instance => {
+            var collisionDetected = false;
+            players.forEach(function(p_instance) {
                 if(collisionDetected) return;
                 if (!p_instance.isJumping) {
-                    const allMonsters = [...bosses, ...enemies];
-                    allMonsters.forEach(monster => {
+                    var allMonsters = enemies.concat(bosses);
+                    allMonsters.forEach(function(monster) {
                         if (!collisionDetected && monster.x === p_instance.x && monster.y === p_instance.y) {
                             collisionDetected = true;
                             lives--;
@@ -1120,23 +1087,23 @@ Ostatní:
                         }
                     });
 
-                    bosses.forEach(b => {
+                    bosses.forEach(function(b) {
                         if(collisionDetected) return;
-                        const bossCenterX = b.x * TILE_SIZE + TILE_SIZE / 2;
-                        const bossCenterY = b.y * TILE_SIZE + TILE_SIZE / 2;
-                        const playerCenterX = p_instance.x * TILE_SIZE + TILE_SIZE / 2;
-                        const playerCenterY = p_instance.y * TILE_SIZE + TILE_SIZE / 2;
-                        const playerRadius = TILE_SIZE * 0.4;
+                        var bossCenterX = b.x * TILE_SIZE + TILE_SIZE / 2;
+                        var bossCenterY = b.y * TILE_SIZE + TILE_SIZE / 2;
+                        var playerCenterX = p_instance.x * TILE_SIZE + TILE_SIZE / 2;
+                        var playerCenterY = p_instance.y * TILE_SIZE + TILE_SIZE / 2;
+                        var playerRadius = TILE_SIZE * 0.4;
 
-                        b.lasers.forEach(laser => {
+                        b.lasers.forEach(function(laser) {
                              if(collisionDetected) return;
-                            const endX = bossCenterX + Math.cos(laser.angle) * laser.length;
-                            const endY = bossCenterY + Math.sin(laser.angle) * laser.length;
+                            var endX = bossCenterX + Math.cos(laser.angle) * laser.length;
+                            var endY = bossCenterY + Math.sin(laser.angle) * laser.length;
                             
-                            for (let i = 0.1; i <= 1; i += 0.1) {
-                                const checkX = bossCenterX + (endX - bossCenterX) * i;
-                                const checkY = bossCenterY + (endY - bossCenterY) * i;
-                                const dist = Math.sqrt(Math.pow(playerCenterX - checkX, 2) + Math.pow(playerCenterY - checkY, 2));
+                            for (var i = 0.1; i <= 1; i += 0.1) {
+                                var checkX = bossCenterX + (endX - bossCenterX) * i;
+                                var checkY = bossCenterY + (endY - bossCenterY) * i;
+                                var dist = Math.sqrt(Math.pow(playerCenterX - checkX, 2) + Math.pow(playerCenterY - checkY, 2));
                                 if (dist < playerRadius) {
                                     collisionDetected = true;
                                     lives--;
@@ -1152,33 +1119,40 @@ Ostatní:
             });
 
             if (!portal.isLocked) {
-                if (players.every(p => p.x === portal.x && p.y === portal.y)) {
+                var allOnPortal = true;
+                for(var i = 0; i < players.length; i++) {
+                    if(players[i].x !== portal.x || players[i].y !== portal.y) {
+                        allOnPortal = false;
+                        break;
+                    }
+                }
+                if (allOnPortal) {
                     nextLevel();
                 }
             }
 
-            if (potion && players.some(p => p.x === potion.x && p.y === potion.y)) {
+            if (potion && players.some(function(p) { return p.x === potion.x && p.y === potion.y; })) {
                 potion = null;
                 potionEffectActive = true;
-                const hiddenEnemies = [...enemies];
+                var hiddenEnemies = enemies.slice();
                 enemies = [];
 
                 clearTimeout(potionEffectTimeout);
-                potionEffectTimeout = setTimeout(() => {
+                potionEffectTimeout = setTimeout(function() {
                     enemies = hiddenEnemies;
                     resetEnemyPositions();
                     potionEffectActive = false;
                 }, 10000);
             }
 
-            if (bandage && players.some(p => p.x === bandage.x && p.y === bandage.y)) {
+            if (bandage && players.some(function(p) { return p.x === bandage.x && p.y === bandage.y; })) {
                 bandage = null;
                 if (lives < (players.length > 1 ? 10 : 5)) { lives++; updateUI(); }
             }
             
-            for (let i = keys.length - 1; i >= 0; i--) {
-                const key = keys[i];
-                if (players.some(p => p.x === key.x && p.y === key.y)) {
+            for (var i = keys.length - 1; i >= 0; i--) {
+                var key = keys[i];
+                if (players.some(function(p) { return p.x === key.x && p.y === key.y; })) {
                     keys.splice(i, 1);
                     collectedKeys++;
                     updateUI();
@@ -1189,25 +1163,27 @@ Ostatní:
                 }
             }
 
-            players.forEach(p_instance => {
+            players.forEach(function(p_instance) {
                 if (p_instance.escapePotion && p_instance.x === p_instance.escapePotion.x && p_instance.y === p_instance.escapePotion.y) {
                     p_instance.escapePotion = null;
-                    const { x, y } = p_instance;
-                    const wallNeighbors = [];
-                    const neighbors = [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }];
-                    for (const n of neighbors) {
-                        const nx = x + n.dx; const ny = y + n.dy;
+                    var x = p_instance.x;
+                    var y = p_instance.y;
+                    var wallNeighbors = [];
+                    var neighbors = [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }];
+                    for (var n_idx = 0; n_idx < neighbors.length; n_idx++) {
+                        var n = neighbors[n_idx];
+                        var nx = x + n.dx; var ny = y + n.dy;
                         if (isWall(nx, ny) && nx > 0 && nx < gridSize - 1 && ny > 0 && ny < gridSize - 1) {
                             wallNeighbors.push({ x: nx, y: ny });
                         }
                     }
                     if (wallNeighbors.length > 0) {
-                        const wallToOpen = wallNeighbors[Math.floor(Math.random() * wallNeighbors.length)];
+                        var wallToOpen = wallNeighbors[Math.floor(Math.random() * wallNeighbors.length)];
                         openedWall = { x: wallToOpen.x, y: wallToOpen.y };
                         maze[openedWall.y][openedWall.x] = 0;
                         
                         clearTimeout(escapePotionTimeout);
-                        escapePotionTimeout = setTimeout(() => {
+                        escapePotionTimeout = setTimeout(function() {
                             if (openedWall) {
                                 maze[openedWall.y][openedWall.x] = 1;
                                 openedWall = null;
@@ -1216,13 +1192,13 @@ Ostatní:
                     }
                 }
 
-                trapBowls.forEach(trap => {
+                trapBowls.forEach(function(trap) {
                     if(p_instance.x === trap.x && p_instance.y === trap.y && !p_instance.isTrapped && !p_instance.isTrapImmune){
                         p_instance.isTrapped = true;
-                        setTimeout(() => {
+                        setTimeout(function() {
                             p_instance.isTrapped = false;
                             p_instance.isTrapImmune = true;
-                            setTimeout(() => {
+                            setTimeout(function() {
                                 p_instance.isTrapImmune = false;
                             }, 5000);
                         }, 1500);
@@ -1235,8 +1211,8 @@ Ostatní:
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#1a202c';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            for (let y = 0; y < gridSize; y++) {
-                for (let x = 0; x < gridSize; x++) {
+            for (var y = 0; y < gridSize; y++) {
+                for (var x = 0; x < gridSize; x++) {
                     if (isWall(x, y)) {
                         ctx.fillStyle = '#4a5568';
                         ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
@@ -1246,13 +1222,13 @@ Ostatní:
             portal.draw();
             if(potion) potion.draw();
             if(bandage) bandage.draw();
-            players.forEach(p => { if(p.escapePotion) p.escapePotion.draw() });
-            trapBowls.forEach(t => t.draw());
-            keys.forEach(k => k.draw());
-            players.forEach(p => p.draw());
-            enemies.forEach(enemy => enemy.draw());
-            bosses.forEach(b => b.draw());
-            projectiles.forEach(p => p.draw());
+            players.forEach(function(p) { if(p.escapePotion) p.escapePotion.draw() });
+            trapBowls.forEach(function(t) { t.draw(); });
+            keys.forEach(function(k) { k.draw(); });
+            players.forEach(function(p) { p.draw(); });
+            enemies.forEach(function(enemy) { enemy.draw(); });
+            bosses.forEach(function(b) { b.draw(); });
+            projectiles.forEach(function(p) { p.draw(); });
         }
 
         function nextLevel() {
@@ -1279,19 +1255,24 @@ Ostatní:
         }
 
         function checkPlayerCount() {
-            const pads = navigator.getGamepads().filter(p => p);
+            if (!navigator.getGamepads) return;
+            var pads = navigator.getGamepads();
+            var connectedPads = 0;
+            for(var i = 0; i < pads.length; i++) {
+                if(pads[i]) connectedPads++;
+            }
             
-            if (activePlayerCount < 2 && pads.length >= 2) {
-                 const pad2 = pads[1];
-                 if (pad2 && (pad2.buttons.some(b => b.pressed) || pad2.axes.some(a => Math.abs(a) > 0.5))) {
+            if (activePlayerCount < 2 && connectedPads >= 2) {
+                 var pad2 = pads[1];
+                 if (pad2 && (pad2.buttons.some(function(b){return b.pressed;}) || pad2.axes.some(function(a){return Math.abs(a) > 0.5;}))) {
                     console.log(`Druhý gamepad aktivován. Restartuji pro 2 hráče.`);
                     activePlayerCount = 2;
                     initLevel();
                  }
             }
-            if (activePlayerCount < 3 && pads.length >= 3) {
-                const pad3 = pads[2];
-                if (pad3 && (pad3.buttons.some(b => b.pressed) || pad3.axes.some(a => Math.abs(a) > 0.5))) {
+            if (activePlayerCount < 3 && connectedPads >= 3) {
+                var pad3 = pads[2];
+                if (pad3 && (pad3.buttons.some(function(b){return b.pressed;}) || pad3.axes.some(function(a){return Math.abs(a) > 0.5;}))) {
                    console.log(`Třetí gamepad aktivován. Restartuji pro 3 hráče.`);
                    activePlayerCount = 3;
                    initLevel();
@@ -1300,7 +1281,7 @@ Ostatní:
         }
 
         // --- Ovládání ---
-        window.addEventListener('keydown', e => {
+        window.addEventListener('keydown', function(e) {
             if (isGameOver) {
                 if (e.code === 'Enter' || e.code === 'Space') {
                     restartGame();
@@ -1308,21 +1289,21 @@ Ostatní:
                 return;
             }
 
-            const key = e.key.toLowerCase();
-            if (activePlayerCount < 2 && ['w','a','s','d'].includes(key)) {
+            var key = e.key.toLowerCase();
+            if (activePlayerCount < 2 && ['w','a','s','d'].indexOf(key) !== -1) {
                 activePlayerCount = 2;
                 initLevel();
                 return;
             }
-            if (activePlayerCount < 3 && ['i','j','k','l'].includes(key)) {
+            if (activePlayerCount < 3 && ['i','j','k','l'].indexOf(key) !== -1) {
                 activePlayerCount = 3;
                 initLevel();
                 return;
             }
 
-            if (e.code === 'Space') players[0]?.jump();
-            if (e.code === 'ShiftLeft' && players.length > 1) players[1]?.jump();
-            if (e.code === 'ShiftRight' && players.length > 2) players[2]?.jump();
+            if (e.code === 'Space' && players[0]) players[0].jump();
+            if (e.code === 'ShiftLeft' && players.length > 1 && players[1]) players[1].jump();
+            if (e.code === 'ShiftRight' && players.length > 2 && players[2]) players[2].jump();
             
             keysPressed[key] = true;
             
@@ -1339,8 +1320,8 @@ Ostatní:
             }
 
             if (cheatCodeBuffer.startsWith('LEVEL') && cheatCodeBuffer.length === 6) {
-                const levelChar = cheatCodeBuffer.charAt(5);
-                let levelNumber = -1;
+                var levelChar = cheatCodeBuffer.charAt(5);
+                var levelNumber = -1;
 
                 if (levelChar >= '1' && levelChar <= '9') {
                     levelNumber = parseInt(levelChar, 10);
@@ -1356,13 +1337,13 @@ Ostatní:
             }
         });
         
-        window.addEventListener('keyup', e => {
+        window.addEventListener('keyup', function(e) {
             keysPressed[e.key.toLowerCase()] = false;
         });
 
-        let touchStartX = 0, touchStartY = 0, touchStartTime = 0, touchMoved = false;
+        var touchStartX = 0, touchStartY = 0, touchStartTime = 0, touchMoved = false;
         
-        window.addEventListener('touchstart', (e) => {
+        window.addEventListener('touchstart', function(e) {
             if (messageModal.classList.contains('hidden')) {
                 e.preventDefault();
                 touchStartX = e.changedTouches[0].screenX;
@@ -1372,16 +1353,16 @@ Ostatní:
             }
         }, { passive: false });
         
-        window.addEventListener('touchmove', (e) => {
+        window.addEventListener('touchmove', function(e) {
             if (messageModal.classList.contains('hidden')) {
                 e.preventDefault();
                 touchMoved = true;
                 if (isGameOver) return;
-                const touchEndX = e.changedTouches[0].screenX;
-                const touchEndY = e.changedTouches[0].screenY;
-                const dx = touchEndX - touchStartX;
-                const dy = touchEndY - touchStartY;
-                const threshold = 10;
+                var touchEndX = e.changedTouches[0].screenX;
+                var touchEndY = e.changedTouches[0].screenY;
+                var dx = touchEndX - touchStartX;
+                var dy = touchEndY - touchStartY;
+                var threshold = 10;
 
                 keysPressed['arrowup'] = keysPressed['arrowdown'] = keysPressed['arrowleft'] = keysPressed['arrowright'] = false;
 
@@ -1395,9 +1376,9 @@ Ostatní:
             }
         }, { passive: false });
 
-        window.addEventListener('touchend', (e) => {
+        window.addEventListener('touchend', function(e) {
             if (Date.now() - touchStartTime < 200 && !touchMoved) {
-                players[0].jump();
+                if(players[0]) players[0].jump();
             }
              keysPressed['arrowup'] = keysPressed['arrowdown'] = keysPressed['arrowleft'] = keysPressed['arrowright'] = false;
         });
@@ -1410,19 +1391,18 @@ Ostatní:
         window.addEventListener('resize', initLevel);
         
         function playIntroAnimation() {
-            const introContainer = document.getElementById('intro-container');
-            const seasonText = document.getElementById('season-text');
-            const treeTrunk = document.getElementById('tree-trunk');
-            const treeBranch = document.getElementById('tree-branch');
-            const fruitContainer = document.getElementById('fruit-container');
-            const fruit2 = document.getElementById('fruit2');
-            const fruit3 = document.getElementById('fruit3');
+            var introContainer = document.getElementById('intro-container');
+            var seasonText = document.getElementById('season-text');
+            var treeTrunk = document.getElementById('tree-trunk');
+            var treeBranch = document.getElementById('tree-branch');
+            var fruitContainer = document.getElementById('fruit-container');
+            var fruit2 = document.getElementById('fruit2');
+            var fruit3 = document.getElementById('fruit3');
 
             document.querySelector('h1').style.visibility = 'hidden';
             document.getElementById('game-info').style.visibility = 'hidden';
             document.getElementById('canvas-wrapper').style.visibility = 'hidden';
 
-            const pads = navigator.getGamepads();
             if (activePlayerCount >= 2) {
                 fruit2.style.display = 'inline';
             }
@@ -1430,15 +1410,15 @@ Ostatní:
                 fruit3.style.display = 'inline';
             }
 
-            const sequence = [
-                { name: 'Jaro', color: '#87CEEB', duration: 1500, action: () => { treeTrunk.style.height = '50%'; } },
-                { name: 'Léto', color: '#228B22', duration: 1500, action: () => { treeBranch.style.width = '200px'; } },
-                { name: 'Podzim', color: '#D2691E', duration: 1500, action: () => { fruitContainer.style.opacity = '1'; } },
-                { name: 'Zima', color: '#ADD8E6', duration: 1500, action: () => { fruitContainer.style.transform = 'translateY(100vh)'; fruitContainer.style.opacity = '0';} }
+            var sequence = [
+                { name: 'Jaro', color: '#87CEEB', duration: 1500, action: function() { treeTrunk.style.height = '50%'; } },
+                { name: 'Léto', color: '#228B22', duration: 1500, action: function() { treeBranch.style.width = '200px'; } },
+                { name: 'Podzim', color: '#D2691E', duration: 1500, action: function() { fruitContainer.style.opacity = '1'; } },
+                { name: 'Zima', color: '#ADD8E6', duration: 1500, action: function() { fruitContainer.style.transform = 'translateY(100vh)'; fruitContainer.style.opacity = '0';} }
             ];
             
             function skipIntro() {
-                introTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+                introTimeouts.forEach(function(timeoutId) { clearTimeout(timeoutId); });
                 introContainer.style.opacity = '0';
                 introContainer.style.pointerEvents = 'none';
                 
@@ -1455,22 +1435,22 @@ Ostatní:
             window.addEventListener('keydown', skipIntro);
             window.addEventListener('click', skipIntro);
 
-            let delay = 500;
-            sequence.forEach((season, index) => {
-                let timeout1 = setTimeout(() => {
+            var delay = 500;
+            sequence.forEach(function(season, index) {
+                var timeout1 = setTimeout(function() {
                     seasonText.textContent = season.name;
                     introContainer.style.backgroundColor = season.color;
                     seasonText.style.opacity = '1';
                     
                     if(season.action) season.action();
 
-                    let timeout2 = setTimeout(() => {
+                    var timeout2 = setTimeout(function() {
                         seasonText.style.opacity = '0';
                     }, season.duration - 500);
                     introTimeouts.push(timeout2);
 
                     if (index === sequence.length - 1) {
-                         let timeout3 = setTimeout(() => {
+                         var timeout3 = setTimeout(function() {
                             skipIntro();
                         }, season.duration + 1500);
                         introTimeouts.push(timeout3);
