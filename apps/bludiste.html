@@ -141,6 +141,7 @@ Ostatní:
             <div id="fruit-container">
                 <span id="fruit1">🍒</span>
                 <span id="fruit2" style="display: none;">🍓</span>
+                <span id="fruit3" style="display: none;">🍇</span>
             </div>
         </div>
     </div>
@@ -188,7 +189,7 @@ Ostatní:
         let currentLevel = 1;
         let maze = [];
         let isGameOver = false;
-        let isTwoPlayerMode = false;
+        let activePlayerCount = 1;
         
         let escapePotion = null;
         let openedWall = null;
@@ -441,7 +442,7 @@ Ostatní:
             // Level 12
             [
                 [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                [1,0,1,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,1,0,1],
+                [1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,1],
                 [1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1,1,0,1],
@@ -451,14 +452,14 @@ Ostatní:
                 [1,0,1,0,0,0,0,0,1,0,1,1,1,0,1,0,1,0,1,0,1],
                 [1,0,1,0,1,1,1,1,1,0,0,0,1,0,1,0,1,0,0,0,1],
                 [1,0,1,0,1,0,0,0,0,0,0,0,1,0,0,0,1,1,1,0,1],
-                [1,0,1,0,1,0,1,1,1,1,1,0,0,0,1,0,0,0,1,0,1],
+                [1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,0,0,1,0,1],
                 [1,0,1,0,1,0,1,0,0,0,1,0,1,0,1,1,1,0,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,1,0,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],
                 [1,0,0,0,1,0,1,0,1,0,1,0,0,0,1,0,1,0,1,0,1],
                 [1,1,1,1,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0,1],
                 [1,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,1,0,0,0,1],
-                [1,0,1,1,1,1,1,0,1,1,1,0,1,0,0,0,1,1,1,0,1],
+                [1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,0,1,1,1,0,1],
                 [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1],
                 [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
             ],
@@ -746,7 +747,7 @@ Ostatní:
                 if (isGameOver || Date.now() - this.lastShot < this.shootCooldown) return;
                 
                 this.lastShot = Date.now();
-                const target = players.length > 1 && Math.random() > 0.5 ? players[1] : players[0];
+                const target = players[Math.floor(Math.random() * players.length)];
                 const dx = target.x - this.x;
                 const dy = target.y - this.y;
                 const distance = Math.sqrt(dx*dx + dy*dy);
@@ -828,13 +829,19 @@ Ostatní:
 
             players = [new Player(1, 1)];
             
-            const pads = navigator.getGamepads();
-            if (isTwoPlayerMode) {
+            if (activePlayerCount >= 2) {
                 players.push(new Player(1, 2));
                 players[1].emoji = '🍓';
-                if (currentLevel === 1) lives = 10;
-            } else {
-                if (currentLevel === 1) lives = 5;
+            }
+            if (activePlayerCount >= 3) {
+                 players.push(new Player(1, 3));
+                 players[2].emoji = '🍇';
+            }
+
+            if (currentLevel === 1) {
+                if (activePlayerCount === 3) lives = 15;
+                else if (activePlayerCount === 2) lives = 10;
+                else lives = 5;
             }
             
             enemies = [];
@@ -912,13 +919,13 @@ Ostatní:
 
         function updateUI() {
             levelDisplay.textContent = currentLevel;
-            const maxLives = players.length > 1 ? 10 : 5;
+            const maxLives = players.length === 3 ? 15 : (players.length === 2 ? 10 : 5);
             livesDisplay.textContent = "❤️".repeat(lives) + "🖤".repeat(Math.max(0, maxLives - lives));
         }
 
         function restartGame() {
             messageModal.classList.add('hidden');
-            isTwoPlayerMode = false;
+            activePlayerCount = 1;
             currentLevel = 1;
             initLevel();
         }
@@ -926,22 +933,34 @@ Ostatní:
         function handleGamepadInput() {
             const pads = navigator.getGamepads().filter(p => p);
 
-            // Dynamická aktivace 2. hráče
-            if (!isTwoPlayerMode && pads.length > 1) {
+            // Dynamická aktivace hráčů
+            if (activePlayerCount < 2 && pads.length >= 2) {
                 const pad2 = pads[1];
                 if (pad2 && (pad2.buttons.some(b => b.pressed) || pad2.axes.some(a => Math.abs(a) > 0.5))) {
                     console.log(`Druhý gamepad aktivován. Restartuji pro 2 hráče.`);
-                    isTwoPlayerMode = true;
+                    activePlayerCount = 2;
+                    initLevel();
+                    return;
+                }
+            }
+            if (activePlayerCount < 3 && pads.length >= 3) {
+                const pad3 = pads[2];
+                if (pad3 && (pad3.buttons.some(b => b.pressed) || pad3.axes.some(a => Math.abs(a) > 0.5))) {
+                    console.log(`Třetí gamepad aktivován. Restartuji pro 3 hráče.`);
+                    activePlayerCount = 3;
                     initLevel();
                     return;
                 }
             }
             
             // Ovládání hráče 1 (jakýkoliv aktivní gamepad pokud je sám)
-            if (players.length === 1 && pads.length > 0) {
-                 const activePad = pads.find(p => p && (p.buttons.some(b => b.pressed) || p.axes.some(a => Math.abs(a) > 0.5)));
-                 if(activePad) {
-                    const pad = activePad;
+            if (players[0]) {
+                let p1Pad = pads[0];
+                if (players.length === 1 && pads.length > 0 && !p1Pad) {
+                    p1Pad = pads.find(p => p && (p.buttons.some(b => b.pressed) || p.axes.some(a => Math.abs(a) > 0.5)));
+                }
+                if (p1Pad) {
+                    const pad = p1Pad;
                     keysPressed['gp0_up'] = pad.axes[1] < -0.5 || pad.buttons[12].pressed;
                     keysPressed['gp0_down'] = pad.axes[1] > 0.5 || pad.buttons[13].pressed;
                     keysPressed['gp0_left'] = pad.axes[0] < -0.5 || pad.buttons[14].pressed;
@@ -953,21 +972,11 @@ Ostatní:
                         if(!pad.buttons[i]) pad.buttons[i] = {};
                         pad.buttons[i].lastPressed = btn.pressed
                     });
-                 }
-            } else if (players.length > 1 && pads[0]) { // Hráč 1 v režimu dvou hráčů
-                const pad = pads[0];
-                keysPressed['gp0_up'] = pad.axes[1] < -0.5 || pad.buttons[12].pressed;
-                keysPressed['gp0_down'] = pad.axes[1] > 0.5 || pad.buttons[13].pressed;
-                keysPressed['gp0_left'] = pad.axes[0] < -0.5 || pad.buttons[14].pressed;
-                keysPressed['gp0_right'] = pad.axes[0] > 0.5 || pad.buttons[15].pressed;
-                if (pad.buttons[0].pressed && !pad.buttons[0].lastPressed) {
-                    players[0].jump();
                 }
-                pad.buttons[0].lastPressed = pad.buttons[0].pressed;
             }
 
             // Ovládání hráče 2
-            if (players.length > 1 && pads[1]) {
+            if (players.length > 1 && pads[1] && players[1]) {
                 const pad = pads[1];
                 keysPressed['gp1_up'] = pad.axes[1] < -0.5 || pad.buttons[12].pressed;
                 keysPressed['gp1_down'] = pad.axes[1] > 0.5 || pad.buttons[13].pressed;
@@ -975,6 +984,19 @@ Ostatní:
                 keysPressed['gp1_right'] = pad.axes[0] > 0.5 || pad.buttons[15].pressed;
                  if (pad.buttons[0].pressed && !pad.buttons[0].lastPressed) {
                     players[1].jump();
+                }
+                pad.buttons[0].lastPressed = pad.buttons[0].pressed;
+            }
+
+            // Ovládání hráče 3
+            if (players.length > 2 && pads[2] && players[2]) {
+                const pad = pads[2];
+                keysPressed['gp2_up'] = pad.axes[1] < -0.5 || pad.buttons[12].pressed;
+                keysPressed['gp2_down'] = pad.axes[1] > 0.5 || pad.buttons[13].pressed;
+                keysPressed['gp2_left'] = pad.axes[0] < -0.5 || pad.buttons[14].pressed;
+                keysPressed['gp2_right'] = pad.axes[0] > 0.5 || pad.buttons[15].pressed;
+                 if (pad.buttons[0].pressed && !pad.buttons[0].lastPressed) {
+                    players[2].jump();
                 }
                 pad.buttons[0].lastPressed = pad.buttons[0].pressed;
             }
@@ -998,16 +1020,23 @@ Ostatní:
             const now = Date.now();
             if (now - lastPlayerMove > moveCooldown) {
                 let moved = false;
-                if (keysPressed['arrowup'] || keysPressed['gp0_up']) { players[0].move(0, -1); moved = true; } 
-                else if (keysPressed['arrowdown'] || keysPressed['gp0_down']) { players[0].move(0, 1); moved = true; } 
-                else if (keysPressed['arrowleft'] || keysPressed['gp0_left']) { players[0].move(-1, 0); moved = true; } 
-                else if (keysPressed['arrowright'] || keysPressed['gp0_right']) { players[0].move(1, 0); moved = true; }
+                if (keysPressed['arrowup'] || keysPressed['gp0_up']) { players[0]?.move(0, -1); moved = true; } 
+                else if (keysPressed['arrowdown'] || keysPressed['gp0_down']) { players[0]?.move(0, 1); moved = true; } 
+                else if (keysPressed['arrowleft'] || keysPressed['gp0_left']) { players[0]?.move(-1, 0); moved = true; } 
+                else if (keysPressed['arrowright'] || keysPressed['gp0_right']) { players[0]?.move(1, 0); moved = true; }
                 
                 if (players.length > 1 && players[1]) {
                     if (keysPressed['w'] || keysPressed['gp1_up']) { players[1].move(0, -1); moved = true; } 
                     else if (keysPressed['s'] || keysPressed['gp1_down']) { players[1].move(0, 1); moved = true; } 
                     else if (keysPressed['a'] || keysPressed['gp1_left']) { players[1].move(-1, 0); moved = true; } 
                     else if (keysPressed['d'] || keysPressed['gp1_right']) { players[1].move(1, 0); moved = true; }
+                }
+                
+                if (players.length > 2 && players[2]) {
+                    if (keysPressed['i'] || keysPressed['gp2_up']) { players[2].move(0, -1); moved = true; } 
+                    else if (keysPressed['k'] || keysPressed['gp2_down']) { players[2].move(0, 1); moved = true; } 
+                    else if (keysPressed['j'] || keysPressed['gp2_left']) { players[2].move(-1, 0); moved = true; } 
+                    else if (keysPressed['l'] || keysPressed['gp2_right']) { players[2].move(1, 0); moved = true; }
                 }
 
                 if (moved) lastPlayerMove = now;
@@ -1122,10 +1151,8 @@ Ostatní:
             });
 
             if (!portal.isLocked) {
-                if (players.length > 1) {
-                    if (portal.x === players[0].x && portal.y === players[0].y && players[1] && portal.x === players[1].x && portal.y === players[1].y) { nextLevel(); }
-                } else {
-                    if (portal.x === players[0].x && portal.y === players[0].y) { nextLevel(); }
+                if (players.every(p => p.x === portal.x && p.y === portal.y)) {
+                    nextLevel();
                 }
             }
 
@@ -1253,14 +1280,22 @@ Ostatní:
         function checkPlayerCount() {
             const pads = navigator.getGamepads().filter(p => p);
             
-            if (!isTwoPlayerMode && pads.length > 1) {
+            if (activePlayerCount < 2 && pads.length >= 2) {
                  const pad2 = pads[1];
                  if (pad2 && (pad2.buttons.some(b => b.pressed) || pad2.axes.some(a => Math.abs(a) > 0.5))) {
                     console.log(`Druhý gamepad aktivován. Restartuji pro 2 hráče.`);
-                    isTwoPlayerMode = true;
+                    activePlayerCount = 2;
                     initLevel();
                  }
             }
+            if (activePlayerCount < 3 && pads.length >= 3) {
+                const pad3 = pads[2];
+                if (pad3 && (pad3.buttons.some(b => b.pressed) || pad3.axes.some(a => Math.abs(a) > 0.5))) {
+                   console.log(`Třetí gamepad aktivován. Restartuji pro 3 hráče.`);
+                   activePlayerCount = 3;
+                   initLevel();
+                }
+           }
         }
 
         // --- Ovládání ---
@@ -1273,14 +1308,20 @@ Ostatní:
             }
 
             const key = e.key.toLowerCase();
-            if (!isTwoPlayerMode && ['w','a','s','d'].includes(key)) {
-                isTwoPlayerMode = true;
+            if (activePlayerCount < 2 && ['w','a','s','d'].includes(key)) {
+                activePlayerCount = 2;
+                initLevel();
+                return;
+            }
+            if (activePlayerCount < 3 && ['i','j','k','l'].includes(key)) {
+                activePlayerCount = 3;
                 initLevel();
                 return;
             }
 
             if (e.code === 'Space') players[0]?.jump();
             if (e.code === 'ShiftLeft' && players.length > 1) players[1]?.jump();
+            if (e.code === 'ShiftRight' && players.length > 2) players[2]?.jump();
             
             keysPressed[key] = true;
             
@@ -1374,14 +1415,18 @@ Ostatní:
             const treeBranch = document.getElementById('tree-branch');
             const fruitContainer = document.getElementById('fruit-container');
             const fruit2 = document.getElementById('fruit2');
+            const fruit3 = document.getElementById('fruit3');
 
             document.querySelector('h1').style.visibility = 'hidden';
             document.getElementById('game-info').style.visibility = 'hidden';
             document.getElementById('canvas-wrapper').style.visibility = 'hidden';
 
             const pads = navigator.getGamepads();
-            if ((pads && pads[0] && pads[1]) || isTwoPlayerMode) {
+            if (activePlayerCount >= 2) {
                 fruit2.style.display = 'inline';
+            }
+            if (activePlayerCount >= 3) {
+                fruit3.style.display = 'inline';
             }
 
             const sequence = [
