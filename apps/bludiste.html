@@ -1021,10 +1021,10 @@ Ostatní:
             const now = Date.now();
             if (now - lastPlayerMove > moveCooldown) {
                 let moved = false;
-                if (keysPressed['arrowup'] || keysPressed['gp0_up']) { players[0]?.move(0, -1); moved = true; } 
-                else if (keysPressed['arrowdown'] || keysPressed['gp0_down']) { players[0]?.move(0, 1); moved = true; } 
-                else if (keysPressed['arrowleft'] || keysPressed['gp0_left']) { players[0]?.move(-1, 0); moved = true; } 
-                else if (keysPressed['arrowright'] || keysPressed['gp0_right']) { players[0]?.move(1, 0); moved = true; }
+                if (keysPressed['arrowup'] || keysPressed['gp0_up']) { if(players[0]) players[0].move(0, -1); moved = true; } 
+                else if (keysPressed['arrowdown'] || keysPressed['gp0_down']) { if(players[0]) players[0].move(0, 1); moved = true; } 
+                else if (keysPressed['arrowleft'] || keysPressed['gp0_left']) { if(players[0]) players[0].move(-1, 0); moved = true; } 
+                else if (keysPressed['arrowright'] || keysPressed['gp0_right']) { if(players[0]) players[0].move(1, 0); moved = true; }
                 
                 if (players.length > 1 && players[1]) {
                     if (keysPressed['w'] || keysPressed['gp1_up']) { players[1].move(0, -1); moved = true; } 
