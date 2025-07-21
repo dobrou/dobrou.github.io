@@ -154,9 +154,9 @@
     let gameState = { currentLevel: 1, enemiesRemaining: 0, isPaused: false, killCount: 0, gameActive: false };
 
     const PLAYER_CONFIG = [
-        { id: 'keyboard1', symbol: '🍌', start: { x: 1, y: 1 }, controls: { type: 'keyboard', up: 'arrowup', down: 'arrowdown', left: 'arrowleft', right: 'arrowright', bomb: ' ' } },
+        { id: 'keyboard1', symbol: '🥕', start: { x: COLS - 2, y: 1 }, controls: { type: 'keyboard', up: 'arrowup', down: 'arrowdown', left: 'arrowleft', right: 'arrowright', bomb: ' ' } },
         { id: 'keyboard2', symbol: '🥒', start: { x: COLS - 2, y: ROWS - 2 }, controls: { type: 'keyboard', up: 'w', down: 's', left: 'a', right: 'd', bomb: 'q' } },
-        { id: 'gamepad0', symbol: '🥕', start: { x: COLS - 2, y: 1 }, controls: { type: 'gamepad' } },
+        { id: 'gamepad0', symbol: '🍌', start: { x: 1, y: 1 }, controls: { type: 'gamepad' } },
         { id: 'gamepad1', symbol: '🍆', start: { x: 1, y: ROWS - 2 }, controls: { type: 'gamepad' } }
     ];
     let keysPressed = {};
