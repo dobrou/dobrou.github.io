@@ -242,8 +242,8 @@
             }
         }
         
-        // Dynamický počet bonusů
-        const numPowerUps = Math.min(1 + players.length, destructibleWalls.length);
+        // Pevný počet 4 bonusů
+        const numPowerUps = Math.min(4, destructibleWalls.length);
         for(let i = 0; i < numPowerUps; i++) {
             const powerUpKey = allPowerUpTypes[Math.floor(Math.random() * allPowerUpTypes.length)];
             const wallIndex = Math.floor(Math.random() * destructibleWalls.length);
@@ -278,9 +278,6 @@
         generateLevel();
         spawnEntities();
         updateInfoPanel();
-        if (document.getElementById('messageModal').style.display === 'flex') {
-            gameLoop();
-        }
     }
     
     function resetAndStartLobby() {
@@ -294,9 +291,8 @@
 
     // --- Herní smyčka ---
     function gameLoop() {
-        if (gameState.isPaused) return;
         handleInputs();
-        if (gameState.gameActive) {
+        if (gameState.gameActive && !gameState.isPaused) {
             update();
         }
         draw();
@@ -566,13 +562,11 @@
             const confirmKeyPressed = keysPressed['enter'];
             let bombButtonPressed = false;
 
-            // Zkontrolovat klávesy pro bombu aktivních hráčů
-            players.forEach(p => {
-                if (p.controls.type === 'keyboard' && keysPressed[p.controls.bomb]) {
-                    bombButtonPressed = true;
-                }
-            });
-
+            // Zkontrolovat klávesy pro bombu
+            if (keysPressed[' '] || keysPressed['q']) {
+                bombButtonPressed = true;
+            }
+            
             // Zkontrolovat tlačítka na gamepadu
             const gamepads = navigator.getGamepads();
             for (const gp of gamepads) {
@@ -584,7 +578,7 @@
 
             if (confirmKeyPressed || bombButtonPressed) {
                 const modalButton = document.getElementById('modalButton');
-                if (modalButton) {
+                if (modalButton && modalButton.offsetParent !== null) { // Check if visible
                     if (!modalButton.disabled) {
                          modalButton.click();
                          modalButton.disabled = true;
