@@ -135,20 +135,25 @@
     const PLAYER_CONFIG = [
         { id: 'keyboard1', symbol: '🍌', color: '#facc15', start: { x: 1, y: 1 }, controls: { type: 'keyboard', up: 'arrowup', down: 'arrowdown', left: 'arrowleft', right: 'arrowright', bomb: ' ' } },
         { id: 'keyboard2', symbol: '🍌', color: '#84cc16', start: { x: COLS - 2, y: ROWS - 2 }, controls: { type: 'keyboard', up: 'w', down: 's', left: 'a', right: 'd', bomb: 'q' } },
-        { id: 'gamepad0', symbol: '🍌', color: '#f97316', start: { x: COLS - 2, y: 1 }, controls: { type: 'gamepad', index: 0 } },
-        { id: 'gamepad1', symbol: '🍌', color: '#a16207', start: { x: 1, y: ROWS - 2 }, controls: { type: 'gamepad', index: 1 } }
+        { id: 'gamepad0', symbol: '🍌', color: '#f97316', start: { x: COLS - 2, y: 1 }, controls: { type: 'gamepad' } },
+        { id: 'gamepad1', symbol: '🍌', color: '#a16207', start: { x: 1, y: ROWS - 2 }, controls: { type: 'gamepad' } }
     ];
     let keysPressed = {};
-    let activeGamepadIndexes = new Set();
+    let activeControlIds = new Set();
 
     const powerUpTypes = {
-        range: { symbol: '🔥' }, extra_bomb: { symbol: '💣' }, walk_walls: { symbol: '💨' }, walk_bombs: { symbol: '🛡️' }, kick_bomb: { symbol: '👟' },
+        range: { symbol: '🔥' },
+        extra_bomb: { symbol: '💣' },
+        walk_walls: { symbol: '💨' },
+        walk_bombs: { symbol: '🛡️' },
+        kick_bomb: { symbol: '👟' },
     };
+    const allPowerUpTypes = Object.keys(powerUpTypes);
     const levelDesigns = {
-        1: { name: "Džungle", bgColor: '#4CAF50', enemyType: '🐵', enemyName: "Opice", enemyCount: 3, wallType: '🌳', destructibleWallType: '🌿', powerUps: ['range', 'extra_bomb'] },
-        2: { name: "Hory", bgColor: '#a0d2eb', enemyType: '🧊', enemyName: "Rampouchy", enemyCount: 4, wallType: '⛰️', destructibleWallType: '❄️', powerUps: ['range', 'kick_bomb'] },
-        3: { name: "Hrad - 1. patro", bgColor: '#6c757d', enemyType: '👻', enemyName: "Duchové", enemyCount: 5, wallType: '🧱', destructibleWallType: '🛢️', powerUps: ['walk_walls', 'extra_bomb'] },
-        4: { name: "Hrad - 2. patro", bgColor: '#495057', enemyType: '👻', enemyName: "Duchové", enemyCount: 6, wallType: '🧱', destructibleWallType: '🛢️', powerUps: ['walk_bombs', 'range'] },
+        1: { name: "Džungle", bgColor: '#4CAF50', enemyType: '🐵', enemyName: "Opice", enemyCount: 3, wallType: '🌳', destructibleWallType: '🌿' },
+        2: { name: "Hory", bgColor: '#a0d2eb', enemyType: '🧊', enemyName: "Rampouchy", enemyCount: 4, wallType: '⛰️', destructibleWallType: '❄️' },
+        3: { name: "Hrad - 1. patro", bgColor: '#6c757d', enemyType: '👻', enemyName: "Duchové", enemyCount: 5, wallType: '🧱', destructibleWallType: '🛢️' },
+        4: { name: "Hrad - 2. patro", bgColor: '#495057', enemyType: '👻', enemyName: "Duchové", enemyCount: 6, wallType: '🧱', destructibleWallType: '🛢️' },
         5: { name: "Hrad - Trůnní sál" }
     };
 
@@ -216,16 +221,14 @@
             }
         }
         
-        const levelData = levelDesigns[gameState.currentLevel];
-        if (levelData.powerUps) {
-            levelData.powerUps.forEach(powerUpKey => {
-                if (destructibleWalls.length > 0) {
-                    const wallIndex = Math.floor(Math.random() * destructibleWalls.length);
-                    const wall = destructibleWalls.splice(wallIndex, 1)[0];
-                    const p = powerUpTypes[powerUpKey];
-                    powerUps.push({x: wall.x, y: wall.y, type: powerUpKey, symbol: p.symbol});
-                }
-            });
+        // Dynamický počet bonusů
+        const numPowerUps = Math.min(1 + players.length, destructibleWalls.length);
+        for(let i = 0; i < numPowerUps; i++) {
+            const powerUpKey = allPowerUpTypes[Math.floor(Math.random() * allPowerUpTypes.length)];
+            const wallIndex = Math.floor(Math.random() * destructibleWalls.length);
+            const wall = destructibleWalls.splice(wallIndex, 1)[0];
+            const p = powerUpTypes[powerUpKey];
+            powerUps.push({x: wall.x, y: wall.y, type: powerUpKey, symbol: p.symbol});
         }
     }
 
@@ -254,6 +257,10 @@
         generateLevel();
         spawnEntities();
         updateInfoPanel();
+        if (document.getElementById('messageModal').style.display === 'flex') {
+            // If modal was open, we need to restart the loop
+            gameLoop();
+        }
     }
     
     function resetAndStartLobby() {
@@ -261,7 +268,7 @@
         gameState.isPaused = false;
         gameState.killCount = 0;
         players = [];
-        activeGamepadIndexes.clear();
+        activeControlIds.clear();
         initializeLevel(1);
         gameLoop();
     }
@@ -508,7 +515,7 @@
         if (!player || !player.isAlive || player.bombCooldown > 0) return;
         if (bombs.filter(b => b.ownerId === player.id).length < player.bombsMax && !isBombAt(player.x, player.y)) {
             bombs.push({ x: player.x, y: player.y, timer: 120, exploded: false, ownerId: player.id, isKicked: false, vx: 0, vy: 0, kickTimer: 0 });
-            player.bombCooldown = 10; // Krátká prodleva po položení
+            player.bombCooldown = 10;
         }
     }
 
@@ -536,14 +543,35 @@
     }
 
     function handleInputs() {
+        // Potvrzení modalu
+        if (gameState.isPaused) {
+            const confirmKeyPressed = keysPressed['enter'];
+            let confirmGamepadPressed = false;
+            const gamepads = navigator.getGamepads();
+            for (const gp of gamepads) {
+                if (gp && gp.buttons[0].pressed) {
+                    confirmGamepadPressed = true;
+                    break;
+                }
+            }
+            if (confirmKeyPressed || confirmGamepadPressed) {
+                const modalButton = document.getElementById('modalButton');
+                if (modalButton) {
+                    modalButton.click();
+                }
+            }
+            return; // Don't process game inputs when paused
+        }
+
         // Přidání nových hráčů
         if (players.length < 4) {
             // Klávesnice
             for (const key in keysPressed) {
                 if (keysPressed[key]) {
                     const config = PLAYER_CONFIG.find(c => c.controls.type === 'keyboard' && Object.values(c.controls).includes(key));
-                    if (config && !players.some(p => p.id === config.id)) {
+                    if (config && !activeControlIds.has(config.id)) {
                         players.push(createPlayer(config));
+                        activeControlIds.add(config.id);
                         if (!gameState.gameActive) gameState.gameActive = true;
                         updateInfoPanel();
                     }
@@ -553,14 +581,17 @@
             const gamepads = navigator.getGamepads();
             for (const gp of gamepads) {
                 if (!gp) continue;
+                const gamepadId = `gamepad${gp.index}`;
                 const isActive = gp.buttons.some(b => b.pressed) || gp.axes.some(a => Math.abs(a) > 0.5);
-                if (isActive && !activeGamepadIndexes.has(gp.index)) {
-                     const config = PLAYER_CONFIG.find(c => c.controls.type === 'gamepad' && !players.some(p => p.controls.index === gp.index));
+                if (isActive && !activeControlIds.has(gamepadId)) {
+                     const config = PLAYER_CONFIG.find(c => c.controls.type === 'gamepad' && !activeControlIds.has(c.id));
                      if (config) {
                          const newPlayer = createPlayer(config);
-                         newPlayer.controls.index = gp.index; // Přiřadit konkrétní gamepad
+                         newPlayer.id = gamepadId; // Unique ID for this gamepad
+                         newPlayer.controls.index = gp.index;
                          players.push(newPlayer);
-                         activeGamepadIndexes.add(gp.index);
+                         activeControlIds.add(gamepadId);
+                         activeControlIds.add(config.id); // Mark the base config as used
                          if (!gameState.gameActive) gameState.gameActive = true;
                          updateInfoPanel();
                      }
