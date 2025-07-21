@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Útěk banánů</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background-color: #1a202c;
+            color: #f7fafc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 1rem;
+        }
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        canvas {
+            border-radius: 0.5rem;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+        .info-panel {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 680px; /* Shodná se šířkou plátna */
+            font-size: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: #2d3748;
+            border-radius: 0.5rem;
+        }
+        .modal {
+            display: none; /* Skryto defaultně */
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #2d3748;
+            padding: 2rem;
+            border: 2px solid #4a5568;
+            border-radius: 1rem;
+            text-align: center;
+            max-width: 90%;
+            width: 500px;
+        }
+        .modal-content h2 {
+            font-size: 1.75rem;
+            margin-bottom: 1rem;
+            color: #f7b733;
+        }
+        .modal-content p {
+            font-size: 1rem;
+            line-height: 1.5;
+            margin-bottom: 1.5rem;
+        }
+        .modal-content button {
+            background-color: #f7b733;
+            color: #1a202c;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-family: 'Press Start 2P', cursive;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .modal-content button:hover {
+            background-color: #fccb00;
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <h1 class="text-3xl mb-4 text-yellow-400">Útěk banánů</h1>
+    <div id="infoPanel" class="info-panel">
+        <div id="levelInfo"></div>
+        <div id="enemiesInfo"></div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <div class="text-sm mt-2">Ovládání: Šipky = Pohyb | Mezerník = Bomba</div>
+</div>
+
+<div id="messageModal" class="modal">
+    <div class="modal-content">
+        <h2 id="modalTitle"></h2>
+        <p id="modalText"></p>
+        <button id="modalButton"></button>
+    </div>
+</div>
+
+<script>
+    // --- Nastavení hry ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const TILE_SIZE = 40;
+    const COLS = 17;
+    const ROWS = 13;
+
+    canvas.width = COLS * TILE_SIZE;
+    canvas.height = ROWS * TILE_SIZE;
+
+    // --- Herní stavy a objekty ---
+    const TILES = { EMPTY: 0, INDESTRUCTIBLE: 1, DESTRUCTIBLE: 2 };
+
+    let levelMap = [], bombs = [], explosions = [], enemies = [], powerUps = [];
+
+    let player = {
+        x: 1, y: 1,
+        bombsMax: 1, bombRange: 1,
+        isAlive: true,
+        canWalkThroughWalls: false,
+        canWalkThroughBombs: false,
+    };
+
+    let gameState = { currentLevel: 1, enemiesRemaining: 0, isPaused: false };
+
+    // --- Mapy levelů ---
+    const levelDesigns = {
+        1: { name: "Džungle", bgColor: '#4CAF50', enemyType: '🐵', enemyName: "Opice", enemyCount: 3, wallType: '🌳', destructibleWallType: '🌿', powerUp: {type: 'range', symbol: '🔥'} },
+        2: { name: "Hory", bgColor: '#a0d2eb', enemyType: '🧊', enemyName: "Rampouchy", enemyCount: 4, wallType: '⛰️', destructibleWallType: '❄️', powerUp: {type: 'extra_bomb', symbol: '💣'} },
+        3: { name: "Hrad - 1. patro", bgColor: '#6c757d', enemyType: '👻', enemyName: "Duchové", enemyCount: 5, wallType: '🧱', destructibleWallType: '🛢️', powerUp: {type: 'walk_walls', symbol: '💨'} },
+        4: { name: "Hrad - 2. patro", bgColor: '#495057', enemyType: '👻', enemyName: "Duchové", enemyCount: 6, wallType: '🧱', destructibleWallType: '🛢️', powerUp: {type: 'walk_bombs', symbol: '🛡️'} },
+        5: { name: "Hrad - Trůnní sál" } // Finální scéna
+    };
+
+    // --- Pomocné funkce ---
+    function getTile(x, y) {
+        if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return TILES.INDESTRUCTIBLE;
+        return levelMap[y][x];
+    }
+
+    function showModal(title, text, buttonText, onButtonClick) {
+        gameState.isPaused = true;
+        const modal = document.getElementById('messageModal');
+        document.getElementById('modalTitle').innerText = title;
+        document.getElementById('modalText').innerText = text;
+        const button = document.getElementById('modalButton');
+        button.innerText = buttonText;
+        button.onclick = () => {
+            modal.style.display = 'none';
+            onButtonClick();
+        };
+        modal.style.display = 'flex';
+    }
+
+    function updateInfoPanel() {
+        const levelData = levelDesigns[gameState.currentLevel];
+        document.getElementById('levelInfo').innerText = `Level: ${gameState.currentLevel} - ${levelData.name}`;
+        document.getElementById('enemiesInfo').innerText = `${levelData.enemyName}: ${gameState.enemiesRemaining}`;
+        canvas.style.backgroundColor = levelData.bgColor;
+    }
+
+    // --- Generování a načítání levelu ---
+    function generateLevel() {
+        levelMap = Array.from({ length: ROWS }, () => Array(COLS).fill(TILES.EMPTY));
+        for (let y = 0; y < ROWS; y++) {
+            for (let x = 0; x < COLS; x++) {
+                if (y === 0 || y === ROWS - 1 || x === 0 || x === COLS - 1 || (y % 2 === 0 && x % 2 === 0)) {
+                    levelMap[y][x] = TILES.INDESTRUCTIBLE;
+                }
+            }
+        }
+        for (let y = 1; y < ROWS - 1; y++) {
+            for (let x = 1; x < COLS - 1; x++) {
+                if (levelMap[y][x] === TILES.EMPTY && Math.random() > 0.2 && (x > 2 || y > 2)) {
+                    levelMap[y][x] = TILES.DESTRUCTIBLE;
+                }
+            }
+        }
+        
+        const levelData = levelDesigns[gameState.currentLevel];
+        if (levelData.powerUp) {
+            let placed = false;
+            while(!placed) {
+                const rx = Math.floor(Math.random() * COLS);
+                const ry = Math.floor(Math.random() * ROWS);
+                if(levelMap[ry][rx] === TILES.DESTRUCTIBLE) {
+                     powerUps.push({x: rx, y: ry, type: levelData.powerUp.type, symbol: levelData.powerUp.symbol});
+                     placed = true;
+                }
+            }
+        }
+    }
+
+    function spawnEntities() {
+        const levelData = levelDesigns[gameState.currentLevel];
+        gameState.enemiesRemaining = levelData.enemyCount;
+        enemies = [];
+        for (let i = 0; i < levelData.enemyCount; i++) {
+            let placed = false;
+            while (!placed) {
+                const x = Math.floor(Math.random() * (COLS - 2)) + 1;
+                const y = Math.floor(Math.random() * (ROWS - 2)) + 1;
+                if (getTile(x, y) === TILES.EMPTY && (x > 5 || y > 5)) {
+                    enemies.push({ x, y, type: levelData.enemyType, direction: {x:0, y:0}, moveCounter: 0 });
+                    placed = true;
+                }
+            }
+        }
+    }
+
+    function loadLevel(level) {
+        gameState.isPaused = false;
+        gameState.currentLevel = level;
+        player.x = 1;
+        player.y = 1;
+        player.isAlive = true;
+        bombs = [];
+        explosions = [];
+        powerUps = [];
+        
+        generateLevel();
+        spawnEntities();
+        updateInfoPanel();
+        gameLoop();
+    }
+
+    // --- Herní smyčka ---
+    function gameLoop() {
+        if (!player.isAlive || gameState.isPaused) return;
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+
+    // --- Update logika ---
+    function update() {
+        moveEnemies();
+        updateBombs();
+        checkCollisions();
+    }
+    
+    function moveEnemies() {
+        enemies.forEach(enemy => {
+            enemy.moveCounter--;
+            if (enemy.moveCounter <= 0) {
+                const directions = [{x:1, y:0}, {x:-1, y:0}, {x:0, y:1}, {x:0, y:-1}];
+                enemy.direction = directions[Math.floor(Math.random() * directions.length)];
+                enemy.moveCounter = Math.floor(Math.random() * 60) + 30;
+            }
+            const nextX = enemy.x + enemy.direction.x;
+            const nextY = enemy.y + enemy.direction.y;
+            if (getTile(nextX, nextY) === TILES.EMPTY && Math.random() < 0.02) {
+                enemy.x = nextX;
+                enemy.y = nextY;
+            } else if (getTile(nextX, nextY) !== TILES.EMPTY) {
+                enemy.moveCounter = 0;
+            }
+        });
+    }
+
+    function updateBombs() {
+        explosions = explosions.filter(e => --e.timer > 0);
+        bombs.forEach(bomb => {
+            bomb.timer--;
+            if (bomb.timer <= 0 && !bomb.exploded) {
+                bomb.exploded = true;
+                createExplosion(bomb.x, bomb.y, player.bombRange);
+            }
+        });
+        bombs = bombs.filter(bomb => !bomb.exploded);
+    }
+
+    function createExplosion(x, y, range) {
+        const explosionTiles = [{ x, y, timer: 20 }];
+        const directions = [{x:1, y:0}, {x:-1, y:0}, {x:0, y:1}, {x:0, y:-1}];
+        directions.forEach(dir => {
+            for (let i = 1; i <= range; i++) {
+                const ex = x + dir.x * i;
+                const ey = y + dir.y * i;
+                const tile = getTile(ex, ey);
+                if (tile === TILES.INDESTRUCTIBLE) break;
+                explosionTiles.push({ x: ex, y: ey, timer: 20 });
+                if (tile === TILES.DESTRUCTIBLE) {
+                    levelMap[ey][ex] = TILES.EMPTY;
+                    break;
+                }
+            }
+        });
+        explosions.push(...explosionTiles);
+    }
+
+    function checkCollisions() {
+        const currentEnemyName = levelDesigns[gameState.currentLevel].enemyName.slice(0, -1).toLowerCase();
+        enemies.forEach(enemy => {
+            if (enemy.x === player.x && enemy.y === player.y) {
+                gameOver(`Chytil tě ${currentEnemyName}!`);
+            }
+        });
+
+        explosions.forEach(exp => {
+            if (exp.x === player.x && exp.y === player.y) gameOver("Zasáhla tě exploze!");
+            enemies = enemies.filter(enemy => {
+                if (enemy.x === exp.x && enemy.y === exp.y) {
+                    gameState.enemiesRemaining--;
+                    updateInfoPanel();
+                    return false;
+                }
+                return true;
+            });
+        });
+        
+        powerUps.forEach((powerUp, index) => {
+            if(getTile(powerUp.x, powerUp.y) === TILES.EMPTY && player.x === powerUp.x && player.y === powerUp.y) {
+                switch(powerUp.type) {
+                    case 'range': player.bombRange++; break;
+                    case 'extra_bomb': player.bombsMax++; break;
+                    case 'walk_walls': player.canWalkThroughWalls = true; break;
+                    case 'walk_bombs': player.canWalkThroughBombs = true; break;
+                }
+                powerUps.splice(index, 1);
+            }
+        });
+
+        if (gameState.enemiesRemaining <= 0) levelComplete();
+    }
+    
+    // --- Konec hry a postup ---
+    function gameOver(reason) {
+        player.isAlive = false;
+        showModal("Konec hry!", reason, "Hrát znovu?", () => {
+            player = { x: 1, y: 1, bombsMax: 1, bombRange: 1, isAlive: true, canWalkThroughWalls: false, canWalkThroughBombs: false };
+            loadLevel(1);
+        });
+    }
+
+    function levelComplete() {
+        gameState.isPaused = true;
+        const nextLevel = gameState.currentLevel + 1;
+        if (levelDesigns[nextLevel] && nextLevel < 5) {
+            showModal("Level dokončen!", "Poraď si s další výzvou.", "Další level", () => loadLevel(nextLevel));
+        } else if (nextLevel === 5) {
+            showModal("Level dokončen!", "Postupuješ do trůnního sálu!", "Vstoupit", () => showFinalScene());
+        }
+    }
+
+    function showFinalScene() {
+        gameState.isPaused = true;
+        canvas.style.backgroundColor = '#2d3748';
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const dialogue = "Král banánů 👑: 'Vítej, statečný banáne! Prokázal jsi velkou odvahu. Unikl jsi opicím, zdolal hory a prošel mým strašidelným hradem. Jsi hoden svobody!'";
+        showModal("Setkání s králem", dialogue, "Hrát znovu?", () => {
+            player = { x: 1, y: 1, bombsMax: 1, bombRange: 1, isAlive: true, canWalkThroughWalls: false, canWalkThroughBombs: false };
+            loadLevel(1);
+        });
+    }
+
+    // --- Kreslení na plátno ---
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const levelData = levelDesigns[gameState.currentLevel];
+        ctx.font = `${TILE_SIZE * 0.8}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+            const tile = getTile(x, y);
+            let symbol = '';
+            if (tile === TILES.INDESTRUCTIBLE) symbol = levelData.wallType;
+            if (tile === TILES.DESTRUCTIBLE) symbol = levelData.destructibleWallType;
+            if (symbol) ctx.fillText(symbol, x * TILE_SIZE + TILE_SIZE / 2, y * TILE_SIZE + TILE_SIZE / 2);
+        }
+        
+        powerUps.forEach(p => {
+            if(getTile(p.x, p.y) === TILES.EMPTY) ctx.fillText(p.symbol, p.x * TILE_SIZE + TILE_SIZE / 2, p.y * TILE_SIZE + TILE_SIZE / 2);
+        });
+
+        bombs.forEach(bomb => ctx.fillText('💣', bomb.x * TILE_SIZE + TILE_SIZE / 2, bomb.y * TILE_SIZE + TILE_SIZE / 2));
+
+        explosions.forEach(exp => {
+            ctx.fillStyle = 'rgba(255, 165, 0, 0.7)';
+            ctx.fillRect(exp.x * TILE_SIZE, exp.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        });
+        ctx.fillStyle = 'black';
+
+        ctx.fillText('🍌', player.x * TILE_SIZE + TILE_SIZE / 2, player.y * TILE_SIZE + TILE_SIZE / 2);
+        enemies.forEach(enemy => ctx.fillText(enemy.type, enemy.x * TILE_SIZE + TILE_SIZE / 2, enemy.y * TILE_SIZE + TILE_SIZE / 2));
+    }
+
+    // --- Ovládání ---
+    window.addEventListener('keydown', (e) => {
+        if (!player.isAlive || gameState.isPaused) return;
+
+        let moved = false, newX = player.x, newY = player.y;
+
+        switch (e.key) {
+            case 'ArrowUp': newY--; moved = true; break;
+            case 'ArrowDown': newY++; moved = true; break;
+            case 'ArrowLeft': newX--; moved = true; break;
+            case 'ArrowRight': newX++; moved = true; break;
+            case ' ':
+                e.preventDefault();
+                if (bombs.filter(b => !b.exploded).length < player.bombsMax) {
+                    const isBombAlreadyHere = bombs.some(b => b.x === player.x && b.y === player.y);
+                    if (!isBombAlreadyHere) {
+                        bombs.push({ x: player.x, y: player.y, timer: 120, exploded: false });
+                    }
+                }
+                break;
+        }
+
+        if (moved) {
+            const targetTile = getTile(newX, newY);
+            const isBombAtTarget = bombs.some(b => b.x === newX && b.y === newY);
+            let canMove = false;
+
+            if (targetTile === TILES.EMPTY || (targetTile === TILES.DESTRUCTIBLE && player.canWalkThroughWalls)) {
+                canMove = true;
+            }
+            if (isBombAtTarget && !player.canWalkThroughBombs) {
+                canMove = false;
+            }
+            if (canMove) { player.x = newX; player.y = newY; }
+        }
+    });
+
+    // --- Spuštění hry ---
+    showModal("Vítej ve hře!", "Tvůj úkol: Uteč z džungle, přejdi hory a dostaň se z hradu. Znič všechny nepřátele a sbírej superschopnosti!", "Začít hru", () => {
+        loadLevel(1);
+    });
+
+</script>
+</body>
+</html>
