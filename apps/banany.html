@@ -25,6 +25,8 @@
             flex-direction: column;
             align-items: center;
             gap: 1rem;
+            width: 95vw; /* Využít více místa na šířku */
+            max-width: 1400px; /* Maximální šířka pro velké obrazovky */
         }
         canvas {
             border-radius: 0.5rem;
@@ -32,6 +34,8 @@
             image-rendering: pixelated;
             image-rendering: -moz-crisp-edges;
             image-rendering: crisp-edges;
+            width: 100%; /* Plátno se přizpůsobí kontejneru */
+            height: auto;
         }
         .info-panel {
             display: flex;
@@ -40,9 +44,8 @@
             flex-wrap: wrap;
             gap: 1rem;
             width: 100%;
-            max-width: 680px;
             min-height: 40px;
-            font-size: 0.8rem;
+            font-size: 0.9rem;
             padding: 0.5rem;
             background-color: #2d3748;
             border-radius: 0.5rem;
@@ -133,10 +136,10 @@
     let gameState = { currentLevel: 1, enemiesRemaining: 0, isPaused: false, killCount: 0, gameActive: false };
 
     const PLAYER_CONFIG = [
-        { id: 'keyboard1', symbol: '🍌', color: '#facc15', start: { x: 1, y: 1 }, controls: { type: 'keyboard', up: 'arrowup', down: 'arrowdown', left: 'arrowleft', right: 'arrowright', bomb: ' ' } },
-        { id: 'keyboard2', symbol: '🍌', color: '#84cc16', start: { x: COLS - 2, y: ROWS - 2 }, controls: { type: 'keyboard', up: 'w', down: 's', left: 'a', right: 'd', bomb: 'q' } },
-        { id: 'gamepad0', symbol: '🍌', color: '#f97316', start: { x: COLS - 2, y: 1 }, controls: { type: 'gamepad' } },
-        { id: 'gamepad1', symbol: '🍌', color: '#a16207', start: { x: 1, y: ROWS - 2 }, controls: { type: 'gamepad' } }
+        { id: 'keyboard1', symbol: '🍌', start: { x: 1, y: 1 }, controls: { type: 'keyboard', up: 'arrowup', down: 'arrowdown', left: 'arrowleft', right: 'arrowright', bomb: ' ' } },
+        { id: 'keyboard2', symbol: '🥒', start: { x: COLS - 2, y: ROWS - 2 }, controls: { type: 'keyboard', up: 'w', down: 's', left: 'a', right: 'd', bomb: 'q' } },
+        { id: 'gamepad0', symbol: '🥕', start: { x: COLS - 2, y: 1 }, controls: { type: 'gamepad' } },
+        { id: 'gamepad1', symbol: '🍆', start: { x: 1, y: ROWS - 2 }, controls: { type: 'gamepad' } }
     ];
     let keysPressed = {};
     let activeControlIds = new Set();
@@ -195,7 +198,8 @@
         players.forEach((p, i) => {
             const playerDiv = document.createElement('div');
             playerDiv.className = 'player-info';
-            playerDiv.innerHTML = `<span>Hráč ${i+1}:</span> <span style="color: ${p.color}; text-shadow: 1px 1px 2px black;">${p.symbol}</span> <span>x${p.lives}</span>`;
+            const livesHTML = p.symbol.repeat(p.lives);
+            playerDiv.innerHTML = `<span>Hráč ${i+1}:</span> <span>${livesHTML}</span>`;
             infoPanel.appendChild(playerDiv);
         });
     }
@@ -258,7 +262,6 @@
         spawnEntities();
         updateInfoPanel();
         if (document.getElementById('messageModal').style.display === 'flex') {
-            // If modal was open, we need to restart the loop
             gameLoop();
         }
     }
@@ -458,12 +461,12 @@
         const levelData = levelDesigns[gameState.currentLevel];
         canvas.style.backgroundColor = levelData.bgColor;
 
-        const originalFillStyle = ctx.fillStyle;
         ctx.font = `${TILE_SIZE * 0.8}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+        
+        // Kreslení zdí
         ctx.fillStyle = 'black';
-
         for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
             const tile = getTile(x, y);
             let symbol = '';
@@ -497,17 +500,16 @@
 
         players.forEach(p => {
             if (p.isAlive) {
+                ctx.save();
                 ctx.globalAlpha = (p.isHit && Math.floor(p.hitTimer / 10) % 2 === 0) ? 0.5 : 1.0;
-                ctx.fillStyle = p.color;
+                ctx.fillStyle = 'black'; // Reset fill style for symbols
                 ctx.fillText(p.symbol, p.x * TILE_SIZE + TILE_SIZE / 2, p.y * TILE_SIZE + TILE_SIZE / 2);
-                ctx.globalAlpha = 1.0;
+                ctx.restore();
             }
         });
         
         ctx.fillStyle = 'black'; // Reset color for enemies
         enemies.forEach(enemy => ctx.fillText(enemy.type, enemy.x * TILE_SIZE + TILE_SIZE / 2, enemy.y * TILE_SIZE + TILE_SIZE / 2));
-        
-        ctx.fillStyle = originalFillStyle; // Restore original fill style
     }
 
     // --- Ovládání ---
@@ -557,10 +559,15 @@
             if (confirmKeyPressed || confirmGamepadPressed) {
                 const modalButton = document.getElementById('modalButton');
                 if (modalButton) {
-                    modalButton.click();
+                    // Prevent multiple clicks
+                    if (!modalButton.disabled) {
+                         modalButton.click();
+                         modalButton.disabled = true;
+                         setTimeout(() => { modalButton.disabled = false; }, 500);
+                    }
                 }
             }
-            return; // Don't process game inputs when paused
+            return;
         }
 
         // Přidání nových hráčů
