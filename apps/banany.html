@@ -128,6 +128,7 @@
     let player = {};
     let gameState = { currentLevel: 1, enemiesRemaining: 0, isPaused: false, killCount: 0 };
     let gamepads = {};
+    let gamepadStates = {}; // Pro uložení stavu tlačítek každého gamepadu
 
     // --- Definice levelů a bonusů ---
     const powerUpTypes = {
@@ -156,6 +157,7 @@
             canWalkThroughBombs: false,
             canKickBomb: false,
             isHit: false, hitTimer: 0,
+            moveCooldown: 0, // Cooldown pro plynulý pohyb
         };
         gameState.killCount = 0;
     }
@@ -274,6 +276,9 @@
     // --- Update logika ---
     function update() {
         if (!player.isAlive) return;
+        
+        if (player.moveCooldown > 0) player.moveCooldown--;
+        
         if (player.isHit) {
             player.hitTimer--;
             if (player.hitTimer <= 0) player.isHit = false;
@@ -373,7 +378,7 @@
                 if (enemy.x === exp.x && enemy.y === exp.y) {
                     gameState.enemiesRemaining--;
                     gameState.killCount++;
-                    if (gameState.killCount % 18 === 0) player.lives++;
+                    if (gameState.killCount > 0 && gameState.killCount % 18 === 0) player.lives++;
                     updateInfoPanel();
                     return false;
                 }
@@ -532,49 +537,51 @@
     });
 
     // --- Gamepad API ---
-    let buttonPressed = false;
-    let axisMoved = false;
-
     function handleGamepadInput() {
-        const myGamepad = Object.values(gamepads)[0];
-        if (!myGamepad) return;
+        if (!gamepads) return;
 
-        // Tlačítko pro bombu
-        if (myGamepad.buttons[0].pressed) {
-            if (!buttonPressed) {
-                placeBomb();
-                buttonPressed = true;
+        for (const gamepad of Object.values(gamepads)) {
+            if (!gamepad) continue;
+
+            const state = gamepadStates[gamepad.index];
+
+            // Tlačítko pro bombu (A)
+            if (gamepad.buttons[0].pressed) {
+                if (!state.buttonPressed) {
+                    placeBomb();
+                    state.buttonPressed = true;
+                }
+            } else {
+                state.buttonPressed = false;
             }
-        } else {
-            buttonPressed = false;
-        }
 
-        // Pohyb páčkou
-        const deadzone = 0.4;
-        const dx = myGamepad.axes[0];
-        const dy = myGamepad.axes[1];
-        
-        if (Math.abs(dx) < deadzone && Math.abs(dy) < deadzone) {
-            axisMoved = false;
-            return;
-        }
-        if (axisMoved) return;
+            // Pohyb páčkou
+            if (player.moveCooldown > 0) continue;
 
-        if (Math.abs(dx) > Math.abs(dy)) {
-            movePlayer(Math.sign(dx), 0);
-        } else {
-            movePlayer(0, Math.sign(dy));
+            const deadzone = 0.4;
+            const dx = gamepad.axes[0];
+            const dy = gamepad.axes[1];
+            
+            if (Math.abs(dx) > deadzone || Math.abs(dy) > deadzone) {
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    movePlayer(Math.sign(dx), 0);
+                } else {
+                    movePlayer(0, Math.sign(dy));
+                }
+                player.moveCooldown = 10; // Prodleva 10 snímků pro plynulý pohyb
+            }
         }
-        axisMoved = true;
     }
 
     window.addEventListener("gamepadconnected", (e) => {
-        console.log("Gamepad connected:", e.gamepad.id);
+        console.log("Gamepad připojen:", e.gamepad.id);
         gamepads[e.gamepad.index] = e.gamepad;
+        gamepadStates[e.gamepad.index] = { buttonPressed: false };
     });
     window.addEventListener("gamepaddisconnected", (e) => {
-        console.log("Gamepad disconnected:", e.gamepad.id);
+        console.log("Gamepad odpojen:", e.gamepad.id);
         delete gamepads[e.gamepad.index];
+        delete gamepadStates[e.gamepad.index];
     });
 
     // --- Spuštění hry ---
