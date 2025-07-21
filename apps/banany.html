@@ -9,24 +9,37 @@
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden; /* Zamezit jakémukoliv scrollování */
+        }
         body {
             font-family: 'Press-Start-2P', cursive;
             background-color: #1a202c;
             color: #f7fafc;
             display: flex;
+            flex-direction: column; /* Uspořádat prvky pod sebe */
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 1rem;
         }
         .game-container {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 1rem;
-            width: 95vw; /* Využít více místa na šířku */
-            max-width: 1400px; /* Maximální šířka pro velké obrazovky */
+            width: 100%;
+            height: 100%;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+        .canvas-wrapper {
+            flex-grow: 1; /* Nechat plátno zabrat co nejvíce místa */
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 0; /* Důležité pro flexbox v některých prohlížečích */
         }
         canvas {
             border-radius: 0.5rem;
@@ -34,8 +47,9 @@
             image-rendering: pixelated;
             image-rendering: -moz-crisp-edges;
             image-rendering: crisp-edges;
-            width: 100%; /* Plátno se přizpůsobí kontejneru */
-            height: auto;
+            max-width: 100%;   /* Udržet v kontejneru */
+            max-height: 100%;  /* Udržet v kontejneru */
+            object-fit: contain; /* Zachovat poměr stran */
         }
         .info-panel {
             display: flex;
@@ -44,11 +58,13 @@
             flex-wrap: wrap;
             gap: 1rem;
             width: 100%;
+            max-width: 1200px; /* Omezit šířku panelu */
             min-height: 40px;
             font-size: 0.9rem;
             padding: 0.5rem;
             background-color: #2d3748;
             border-radius: 0.5rem;
+            flex-shrink: 0; /* Panel se nebude zmenšovat */
         }
         .player-info {
             display: flex;
@@ -106,9 +122,11 @@
 <body>
 
 <div class="game-container">
-    <h1 class="text-3xl mb-4 text-yellow-400">Útěk banánů</h1>
+    <h1 class="text-3xl text-yellow-400 flex-shrink-0">Útěk banánů</h1>
     <div id="infoPanel" class="info-panel"></div>
-    <canvas id="gameCanvas"></canvas>
+    <div class="canvas-wrapper">
+        <canvas id="gameCanvas"></canvas>
+    </div>
 </div>
 
 <div id="messageModal" class="modal">
@@ -142,8 +160,7 @@
         { id: 'gamepad1', symbol: '🍆', start: { x: 1, y: ROWS - 2 }, controls: { type: 'gamepad' } }
     ];
     let keysPressed = {};
-    let activeControlIds = new Set();
-
+    
     const powerUpTypes = {
         range: { symbol: '🔥' },
         extra_bomb: { symbol: '💣' },
@@ -271,7 +288,6 @@
         gameState.isPaused = false;
         gameState.killCount = 0;
         players = [];
-        activeControlIds.clear();
         initializeLevel(1);
         gameLoop();
     }
@@ -548,18 +564,27 @@
         // Potvrzení modalu
         if (gameState.isPaused) {
             const confirmKeyPressed = keysPressed['enter'];
-            let confirmGamepadPressed = false;
+            let bombButtonPressed = false;
+
+            // Zkontrolovat klávesy pro bombu aktivních hráčů
+            players.forEach(p => {
+                if (p.controls.type === 'keyboard' && keysPressed[p.controls.bomb]) {
+                    bombButtonPressed = true;
+                }
+            });
+
+            // Zkontrolovat tlačítka na gamepadu
             const gamepads = navigator.getGamepads();
             for (const gp of gamepads) {
                 if (gp && gp.buttons[0].pressed) {
-                    confirmGamepadPressed = true;
+                    bombButtonPressed = true;
                     break;
                 }
             }
-            if (confirmKeyPressed || confirmGamepadPressed) {
+
+            if (confirmKeyPressed || bombButtonPressed) {
                 const modalButton = document.getElementById('modalButton');
                 if (modalButton) {
-                    // Prevent multiple clicks
                     if (!modalButton.disabled) {
                          modalButton.click();
                          modalButton.disabled = true;
@@ -572,13 +597,15 @@
 
         // Přidání nových hráčů
         if (players.length < 4) {
+            const assignedKeyboardIds = players.filter(p => p.controls.type === 'keyboard').map(p => p.id);
+            const assignedGamepadIndices = players.filter(p => p.controls.type === 'gamepad' && typeof p.controls.index !== 'undefined').map(p => p.controls.index);
+
             // Klávesnice
             for (const key in keysPressed) {
                 if (keysPressed[key]) {
                     const config = PLAYER_CONFIG.find(c => c.controls.type === 'keyboard' && Object.values(c.controls).includes(key));
-                    if (config && !activeControlIds.has(config.id)) {
+                    if (config && !assignedKeyboardIds.includes(config.id)) {
                         players.push(createPlayer(config));
-                        activeControlIds.add(config.id);
                         if (!gameState.gameActive) gameState.gameActive = true;
                         updateInfoPanel();
                     }
@@ -587,18 +614,17 @@
             // Gamepady
             const gamepads = navigator.getGamepads();
             for (const gp of gamepads) {
-                if (!gp) continue;
-                const gamepadId = `gamepad${gp.index}`;
+                if (!gp || assignedGamepadIndices.includes(gp.index)) continue;
+                
                 const isActive = gp.buttons.some(b => b.pressed) || gp.axes.some(a => Math.abs(a) > 0.5);
-                if (isActive && !activeControlIds.has(gamepadId)) {
-                     const config = PLAYER_CONFIG.find(c => c.controls.type === 'gamepad' && !activeControlIds.has(c.id));
-                     if (config) {
-                         const newPlayer = createPlayer(config);
-                         newPlayer.id = gamepadId; // Unique ID for this gamepad
+                if (isActive) {
+                     const assignedGamepadConfigIds = players.filter(p => p.controls.type === 'gamepad').map(p => p.id);
+                     const availableConfig = PLAYER_CONFIG.find(c => c.controls.type === 'gamepad' && !assignedGamepadConfigIds.includes(c.id));
+
+                     if (availableConfig) {
+                         const newPlayer = createPlayer(availableConfig);
                          newPlayer.controls.index = gp.index;
                          players.push(newPlayer);
-                         activeControlIds.add(gamepadId);
-                         activeControlIds.add(config.id); // Mark the base config as used
                          if (!gameState.gameActive) gameState.gameActive = true;
                          updateInfoPanel();
                      }
@@ -616,6 +642,7 @@
                 else if (keysPressed[p.controls.right]) movePlayer(p, 1, 0);
                 if (keysPressed[p.controls.bomb]) placeBomb(p);
             } else if (p.controls.type === 'gamepad') {
+                if (typeof p.controls.index === 'undefined') return;
                 const gp = navigator.getGamepads()[p.controls.index];
                 if (!gp) return;
                 if (gp.buttons[0].pressed) placeBomb(p);
