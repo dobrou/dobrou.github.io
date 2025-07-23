@@ -149,7 +149,7 @@
 
     // --- Herní stavy a objekty ---
     const TILES = { EMPTY: 0, INDESTRUCTIBLE: 1, DESTRUCTIBLE: 2 };
-    let levelMap = [], bombs = [], explosions = [], enemies = [], powerUps = [], lasers = [];
+    let levelMap = [], bombs = [], explosions = [], enemies = [], powerUps = [], lasers = [], bossProjectiles = [];
     let players = [];
     let boss = null;
     let gameState = { currentLevel: 1, enemiesRemaining: 0, isPaused: false, killCount: 0, gameActive: false };
@@ -190,7 +190,7 @@
         entity.targetX = entity.x;
         entity.targetY = entity.y;
         entity.speed = 4;
-        entity.isAlive = true; // Důležité pro pohyb
+        entity.isAlive = true;
         return entity;
     }
 
@@ -285,15 +285,16 @@
         enemies = [];
         boss = null;
         lasers = [];
+        bossProjectiles = [];
 
         if (levelData.isBossLevel) {
-            boss = {
-                x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2),
-                px: Math.floor(COLS / 2) * TILE_SIZE + TILE_SIZE / 2,
-                py: Math.floor(ROWS / 2) * TILE_SIZE + TILE_SIZE / 2,
-                symbol: '🦍', hp: 10, isAlive: true, isHit: false, hitTimer: 0,
-                attackTimer: 180, attackType: 'laser'
-            };
+            boss = createEntity({start: {x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2)}});
+            boss.symbol = '🦍';
+            boss.hp = 10;
+            boss.isHit = false;
+            boss.hitTimer = 0;
+            boss.attackTimer = 180;
+            boss.moveCounter = 120;
             gameState.enemiesRemaining = 1;
         } else {
             for (let i = 0; i < levelData.enemyCount; i++) {
@@ -301,7 +302,7 @@
                 while (!placed) {
                     const x = Math.floor(Math.random() * (COLS - 2)) + 1;
                     const y = Math.floor(Math.random() * (ROWS - 2)) + 1;
-                    const isTooClose = players.some(p => (Math.abs(p.start.x - x) + Math.abs(p.start.y - y)) < 6);
+                    const isTooClose = PLAYER_CONFIG.some(p => (Math.abs(p.start.x - x) + Math.abs(p.start.y - y)) < 9);
                     if (getTile(x, y) === TILES.EMPTY && !isTooClose) {
                         const enemy = createEntity({start: {x, y}});
                         enemy.type = levelData.enemyType;
@@ -362,11 +363,12 @@
         updateBombs();
         if (boss && boss.isAlive) updateBoss();
         lasers = lasers.filter(l => --l.timer > 0);
+        updateBossProjectiles();
         checkCollisions();
     }
     
     function updatePositions() {
-        const allEntities = [...players, ...enemies];
+        const allEntities = [...players, ...enemies, boss].filter(e => e);
         allEntities.forEach(entity => {
             if (!entity.isMoving) return;
             const targetPX = entity.targetX * TILE_SIZE + TILE_SIZE / 2;
@@ -405,22 +407,47 @@
             boss.hitTimer--;
             if (boss.hitTimer <= 0) boss.isHit = false;
         }
+        
+        // Pohyb bosse
+        if (!boss.isMoving) {
+            boss.moveCounter--;
+            if (boss.moveCounter <= 0) {
+                const directions = [{x:1, y:0}, {x:-1, y:0}, {x:0, y:1}, {x:0, y:-1}];
+                const dir = directions[Math.floor(Math.random() * directions.length)];
+                moveEntity(boss, dir.x, dir.y);
+                boss.moveCounter = 90 + Math.random() * 60;
+            }
+        }
+
+        // Útoky bosse
         boss.attackTimer--;
         if (boss.attackTimer <= 0) {
-            // Laser attack
-            const isHorizontal = Math.random() > 0.5;
-            const targetPlayer = players.find(p => p.isAlive);
-            if (targetPlayer) {
-                const line = isHorizontal ? targetPlayer.y : targetPlayer.x;
-                lasers.push({ isHorizontal, line, timer: 120, state: 'warning' });
+            const activePlayers = players.filter(p => p.isAlive);
+            if (activePlayers.length > 0) {
+                const targetPlayer = activePlayers[Math.floor(Math.random() * activePlayers.length)];
+                if (Math.random() > 0.5) { // Laser
+                    const isHorizontal = Math.random() > 0.5;
+                    const line = isHorizontal ? targetPlayer.y : targetPlayer.x;
+                    lasers.push({ isHorizontal, line, timer: 120, state: 'warning' });
+                } else { // Kokosová bomba
+                    bossProjectiles.push({ x: targetPlayer.x, y: targetPlayer.y, timer: 90, state: 'warning' });
+                }
             }
-            boss.attackTimer = 180 + Math.random() * 60;
+            boss.attackTimer = 120 + Math.random() * 60;
         }
-        lasers.forEach(l => {
-            if (l.state === 'warning' && l.timer < 60) {
-                l.state = 'firing';
+        lasers.forEach(l => { if (l.state === 'warning' && l.timer < 60) l.state = 'firing'; });
+    }
+
+    function updateBossProjectiles() {
+        bossProjectiles.forEach(proj => {
+            proj.timer--;
+            if (proj.state === 'warning' && proj.timer <= 0) {
+                proj.state = 'exploding';
+                proj.timer = 20; // Doba trvání exploze
+                createExplosion(proj.x, proj.y, 1); // Malá exploze
             }
         });
+        bossProjectiles = bossProjectiles.filter(p => p.timer > 0);
     }
 
     function updateBombs() {
@@ -476,11 +503,15 @@
     }
 
     function checkCollisions() {
-        const currentEnemyName = levelDesigns[gameState.currentLevel].enemyName.slice(0, -1).toLowerCase();
+        const levelData = levelDesigns[gameState.currentLevel];
+        const currentEnemyName = levelData.enemyName ? levelData.enemyName.slice(0, -1).toLowerCase() : "";
+
         players.forEach((p) => {
             if (!p.isAlive || p.isHit) return;
             let hit = false;
-            enemies.forEach(enemy => { if (enemy.x === p.x && enemy.y === p.y) hit = `Chytil tě ${currentEnemyName}!`; });
+            if (currentEnemyName) {
+                enemies.forEach(enemy => { if (enemy.x === p.x && enemy.y === p.y) hit = `Chytil tě ${currentEnemyName}!`; });
+            }
             explosions.forEach(exp => { if (exp.x === p.x && exp.y === p.y) hit = "Zasáhla tě exploze!"; });
             lasers.forEach(l => {
                 if (l.state === 'firing') {
@@ -532,7 +563,18 @@
             });
         });
 
-        if (gameState.gameActive && gameState.enemiesRemaining <= 0) levelComplete();
+        if (gameState.gameActive && gameState.enemiesRemaining <= 0) {
+            levelComplete();
+        }
+
+        // Zkontrolovat, zda hráč došel ke králi v posledním levelu
+        if (levelData.isFinalLevel && !gameState.isPaused) {
+            const kingX = Math.floor(COLS / 2);
+            const kingY = 2;
+            if (players.some(p => p.isAlive && p.x === kingX && p.y === kingY)) {
+                showFinalScene();
+            }
+        }
     }
     
     // --- Stavy hráče a postup ---
@@ -565,14 +607,15 @@
         gameState.isPaused = true;
         const nextLevel = gameState.currentLevel + 1;
         if (levelDesigns[nextLevel]) {
-            showModal("Level dokončen!", "Poraď si s další výzvou.", "Další level", () => initializeLevel(nextLevel));
-        } else {
-            showFinalScene();
+            if (levelDesigns[nextLevel].isFinalLevel) {
+                initializeLevel(nextLevel);
+            } else {
+                showModal("Level dokončen!", "Poraď si s další výzvou.", "Další level", () => initializeLevel(nextLevel));
+            }
         }
     }
 
     function showFinalScene() {
-        initializeLevel(Object.keys(levelDesigns).length);
         const dialogue = "Král banánů 👑: 'Skvělá práce, ovocní hrdinové! Jste hodni svobody!'";
         showModal("Setkání s králem", dialogue, "Hrát znovu?", resetAndStartLobby);
     }
@@ -620,6 +663,7 @@
         });
 
         drawLasers();
+        drawBossProjectiles();
 
         players.forEach(p => {
             if (p.isAlive) {
@@ -651,18 +695,25 @@
         lasers.forEach(l => {
             if (l.state === 'warning') {
                 ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
-                if (l.isHorizontal) {
-                    ctx.fillRect(0, l.line * TILE_SIZE, canvas.width, TILE_SIZE);
-                } else {
-                    ctx.fillRect(l.line * TILE_SIZE, 0, TILE_SIZE, canvas.height);
-                }
+                if (l.isHorizontal) ctx.fillRect(0, l.line * TILE_SIZE, canvas.width, TILE_SIZE);
+                else ctx.fillRect(l.line * TILE_SIZE, 0, TILE_SIZE, canvas.height);
             } else if (l.state === 'firing') {
                 ctx.fillStyle = 'red';
-                if (l.isHorizontal) {
-                    ctx.fillRect(0, l.line * TILE_SIZE, canvas.width, TILE_SIZE);
-                } else {
-                    ctx.fillRect(l.line * TILE_SIZE, 0, TILE_SIZE, canvas.height);
-                }
+                if (l.isHorizontal) ctx.fillRect(0, l.line * TILE_SIZE, canvas.width, TILE_SIZE);
+                else ctx.fillRect(l.line * TILE_SIZE, 0, TILE_SIZE, canvas.height);
+            }
+        });
+    }
+
+    function drawBossProjectiles() {
+        bossProjectiles.forEach(p => {
+            if (p.state === 'warning') {
+                ctx.fillStyle = 'rgba(255, 165, 0, 0.5)';
+                ctx.beginPath();
+                ctx.arc(p.x * TILE_SIZE + TILE_SIZE / 2, p.y * TILE_SIZE + TILE_SIZE / 2, TILE_SIZE / 2, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.fillStyle = 'black';
+                ctx.fillText('🥥', p.x * TILE_SIZE + TILE_SIZE / 2, p.y * TILE_SIZE + TILE_SIZE / 2);
             }
         });
     }
@@ -713,7 +764,7 @@
                 const levelNum = parseInt(match[1]);
                 if (levelDesigns[levelNum]) {
                     if (!gameState.gameActive) {
-                        players.push(createPlayer(PLAYER_CONFIG[2])); // Přidat banána
+                        players.push(createPlayer(PLAYER_CONFIG[2]));
                         gameState.gameActive = true;
                     }
                     initializeLevel(levelNum);
