@@ -149,8 +149,9 @@
 
     // --- Herní stavy a objekty ---
     const TILES = { EMPTY: 0, INDESTRUCTIBLE: 1, DESTRUCTIBLE: 2 };
-    let levelMap = [], bombs = [], explosions = [], enemies = [], powerUps = [];
+    let levelMap = [], bombs = [], explosions = [], enemies = [], powerUps = [], lasers = [];
     let players = [];
+    let boss = null;
     let gameState = { currentLevel: 1, enemiesRemaining: 0, isPaused: false, killCount: 0, gameActive: false };
 
     const PLAYER_CONFIG = [
@@ -160,31 +161,51 @@
         { id: 'gamepad1', symbol: '🍆', start: { x: 1, y: ROWS - 2 }, controls: { type: 'gamepad' } }
     ];
     let keysPressed = {};
+    let cheatBuffer = "";
     
     const powerUpTypes = {
-        range: { symbol: '🔥' },
-        extra_bomb: { symbol: '💣' },
-        walk_walls: { symbol: '💨' },
-        walk_bombs: { symbol: '🛡️' },
-        kick_bomb: { symbol: '👟' },
+        range: { symbol: '🔥' }, extra_bomb: { symbol: '💣' }, walk_walls: { symbol: '💨' },
+        walk_bombs: { symbol: '🛡️' }, kick_bomb: { symbol: '👟' },
     };
     const allPowerUpTypes = Object.keys(powerUpTypes);
     const levelDesigns = {
-        1: { name: "Džungle", bgColor: '#4CAF50', enemyType: '🐵', enemyName: "Opice", enemyCount: 3, wallType: '🌳', destructibleWallType: '🌿' },
-        2: { name: "Hory", bgColor: '#a0d2eb', enemyType: '🧊', enemyName: "Rampouchy", enemyCount: 4, wallType: '⛰️', destructibleWallType: '❄️' },
-        3: { name: "Hrad - 1. patro", bgColor: '#6c757d', enemyType: '👻', enemyName: "Duchové", enemyCount: 5, wallType: '🧱', destructibleWallType: '🛢️' },
-        4: { name: "Hrad - 2. patro", bgColor: '#495057', enemyType: '👻', enemyName: "Duchové", enemyCount: 6, wallType: '🧱', destructibleWallType: '🛢️' },
-        5: { name: "Hrad - Trůnní sál" }
+        1: { name: "Džungle I", bgColor: '#4CAF50', enemyType: '🐵', enemyName: "Opice", enemyCount: 3, wallType: '🌴', destructibleWallType: '🍃' },
+        2: { name: "Džungle II", bgColor: '#388E3C', enemyType: '🐍', enemyName: "Hadi", enemyCount: 4, wallType: '🗿', destructibleWallType: '🎋' },
+        3: { name: "Hory I", bgColor: '#a0d2eb', enemyType: '🧊', enemyName: "Rampouchy", enemyCount: 4, wallType: '⛰️', destructibleWallType: '❄️' },
+        4: { name: "Hory II", bgColor: '#81c7e8', enemyType: '🧊', enemyName: "Rampouchy", enemyCount: 5, wallType: '⛰️', destructibleWallType: '❄️' },
+        5: { name: "Hrad - 1. patro", bgColor: '#6c757d', enemyType: '👻', enemyName: "Duchové", enemyCount: 5, wallType: '🧱', destructibleWallType: '🛢️' },
+        6: { name: "Hrad - 2. patro", bgColor: '#495057', enemyType: '👻', enemyName: "Duchové", enemyCount: 6, wallType: '🧱', destructibleWallType: '🛢️' },
+        7: { name: "Hrad - 3. patro", bgColor: '#343a40', enemyType: '👻', enemyName: "Duchové", enemyCount: 7, wallType: '🧱', destructibleWallType: '🛢️' },
+        8: { name: "Aréna Krále Opic", bgColor: '#d32f2f', enemyType: '', enemyName: "Král Opic", enemyCount: 1, wallType: '🧱', destructibleWallType: '🛢️', isBossLevel: true },
+        9: { name: "Hrad - Trůnní sál", bgColor: '#212121', enemyCount: 0, isFinalLevel: true }
     };
 
+    function createEntity(config) {
+        const entity = { ...config };
+        entity.x = config.start.x;
+        entity.y = config.start.y;
+        entity.px = entity.x * TILE_SIZE + TILE_SIZE / 2;
+        entity.py = entity.y * TILE_SIZE + TILE_SIZE / 2;
+        entity.isMoving = false;
+        entity.targetX = entity.x;
+        entity.targetY = entity.y;
+        entity.speed = 4;
+        return entity;
+    }
+
     function createPlayer(config) {
-        return {
-            ...config,
-            x: config.start.x, y: config.start.y,
-            lives: 3, bombsMax: 1, bombRange: 1,
-            isAlive: true, canWalkThroughWalls: false, canWalkThroughBombs: false, canKickBomb: false,
-            isHit: false, hitTimer: 0, moveCooldown: 0, bombCooldown: 0,
-        };
+        const player = createEntity(config);
+        player.lives = 3;
+        player.bombsMax = 1;
+        player.bombRange = 1;
+        player.isAlive = true;
+        player.canWalkThroughWalls = false;
+        player.canWalkThroughBombs = false;
+        player.canKickBomb = false;
+        player.isHit = false;
+        player.hitTimer = 0;
+        player.bombCooldown = 0;
+        return player;
     }
 
     // --- Pomocné a UI funkce ---
@@ -219,6 +240,12 @@
             playerDiv.innerHTML = `<span>Hráč ${i+1}:</span> <span>${livesHTML}</span>`;
             infoPanel.appendChild(playerDiv);
         });
+        if (boss && boss.isAlive) {
+            const bossDiv = document.createElement('div');
+            bossDiv.className = 'player-info';
+            bossDiv.innerHTML = `<span>BOSS:</span> <span class="text-red-500">${'❤️'.repeat(boss.hp)}</span>`;
+            infoPanel.appendChild(bossDiv);
+        }
     }
 
     // --- Generování levelu ---
@@ -230,26 +257,25 @@
             }
         }
         let destructibleWalls = [];
-        for (let y = 1; y < ROWS - 1; y++) {
-            for (let x = 1; x < COLS - 1; x++) {
-                const isStartArea = PLAYER_CONFIG.some(p => Math.abs(p.start.x - x) < 2 && Math.abs(p.start.y - y) < 2);
-                if (levelMap[y][x] === TILES.EMPTY && !isStartArea) {
-                     if(Math.random() > 0.2) {
-                        levelMap[y][x] = TILES.DESTRUCTIBLE;
-                        destructibleWalls.push({x, y});
-                     }
+        if (!levelDesigns[gameState.currentLevel].isBossLevel && !levelDesigns[gameState.currentLevel].isFinalLevel) {
+            for (let y = 1; y < ROWS - 1; y++) {
+                for (let x = 1; x < COLS - 1; x++) {
+                    const isStartArea = PLAYER_CONFIG.some(p => Math.abs(p.start.x - x) < 2 && Math.abs(p.start.y - y) < 2);
+                    if (levelMap[y][x] === TILES.EMPTY && !isStartArea) {
+                        if(Math.random() > 0.2) {
+                            levelMap[y][x] = TILES.DESTRUCTIBLE;
+                            destructibleWalls.push({x, y});
+                        }
+                    }
                 }
             }
-        }
-        
-        // Pevný počet 4 bonusů
-        const numPowerUps = Math.min(4, destructibleWalls.length);
-        for(let i = 0; i < numPowerUps; i++) {
-            const powerUpKey = allPowerUpTypes[Math.floor(Math.random() * allPowerUpTypes.length)];
-            const wallIndex = Math.floor(Math.random() * destructibleWalls.length);
-            const wall = destructibleWalls.splice(wallIndex, 1)[0];
-            const p = powerUpTypes[powerUpKey];
-            powerUps.push({x: wall.x, y: wall.y, type: powerUpKey, symbol: p.symbol});
+            const numPowerUps = Math.min(4, destructibleWalls.length);
+            for(let i = 0; i < numPowerUps; i++) {
+                const powerUpKey = allPowerUpTypes[Math.floor(Math.random() * allPowerUpTypes.length)];
+                const wallIndex = Math.floor(Math.random() * destructibleWalls.length);
+                const wall = destructibleWalls.splice(wallIndex, 1)[0];
+                powerUps.push({x: wall.x, y: wall.y, type: powerUpKey, symbol: powerUpTypes[powerUpKey].symbol});
+            }
         }
     }
 
@@ -257,14 +283,32 @@
         const levelData = levelDesigns[gameState.currentLevel];
         gameState.enemiesRemaining = levelData.enemyCount;
         enemies = [];
-        for (let i = 0; i < levelData.enemyCount; i++) {
-            let placed = false;
-            while (!placed) {
-                const x = Math.floor(Math.random() * (COLS - 2)) + 1;
-                const y = Math.floor(Math.random() * (ROWS - 2)) + 1;
-                if (getTile(x, y) === TILES.EMPTY) {
-                    enemies.push({ x, y, type: levelData.enemyType, direction: {x:0, y:0}, moveCounter: 0 });
-                    placed = true;
+        boss = null;
+        lasers = [];
+
+        if (levelData.isBossLevel) {
+            boss = {
+                x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2),
+                px: Math.floor(COLS / 2) * TILE_SIZE + TILE_SIZE / 2,
+                py: Math.floor(ROWS / 2) * TILE_SIZE + TILE_SIZE / 2,
+                symbol: '🦍', hp: 10, isAlive: true, isHit: false, hitTimer: 0,
+                attackTimer: 180, attackType: 'laser'
+            };
+            gameState.enemiesRemaining = 1;
+        } else {
+            for (let i = 0; i < levelData.enemyCount; i++) {
+                let placed = false;
+                while (!placed) {
+                    const x = Math.floor(Math.random() * (COLS - 2)) + 1;
+                    const y = Math.floor(Math.random() * (ROWS - 2)) + 1;
+                    const isTooClose = players.some(p => (Math.abs(p.start.x - x) + Math.abs(p.start.y - y)) < 6);
+                    if (getTile(x, y) === TILES.EMPTY && !isTooClose) {
+                        const enemy = createEntity({start: {x, y}});
+                        enemy.type = levelData.enemyType;
+                        enemy.moveCounter = 0;
+                        enemies.push(enemy);
+                        placed = true;
+                    }
                 }
             }
         }
@@ -273,7 +317,11 @@
     function initializeLevel(level) {
         gameState.isPaused = false;
         gameState.currentLevel = level;
-        players.forEach(p => { p.x = p.start.x; p.y = p.start.y; });
+        players.forEach(p => {
+            p.x = p.start.x; p.y = p.start.y;
+            p.px = p.x * TILE_SIZE + TILE_SIZE / 2;
+            p.py = p.y * TILE_SIZE + TILE_SIZE / 2;
+        });
         bombs = []; explosions = []; powerUps = [];
         generateLevel();
         spawnEntities();
@@ -301,8 +349,8 @@
 
     // --- Update logika ---
     function update() {
+        updatePositions();
         players.forEach(p => {
-            if (p.moveCooldown > 0) p.moveCooldown--;
             if (p.bombCooldown > 0) p.bombCooldown--;
             if (p.isHit) {
                 p.hitTimer--;
@@ -311,24 +359,65 @@
         });
         moveEnemies();
         updateBombs();
+        if (boss && boss.isAlive) updateBoss();
+        lasers = lasers.filter(l => --l.timer > 0);
         checkCollisions();
     }
     
+    function updatePositions() {
+        const allEntities = [...players, ...enemies];
+        allEntities.forEach(entity => {
+            if (!entity.isMoving) return;
+            const targetPX = entity.targetX * TILE_SIZE + TILE_SIZE / 2;
+            const targetPY = entity.targetY * TILE_SIZE + TILE_SIZE / 2;
+            const dx = targetPX - entity.px;
+            const dy = targetPY - entity.py;
+            
+            if (Math.abs(dx) < entity.speed && Math.abs(dy) < entity.speed) {
+                entity.px = targetPX;
+                entity.py = targetPY;
+                entity.x = entity.targetX;
+                entity.y = entity.targetY;
+                entity.isMoving = false;
+            } else {
+                entity.px += Math.sign(dx) * entity.speed;
+                entity.py += Math.sign(dy) * entity.speed;
+            }
+        });
+    }
+
     function moveEnemies() {
         enemies.forEach(enemy => {
+            if (enemy.isMoving) return;
             enemy.moveCounter--;
             if (enemy.moveCounter <= 0) {
                 const directions = [{x:1, y:0}, {x:-1, y:0}, {x:0, y:1}, {x:0, y:-1}];
-                enemy.direction = directions[Math.floor(Math.random() * directions.length)];
+                const dir = directions[Math.floor(Math.random() * directions.length)];
+                moveEntity(enemy, dir.x, dir.y);
                 enemy.moveCounter = Math.floor(Math.random() * 60) + 30;
             }
-            const nextX = enemy.x + enemy.direction.x;
-            const nextY = enemy.y + enemy.direction.y;
-            if (getTile(nextX, nextY) === TILES.EMPTY && !isBombAt(nextX, nextY) && Math.random() < 0.02) {
-                enemy.x = nextX;
-                enemy.y = nextY;
-            } else if (getTile(nextX, nextY) !== TILES.EMPTY || isBombAt(nextX, nextY)) {
-                enemy.moveCounter = 0;
+        });
+    }
+
+    function updateBoss() {
+        if (boss.isHit) {
+            boss.hitTimer--;
+            if (boss.hitTimer <= 0) boss.isHit = false;
+        }
+        boss.attackTimer--;
+        if (boss.attackTimer <= 0) {
+            // Laser attack
+            const isHorizontal = Math.random() > 0.5;
+            const targetPlayer = players[Math.floor(Math.random() * players.length)];
+            if (targetPlayer) {
+                const line = isHorizontal ? targetPlayer.y : targetPlayer.x;
+                lasers.push({ isHorizontal, line, timer: 120, state: 'warning' });
+            }
+            boss.attackTimer = 180 + Math.random() * 60;
+        }
+        lasers.forEach(l => {
+            if (l.state === 'warning' && l.timer < 60) {
+                l.state = 'firing';
             }
         });
     }
@@ -392,6 +481,13 @@
             let hit = false;
             enemies.forEach(enemy => { if (enemy.x === p.x && enemy.y === p.y) hit = `Chytil tě ${currentEnemyName}!`; });
             explosions.forEach(exp => { if (exp.x === p.x && exp.y === p.y) hit = "Zasáhla tě exploze!"; });
+            lasers.forEach(l => {
+                if (l.state === 'firing') {
+                    if ((l.isHorizontal && l.line === p.y) || (!l.isHorizontal && l.line === p.x)) {
+                        hit = "Zasáhl tě laser!";
+                    }
+                }
+            });
             if (hit) handlePlayerHit(p, hit);
         });
 
@@ -408,6 +504,16 @@
                 }
                 return true;
             });
+            if (boss && boss.isAlive && !boss.isHit && exp.x === boss.x && exp.y === boss.y) {
+                boss.hp--;
+                boss.isHit = true;
+                boss.hitTimer = 30;
+                if (boss.hp <= 0) {
+                    boss.isAlive = false;
+                    gameState.enemiesRemaining = 0;
+                }
+                updateInfoPanel();
+            }
         });
         
         players.forEach(p => {
@@ -437,8 +543,9 @@
         } else {
             player.isHit = true;
             player.hitTimer = 120;
-            player.x = player.start.x;
-            player.y = player.start.y;
+            player.x = player.start.x; player.y = player.start.y;
+            player.px = player.x * TILE_SIZE + TILE_SIZE / 2;
+            player.py = player.y * TILE_SIZE + TILE_SIZE / 2;
         }
         updateInfoPanel();
         
@@ -455,7 +562,7 @@
     function levelComplete() {
         gameState.isPaused = true;
         const nextLevel = gameState.currentLevel + 1;
-        if (levelDesigns[nextLevel] && nextLevel < 5) {
+        if (levelDesigns[nextLevel] && !levelDesigns[nextLevel].isFinalLevel) {
             showModal("Level dokončen!", "Poraď si s další výzvou.", "Další level", () => initializeLevel(nextLevel));
         } else {
             showFinalScene();
@@ -463,7 +570,8 @@
     }
 
     function showFinalScene() {
-        const dialogue = "Král banánů 👑: 'Skvělá práce, ovocní hrdinové! Prokázali jste velkou odvahu a spolupráci. Jste hodni svobody!'";
+        initializeLevel(Object.keys(levelDesigns).length);
+        const dialogue = "Král banánů 👑: 'Skvělá práce, ovocní hrdinové! Jste hodni svobody!'";
         showModal("Setkání s králem", dialogue, "Hrát znovu?", resetAndStartLobby);
     }
 
@@ -477,7 +585,6 @@
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         
-        // Kreslení zdí
         ctx.fillStyle = 'black';
         for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
             const tile = getTile(x, y);
@@ -510,18 +617,52 @@
             ctx.beginPath(); ctx.arc(centerX, centerY, TILE_SIZE / 2 * progress, 0, 2 * Math.PI); ctx.fill();
         });
 
+        drawLasers();
+
         players.forEach(p => {
             if (p.isAlive) {
                 ctx.save();
                 ctx.globalAlpha = (p.isHit && Math.floor(p.hitTimer / 10) % 2 === 0) ? 0.5 : 1.0;
-                ctx.fillStyle = 'black'; // Reset fill style for symbols
-                ctx.fillText(p.symbol, p.x * TILE_SIZE + TILE_SIZE / 2, p.y * TILE_SIZE + TILE_SIZE / 2);
+                ctx.fillStyle = 'black';
+                ctx.fillText(p.symbol, p.px, p.py);
                 ctx.restore();
             }
         });
         
-        ctx.fillStyle = 'black'; // Reset color for enemies
-        enemies.forEach(enemy => ctx.fillText(enemy.type, enemy.x * TILE_SIZE + TILE_SIZE / 2, enemy.y * TILE_SIZE + TILE_SIZE / 2));
+        ctx.fillStyle = 'black';
+        enemies.forEach(enemy => ctx.fillText(enemy.type, enemy.px, enemy.py));
+        if (boss && boss.isAlive) {
+            ctx.save();
+            ctx.globalAlpha = (boss.isHit && Math.floor(boss.hitTimer / 10) % 2 === 0) ? 0.5 : 1.0;
+            ctx.font = `${TILE_SIZE * 1.5}px sans-serif`;
+            ctx.fillText(boss.symbol, boss.px, boss.py);
+            ctx.restore();
+        }
+
+        if (levelData.isFinalLevel) {
+            ctx.font = `${TILE_SIZE * 2}px sans-serif`;
+            ctx.fillText('👑', canvas.width / 2, TILE_SIZE * 2);
+        }
+    }
+
+    function drawLasers() {
+        lasers.forEach(l => {
+            if (l.state === 'warning') {
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+                if (l.isHorizontal) {
+                    ctx.fillRect(0, l.line * TILE_SIZE, canvas.width, TILE_SIZE);
+                } else {
+                    ctx.fillRect(l.line * TILE_SIZE, 0, TILE_SIZE, canvas.height);
+                }
+            } else if (l.state === 'firing') {
+                ctx.fillStyle = 'red';
+                if (l.isHorizontal) {
+                    ctx.fillRect(0, l.line * TILE_SIZE, canvas.width, TILE_SIZE);
+                } else {
+                    ctx.fillRect(l.line * TILE_SIZE, 0, TILE_SIZE, canvas.height);
+                }
+            }
+        });
     }
 
     // --- Ovládání ---
@@ -529,45 +670,62 @@
         if (!player || !player.isAlive || player.bombCooldown > 0) return;
         if (bombs.filter(b => b.ownerId === player.id).length < player.bombsMax && !isBombAt(player.x, player.y)) {
             bombs.push({ x: player.x, y: player.y, timer: 120, exploded: false, ownerId: player.id, isKicked: false, vx: 0, vy: 0, kickTimer: 0 });
-            player.bombCooldown = 10;
+            player.bombCooldown = 15;
         }
     }
 
-    function movePlayer(player, dx, dy) {
-        if (!player || !player.isAlive || player.moveCooldown > 0) return;
-        
-        const newX = player.x + dx;
-        const newY = player.y + dy;
+    function moveEntity(entity, dx, dy) {
+        if (!entity || !entity.isAlive || entity.isMoving) return;
+        const newX = entity.x + dx;
+        const newY = entity.y + dy;
         const targetTile = getTile(newX, newY);
         const bombAtTarget = bombs.find(b => b.x === newX && b.y === newY);
 
-        if (player.canKickBomb && bombAtTarget && !bombAtTarget.isKicked) {
+        if (entity.canKickBomb && bombAtTarget && !bombAtTarget.isKicked) {
             bombAtTarget.isKicked = true;
             bombAtTarget.vx = dx;
             bombAtTarget.vy = dy;
             bombAtTarget.kickTimer = 8;
-            player.moveCooldown = 7;
             return;
         }
 
         let canMove = false;
-        if (targetTile === TILES.EMPTY || (targetTile === TILES.DESTRUCTIBLE && player.canWalkThroughWalls)) canMove = true;
-        if (bombAtTarget && !player.canWalkThroughBombs) canMove = false;
-        if (canMove) { player.x = newX; player.y = newY; player.moveCooldown = 7; }
+        if (targetTile === TILES.EMPTY || (targetTile === TILES.DESTRUCTIBLE && entity.canWalkThroughWalls)) canMove = true;
+        if (bombAtTarget && !entity.canWalkThroughBombs) canMove = false;
+        if (canMove) {
+            entity.targetX = newX;
+            entity.targetY = newY;
+            entity.isMoving = true;
+        }
     }
 
     function handleInputs() {
+        // Cheaty
+        const lastKey = keysPressed.lastKey;
+        if (lastKey) {
+            cheatBuffer += lastKey;
+            keysPressed.lastKey = null;
+            if (cheatBuffer.length > 10) cheatBuffer = cheatBuffer.slice(-10);
+            const match = cheatBuffer.match(/LEVEL(\d+)/);
+            if (match) {
+                const levelNum = parseInt(match[1]);
+                if (levelDesigns[levelNum]) {
+                    if (!gameState.gameActive) {
+                        players.push(createPlayer(PLAYER_CONFIG[2])); // Přidat banána
+                        gameState.gameActive = true;
+                    }
+                    initializeLevel(levelNum);
+                    cheatBuffer = "";
+                }
+            }
+        }
+
         // Potvrzení modalu
         if (gameState.isPaused) {
             const confirmKeyPressed = keysPressed['enter'];
             let bombButtonPressed = false;
-
-            // Zkontrolovat klávesy pro bombu
-            if (keysPressed[' '] || keysPressed['q']) {
-                bombButtonPressed = true;
-            }
+            if (keysPressed[' '] || keysPressed['q']) bombButtonPressed = true;
             
-            // Zkontrolovat tlačítka na gamepadu
             const gamepads = navigator.getGamepads();
             for (const gp of gamepads) {
                 if (gp && gp.buttons[0].pressed) {
@@ -578,7 +736,7 @@
 
             if (confirmKeyPressed || bombButtonPressed) {
                 const modalButton = document.getElementById('modalButton');
-                if (modalButton && modalButton.offsetParent !== null) { // Check if visible
+                if (modalButton && modalButton.offsetParent !== null) {
                     if (!modalButton.disabled) {
                          modalButton.click();
                          modalButton.disabled = true;
@@ -594,7 +752,6 @@
             const assignedKeyboardIds = players.filter(p => p.controls.type === 'keyboard').map(p => p.id);
             const assignedGamepadIndices = players.filter(p => p.controls.type === 'gamepad' && typeof p.controls.index !== 'undefined').map(p => p.controls.index);
 
-            // Klávesnice
             for (const key in keysPressed) {
                 if (keysPressed[key]) {
                     const config = PLAYER_CONFIG.find(c => c.controls.type === 'keyboard' && Object.values(c.controls).includes(key));
@@ -605,16 +762,13 @@
                     }
                 }
             }
-            // Gamepady
             const gamepads = navigator.getGamepads();
             for (const gp of gamepads) {
                 if (!gp || assignedGamepadIndices.includes(gp.index)) continue;
-                
                 const isActive = gp.buttons.some(b => b.pressed) || gp.axes.some(a => Math.abs(a) > 0.5);
                 if (isActive) {
                      const assignedGamepadConfigIds = players.filter(p => p.controls.type === 'gamepad').map(p => p.id);
                      const availableConfig = PLAYER_CONFIG.find(c => c.controls.type === 'gamepad' && !assignedGamepadConfigIds.includes(c.id));
-
                      if (availableConfig) {
                          const newPlayer = createPlayer(availableConfig);
                          newPlayer.controls.index = gp.index;
@@ -630,10 +784,10 @@
         players.forEach(p => {
             if (!p.isAlive) return;
             if (p.controls.type === 'keyboard') {
-                if (keysPressed[p.controls.up]) movePlayer(p, 0, -1);
-                else if (keysPressed[p.controls.down]) movePlayer(p, 0, 1);
-                else if (keysPressed[p.controls.left]) movePlayer(p, -1, 0);
-                else if (keysPressed[p.controls.right]) movePlayer(p, 1, 0);
+                if (keysPressed[p.controls.up]) moveEntity(p, 0, -1);
+                else if (keysPressed[p.controls.down]) moveEntity(p, 0, 1);
+                else if (keysPressed[p.controls.left]) moveEntity(p, -1, 0);
+                else if (keysPressed[p.controls.right]) moveEntity(p, 1, 0);
                 if (keysPressed[p.controls.bomb]) placeBomb(p);
             } else if (p.controls.type === 'gamepad') {
                 if (typeof p.controls.index === 'undefined') return;
@@ -643,13 +797,17 @@
                 const deadzone = 0.5;
                 const dx = gp.axes[0];
                 const dy = gp.axes[1];
-                if (Math.abs(dx) > deadzone) movePlayer(p, Math.sign(dx), 0);
-                else if (Math.abs(dy) > deadzone) movePlayer(p, 0, Math.sign(dy));
+                if (Math.abs(dx) > deadzone) moveEntity(p, Math.sign(dx), 0);
+                else if (Math.abs(dy) > deadzone) moveEntity(p, 0, Math.sign(dy));
             }
         });
     }
 
-    window.addEventListener('keydown', (e) => { keysPressed[e.key.toLowerCase()] = true; });
+    window.addEventListener('keydown', (e) => { 
+        const key = e.key.toLowerCase();
+        keysPressed[key] = true; 
+        keysPressed.lastKey = e.key.toUpperCase();
+    });
     window.addEventListener('keyup', (e) => { keysPressed[e.key.toLowerCase()] = false; });
 
     // --- Spuštění hry ---
