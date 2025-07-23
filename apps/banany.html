@@ -169,8 +169,8 @@
     };
     const allPowerUpTypes = Object.keys(powerUpTypes);
     const levelDesigns = {
-        1: { name: "Džungle I", bgColor: '#4CAF50', enemyType: '🐵', enemyName: "Opice", enemyCount: 3, wallType: '🌴', destructibleWallType: '🍃' },
-        2: { name: "Džungle II", bgColor: '#388E3C', enemyType: '🐍', enemyName: "Hadi", enemyCount: 4, wallType: '🗿', destructibleWallType: '🎋' },
+        1: { name: "Džungle I", bgColor: '#4CAF50', enemyType: '🐵', enemyName: "Opice", enemyCount: 3, wallType: '🌳', destructibleWallType: '🌿' },
+        2: { name: "Džungle II", bgColor: '#388E3C', enemyType: '🐍', enemyName: "Hadi", enemyCount: 4, wallType: '🌳', destructibleWallType: '🌿' },
         3: { name: "Hory I", bgColor: '#a0d2eb', enemyType: '🧊', enemyName: "Rampouchy", enemyCount: 4, wallType: '⛰️', destructibleWallType: '❄️' },
         4: { name: "Hory II", bgColor: '#81c7e8', enemyType: '🧊', enemyName: "Rampouchy", enemyCount: 5, wallType: '⛰️', destructibleWallType: '❄️' },
         5: { name: "Hrad - 1. patro", bgColor: '#6c757d', enemyType: '👻', enemyName: "Duchové", enemyCount: 5, wallType: '🧱', destructibleWallType: '🛢️' },
@@ -190,6 +190,7 @@
         entity.targetX = entity.x;
         entity.targetY = entity.y;
         entity.speed = 4;
+        entity.isAlive = true; // Důležité pro pohyb
         return entity;
     }
 
@@ -198,7 +199,6 @@
         player.lives = 3;
         player.bombsMax = 1;
         player.bombRange = 1;
-        player.isAlive = true;
         player.canWalkThroughWalls = false;
         player.canWalkThroughBombs = false;
         player.canKickBomb = false;
@@ -321,6 +321,7 @@
             p.x = p.start.x; p.y = p.start.y;
             p.px = p.x * TILE_SIZE + TILE_SIZE / 2;
             p.py = p.y * TILE_SIZE + TILE_SIZE / 2;
+            p.isMoving = false;
         });
         bombs = []; explosions = []; powerUps = [];
         generateLevel();
@@ -408,7 +409,7 @@
         if (boss.attackTimer <= 0) {
             // Laser attack
             const isHorizontal = Math.random() > 0.5;
-            const targetPlayer = players[Math.floor(Math.random() * players.length)];
+            const targetPlayer = players.find(p => p.isAlive);
             if (targetPlayer) {
                 const line = isHorizontal ? targetPlayer.y : targetPlayer.x;
                 lasers.push({ isHorizontal, line, timer: 120, state: 'warning' });
@@ -546,6 +547,7 @@
             player.x = player.start.x; player.y = player.start.y;
             player.px = player.x * TILE_SIZE + TILE_SIZE / 2;
             player.py = player.y * TILE_SIZE + TILE_SIZE / 2;
+            player.isMoving = false;
         }
         updateInfoPanel();
         
@@ -562,7 +564,7 @@
     function levelComplete() {
         gameState.isPaused = true;
         const nextLevel = gameState.currentLevel + 1;
-        if (levelDesigns[nextLevel] && !levelDesigns[nextLevel].isFinalLevel) {
+        if (levelDesigns[nextLevel]) {
             showModal("Level dokončen!", "Poraď si s další výzvou.", "Další level", () => initializeLevel(nextLevel));
         } else {
             showFinalScene();
