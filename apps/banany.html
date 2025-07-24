@@ -2,7 +2,7 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Útěk banánů</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -36,6 +36,7 @@
         .canvas-wrapper {
             flex-grow: 1; /* Nechat plátno zabrat co nejvíce místa */
             width: 100%;
+            position: relative;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -60,7 +61,7 @@
             width: 100%;
             max-width: 1200px; /* Omezit šířku panelu */
             min-height: 40px;
-            font-size: 0.9rem;
+            font-size: 0.8rem; /* Zmenšené písmo pro více informací */
             padding: 0.5rem;
             background-color: #2d3748;
             border-radius: 0.5rem;
@@ -70,6 +71,9 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            background-color: #4a5568;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
         }
         .modal {
             display: none; /* Skryto defaultně */
@@ -165,7 +169,7 @@
     
     const powerUpTypes = {
         range: { symbol: '🔥' }, extra_bomb: { symbol: '💣' }, walk_walls: { symbol: '💨' },
-        walk_bombs: { symbol: '🛡️' }, kick_bomb: { symbol: '👟' },
+        walk_bombs: { symbol: '🛡️' }, kick_bomb: { symbol: '👟' }, speed: { symbol: '🏃'}
     };
     const allPowerUpTypes = Object.keys(powerUpTypes);
     const levelDesigns = {
@@ -196,7 +200,7 @@
 
     function createPlayer(config) {
         const player = createEntity(config);
-        player.lives = 3;
+        player.lives = 5; // Start with 5 lives
         player.bombsMax = 1;
         player.bombRange = 1;
         player.canWalkThroughWalls = false;
@@ -237,7 +241,17 @@
             const playerDiv = document.createElement('div');
             playerDiv.className = 'player-info';
             const livesHTML = p.symbol.repeat(p.lives);
-            playerDiv.innerHTML = `<span>Hráč ${i+1}:</span> <span>${livesHTML}</span>`;
+            
+            let powerUpsHTML = `<div class="flex items-center ml-2 border-l-2 border-gray-500 pl-2">`;
+            powerUpsHTML += `<span>🔥×${p.bombRange}</span>`;
+            powerUpsHTML += `<span class="ml-2">💣×${p.bombsMax}</span>`;
+            if (p.canKickBomb) powerUpsHTML += `<span class="ml-2">${powerUpTypes.kick_bomb.symbol}</span>`;
+            if (p.canWalkThroughWalls) powerUpsHTML += `<span class="ml-2">${powerUpTypes.walk_walls.symbol}</span>`;
+            if (p.canWalkThroughBombs) powerUpsHTML += `<span class="ml-2">${powerUpTypes.walk_bombs.symbol}</span>`;
+            if (p.speed > 4) powerUpsHTML += `<span class="ml-2">${powerUpTypes.speed.symbol}</span>`;
+            powerUpsHTML += `</div>`;
+
+            playerDiv.innerHTML = `<span>Hráč ${i+1}:</span> <span>${livesHTML}</span> ${powerUpsHTML}`;
             infoPanel.appendChild(playerDiv);
         });
         if (boss && boss.isAlive) {
@@ -296,7 +310,7 @@
             boss.attackTimer = 180;
             boss.moveCounter = 120;
             gameState.enemiesRemaining = 1;
-        } else {
+        } else if (levelData.enemyCount > 0) {
             for (let i = 0; i < levelData.enemyCount; i++) {
                 let placed = false;
                 while (!placed) {
@@ -323,6 +337,11 @@
             p.px = p.x * TILE_SIZE + TILE_SIZE / 2;
             p.py = p.y * TILE_SIZE + TILE_SIZE / 2;
             p.isMoving = false;
+            // Reset temporary power-ups
+            p.canWalkThroughWalls = false;
+            p.canWalkThroughBombs = false;
+            p.canKickBomb = false;
+            p.speed = 4;
         });
         bombs = []; explosions = []; powerUps = [];
         generateLevel();
@@ -557,13 +576,15 @@
                         case 'walk_walls': p.canWalkThroughWalls = true; break;
                         case 'walk_bombs': p.canWalkThroughBombs = true; break;
                         case 'kick_bomb': p.canKickBomb = true; break;
+                        case 'speed': p.speed += 2; break;
                     }
                     powerUps.splice(index, 1);
+                    updateInfoPanel();
                 }
             });
         });
 
-        if (gameState.gameActive && gameState.enemiesRemaining <= 0) {
+        if (gameState.gameActive && gameState.enemiesRemaining <= 0 && !levelData.isFinalLevel) {
             levelComplete();
         }
 
@@ -607,15 +628,12 @@
         gameState.isPaused = true;
         const nextLevel = gameState.currentLevel + 1;
         if (levelDesigns[nextLevel]) {
-            if (levelDesigns[nextLevel].isFinalLevel) {
-                initializeLevel(nextLevel);
-            } else {
-                showModal("Level dokončen!", "Poraď si s další výzvou.", "Další level", () => initializeLevel(nextLevel));
-            }
+             showModal("Level dokončen!", "Poraď si s další výzvou.", "Další level", () => initializeLevel(nextLevel));
         }
     }
 
     function showFinalScene() {
+        gameState.isPaused = true;
         const dialogue = "Král banánů 👑: 'Skvělá práce, ovocní hrdinové! Jste hodni svobody!'";
         showModal("Setkání s králem", dialogue, "Hrát znovu?", resetAndStartLobby);
     }
@@ -719,6 +737,13 @@
     }
 
     // --- Ovládání ---
+    let touchPlayer = null;
+    let touchIdentifier = null;
+    let touchStartX = 0, touchStartY = 0;
+    let joystickActive = false;
+    let touchDirection = { x: 0, y: 0 };
+    let touchInputDetected = false;
+
     function placeBomb(player) {
         if (!player || !player.isAlive || player.bombCooldown > 0) return;
         if (bombs.filter(b => b.ownerId === player.id).length < player.bombsMax && !isBombAt(player.x, player.y)) {
@@ -804,7 +829,19 @@
         if (players.length < 4) {
             const assignedKeyboardIds = players.filter(p => p.controls.type === 'keyboard').map(p => p.id);
             const assignedGamepadIndices = players.filter(p => p.controls.type === 'gamepad' && typeof p.controls.index !== 'undefined').map(p => p.controls.index);
+            const assignedTouch = players.some(p => p.controls.type === 'touch');
 
+            if (touchInputDetected && !assignedTouch) {
+                const availableConfig = PLAYER_CONFIG.find(c => !players.some(p => p.id === c.id));
+                if (availableConfig) {
+                    const newPlayer = createPlayer(availableConfig);
+                    newPlayer.controls.type = 'touch';
+                    touchPlayer = newPlayer;
+                    players.push(newPlayer);
+                    if (!gameState.gameActive) gameState.gameActive = true;
+                    updateInfoPanel();
+                }
+            }
             for (const key in keysPressed) {
                 if (keysPressed[key]) {
                     const config = PLAYER_CONFIG.find(c => c.controls.type === 'keyboard' && Object.values(c.controls).includes(key));
@@ -852,6 +889,10 @@
                 const dy = gp.axes[1];
                 if (Math.abs(dx) > deadzone) moveEntity(p, Math.sign(dx), 0);
                 else if (Math.abs(dy) > deadzone) moveEntity(p, 0, Math.sign(dy));
+            } else if (p.controls.type === 'touch') {
+                if (touchDirection.x !== 0 || touchDirection.y !== 0) {
+                    moveEntity(p, touchDirection.x, touchDirection.y);
+                }
             }
         });
     }
@@ -862,6 +903,68 @@
         keysPressed.lastKey = e.key.toUpperCase();
     });
     window.addEventListener('keyup', (e) => { keysPressed[e.key.toLowerCase()] = false; });
+
+    // --- Dotykové ovládání ---
+    window.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        touchInputDetected = true;
+
+        if (e.touches.length >= 2) {
+            if (touchPlayer) placeBomb(touchPlayer);
+            return;
+        }
+        
+        const touch = e.changedTouches[0];
+        if (touch.clientX < window.innerWidth / 2) {
+            if (!joystickActive) {
+                joystickActive = true;
+                touchIdentifier = touch.identifier;
+                touchStartX = touch.clientX;
+                touchStartY = touch.clientY;
+            }
+        } else {
+             if (touchPlayer) placeBomb(touchPlayer);
+        }
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (!joystickActive) return;
+        let touch = null;
+        for (let t of e.changedTouches) {
+            if (t.identifier === touchIdentifier) {
+                touch = t;
+                break;
+            }
+        }
+        if (!touch) return;
+
+        const deltaX = touch.clientX - touchStartX;
+        const deltaY = touch.clientY - touchStartY;
+        
+        const threshold = 20;
+        touchDirection = { x: 0, y: 0 };
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+            if (deltaX > threshold) touchDirection.x = 1;
+            else if (deltaX < -threshold) touchDirection.x = -1;
+        } else {
+            if (deltaY > threshold) touchDirection.y = 1;
+            else if (deltaY < -threshold) touchDirection.y = -1;
+        }
+    }, { passive: false });
+
+    window.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        for (let t of e.changedTouches) {
+            if (t.identifier === touchIdentifier) {
+                joystickActive = false;
+                touchIdentifier = null;
+                touchDirection = { x: 0, y: 0 };
+                break;
+            }
+        }
+    });
+
 
     // --- Spuštění hry ---
     resetAndStartLobby();
