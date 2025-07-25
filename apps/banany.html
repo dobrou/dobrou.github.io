@@ -156,7 +156,7 @@
     let levelMap = [], bombs = [], explosions = [], enemies = [], powerUps = [], lasers = [], bossProjectiles = [];
     let players = [];
     let boss = null;
-    let gameState = { currentLevel: 1, enemiesRemaining: 0, isPaused: false, killCount: 0, gameActive: false };
+    let gameState = { currentLevel: 1, enemiesRemaining: 0, isPaused: false, killCount: 0, gameActive: false, inputCooldown: 0 };
 
     const PLAYER_CONFIG = [
         { id: 'keyboard1', symbol: '🥕', start: { x: COLS - 2, y: 1 }, controls: { type: 'keyboard', up: 'arrowup', down: 'arrowdown', left: 'arrowleft', right: 'arrowright', bomb: ' ' } },
@@ -169,7 +169,8 @@
     
     const powerUpTypes = {
         range: { symbol: '🔥' }, extra_bomb: { symbol: '💣' }, walk_walls: { symbol: '💨' },
-        walk_bombs: { symbol: '🛡️' }, kick_bomb: { symbol: '👟' }, speed: { symbol: '🏃'}
+        walk_bombs: { symbol: '🛡️' }, kick_bomb: { symbol: '👟' }, speed: { symbol: '🏃'},
+        extra_life: { symbol: '❤️' }, wall_destroyer: { symbol: '💥' }
     };
     const allPowerUpTypes = Object.keys(powerUpTypes);
     const levelDesigns = {
@@ -206,6 +207,7 @@
         player.canWalkThroughWalls = false;
         player.canWalkThroughBombs = false;
         player.canKickBomb = false;
+        player.canDestroyWalls = false;
         player.isHit = false;
         player.hitTimer = 0;
         player.bombCooldown = 0;
@@ -243,12 +245,13 @@
             const livesHTML = p.symbol.repeat(p.lives);
             
             let powerUpsHTML = `<div class="flex items-center ml-2 border-l-2 border-gray-500 pl-2">`;
-            powerUpsHTML += `<span>🔥×${p.bombRange}</span>`;
-            powerUpsHTML += `<span class="ml-2">💣×${p.bombsMax}</span>`;
+            powerUpsHTML += `<span>${powerUpTypes.range.symbol.repeat(p.bombRange)}</span>`;
+            powerUpsHTML += `<span class="ml-2">${powerUpTypes.extra_bomb.symbol.repeat(p.bombsMax)}</span>`;
             if (p.canKickBomb) powerUpsHTML += `<span class="ml-2">${powerUpTypes.kick_bomb.symbol}</span>`;
             if (p.canWalkThroughWalls) powerUpsHTML += `<span class="ml-2">${powerUpTypes.walk_walls.symbol}</span>`;
             if (p.canWalkThroughBombs) powerUpsHTML += `<span class="ml-2">${powerUpTypes.walk_bombs.symbol}</span>`;
             if (p.speed > 4) powerUpsHTML += `<span class="ml-2">${powerUpTypes.speed.symbol}</span>`;
+            if (p.canDestroyWalls) powerUpsHTML += `<span class="ml-2">${powerUpTypes.wall_destroyer.symbol}</span>`;
             powerUpsHTML += `</div>`;
 
             playerDiv.innerHTML = `<span>Hráč ${i+1}:</span> <span>${livesHTML}</span> ${powerUpsHTML}`;
@@ -341,6 +344,7 @@
             p.canWalkThroughWalls = false;
             p.canWalkThroughBombs = false;
             p.canKickBomb = false;
+            p.canDestroyWalls = false;
             p.speed = 4;
         });
         bombs = []; explosions = []; powerUps = [];
@@ -360,6 +364,7 @@
 
     // --- Herní smyčka ---
     function gameLoop() {
+        if (gameState.inputCooldown > 0) gameState.inputCooldown--;
         handleInputs();
         if (gameState.gameActive && !gameState.isPaused) {
             update();
@@ -427,7 +432,6 @@
             if (boss.hitTimer <= 0) boss.isHit = false;
         }
         
-        // Pohyb bosse
         if (!boss.isMoving) {
             boss.moveCounter--;
             if (boss.moveCounter <= 0) {
@@ -438,7 +442,6 @@
             }
         }
 
-        // Útoky bosse
         boss.attackTimer--;
         if (boss.attackTimer <= 0) {
             const activePlayers = players.filter(p => p.isAlive);
@@ -462,8 +465,8 @@
             proj.timer--;
             if (proj.state === 'warning' && proj.timer <= 0) {
                 proj.state = 'exploding';
-                proj.timer = 20; // Doba trvání exploze
-                createExplosion(proj.x, proj.y, 1); // Malá exploze
+                proj.timer = 20;
+                createExplosion(proj.x, proj.y, 1);
             }
         });
         bossProjectiles = bossProjectiles.filter(p => p.timer > 0);
@@ -498,10 +501,10 @@
         if (bomb.exploded) return;
         bomb.exploded = true;
         const owner = players.find(p => p.id === bomb.ownerId);
-        createExplosion(bomb.x, bomb.y, owner ? owner.bombRange : 1);
+        createExplosion(bomb.x, bomb.y, owner ? owner.bombRange : 1, owner);
     }
 
-    function createExplosion(x, y, range) {
+    function createExplosion(x, y, range, owner) {
         const explosionTiles = [{ x, y, timer: 20 }];
         const directions = [{x:1, y:0}, {x:-1, y:0}, {x:0, y:1}, {x:0, y:-1}];
         directions.forEach(dir => {
@@ -509,7 +512,16 @@
                 const ex = x + dir.x * i;
                 const ey = y + dir.y * i;
                 const tile = getTile(ex, ey);
-                if (tile === TILES.INDESTRUCTIBLE) break;
+
+                if (tile === TILES.INDESTRUCTIBLE) {
+                    if (owner && owner.canDestroyWalls) {
+                        levelMap[ey][ex] = TILES.EMPTY;
+                        const powerUpKey = allPowerUpTypes[Math.floor(Math.random() * allPowerUpTypes.length)];
+                        powerUps.push({x: ex, y: ey, type: powerUpKey, symbol: powerUpTypes[powerUpKey].symbol});
+                    }
+                    break;
+                }
+                
                 explosionTiles.push({ x: ex, y: ey, timer: 20 });
                 bombs.forEach(b => { if(b.x === ex && b.y === ey) triggerExplosion(b); });
                 if (tile === TILES.DESTRUCTIBLE) {
@@ -577,6 +589,8 @@
                         case 'walk_bombs': p.canWalkThroughBombs = true; break;
                         case 'kick_bomb': p.canKickBomb = true; break;
                         case 'speed': p.speed += 2; break;
+                        case 'extra_life': p.lives++; break;
+                        case 'wall_destroyer': p.canDestroyWalls = true; break;
                     }
                     powerUps.splice(index, 1);
                     updateInfoPanel();
@@ -588,7 +602,6 @@
             levelComplete();
         }
 
-        // Zkontrolovat, zda hráč došel ke králi v posledním levelu
         if (levelData.isFinalLevel && !gameState.isPaused) {
             const kingX = Math.floor(COLS / 2);
             const kingY = 2;
@@ -745,7 +758,7 @@
     let touchInputDetected = false;
 
     function placeBomb(player) {
-        if (!player || !player.isAlive || player.bombCooldown > 0) return;
+        if (!player || !player.isAlive || player.bombCooldown > 0 || gameState.inputCooldown > 0) return;
         if (bombs.filter(b => b.ownerId === player.id).length < player.bombsMax && !isBombAt(player.x, player.y)) {
             bombs.push({ x: player.x, y: player.y, timer: 120, exploded: false, ownerId: player.id, isKicked: false, vx: 0, vy: 0, kickTimer: 0 });
             player.bombCooldown = 15;
@@ -818,6 +831,7 @@
                     if (!modalButton.disabled) {
                          modalButton.click();
                          modalButton.disabled = true;
+                         gameState.inputCooldown = 15;
                          setTimeout(() => { modalButton.disabled = false; }, 500);
                     }
                 }
@@ -915,15 +929,11 @@
         }
         
         const touch = e.changedTouches[0];
-        if (touch.clientX < window.innerWidth / 2) {
-            if (!joystickActive) {
-                joystickActive = true;
-                touchIdentifier = touch.identifier;
-                touchStartX = touch.clientX;
-                touchStartY = touch.clientY;
-            }
-        } else {
-             if (touchPlayer) placeBomb(touchPlayer);
+        if (!joystickActive) {
+            joystickActive = true;
+            touchIdentifier = touch.identifier;
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
         }
     }, { passive: false });
 
