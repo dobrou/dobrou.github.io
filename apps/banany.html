@@ -121,6 +121,13 @@
         .modal-content button:hover {
             background-color: #fccb00;
         }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        .special-bomb {
+            animation: pulse 1s infinite;
+        }
     </style>
 </head>
 <body>
@@ -204,13 +211,16 @@
         player.lives = 5; // Start with 5 lives
         player.bombsMax = 1;
         player.bombRange = 1;
+        player.specialBombs = 0;
         player.canWalkThroughWalls = false;
         player.canWalkThroughBombs = false;
         player.canKickBomb = false;
-        player.canDestroyWalls = false;
         player.isHit = false;
         player.hitTimer = 0;
         player.bombCooldown = 0;
+        player.lastBombTime = 0;
+        player.lastBombX = -1;
+        player.lastBombY = -1;
         return player;
     }
 
@@ -251,7 +261,7 @@
             if (p.canWalkThroughWalls) powerUpsHTML += `<span class="ml-2">${powerUpTypes.walk_walls.symbol}</span>`;
             if (p.canWalkThroughBombs) powerUpsHTML += `<span class="ml-2">${powerUpTypes.walk_bombs.symbol}</span>`;
             if (p.speed > 4) powerUpsHTML += `<span class="ml-2">${powerUpTypes.speed.symbol}</span>`;
-            if (p.canDestroyWalls) powerUpsHTML += `<span class="ml-2">${powerUpTypes.wall_destroyer.symbol}</span>`;
+            if (p.specialBombs > 0) powerUpsHTML += `<span class="ml-2">${powerUpTypes.wall_destroyer.symbol}×${p.specialBombs}</span>`;
             powerUpsHTML += `</div>`;
 
             playerDiv.innerHTML = `<span>Hráč ${i+1}:</span> <span>${livesHTML}</span> ${powerUpsHTML}`;
@@ -421,7 +431,7 @@
                 const directions = [{x:1, y:0}, {x:-1, y:0}, {x:0, y:1}, {x:0, y:-1}];
                 const dir = directions[Math.floor(Math.random() * directions.length)];
                 moveEntity(enemy, dir.x, dir.y);
-                enemy.moveCounter = Math.floor(Math.random() * 60) + 30;
+                enemy.moveCounter = Math.floor(Math.random() * 30) + 15; // Faster movement
             }
         });
     }
@@ -501,10 +511,10 @@
         if (bomb.exploded) return;
         bomb.exploded = true;
         const owner = players.find(p => p.id === bomb.ownerId);
-        createExplosion(bomb.x, bomb.y, owner ? owner.bombRange : 1, owner);
+        createExplosion(bomb.x, bomb.y, owner ? owner.bombRange : 1, bomb.isSpecial);
     }
 
-    function createExplosion(x, y, range, owner) {
+    function createExplosion(x, y, range, isSpecial = false) {
         const explosionTiles = [{ x, y, timer: 20 }];
         const directions = [{x:1, y:0}, {x:-1, y:0}, {x:0, y:1}, {x:0, y:-1}];
         directions.forEach(dir => {
@@ -514,10 +524,12 @@
                 const tile = getTile(ex, ey);
 
                 if (tile === TILES.INDESTRUCTIBLE) {
-                    if (owner && owner.canDestroyWalls) {
-                        levelMap[ey][ex] = TILES.EMPTY;
-                        const powerUpKey = allPowerUpTypes[Math.floor(Math.random() * allPowerUpTypes.length)];
-                        powerUps.push({x: ex, y: ey, type: powerUpKey, symbol: powerUpTypes[powerUpKey].symbol});
+                    if (isSpecial) {
+                        if (ex > 0 && ex < COLS - 1 && ey > 0 && ey < ROWS - 1) {
+                            levelMap[ey][ex] = TILES.EMPTY;
+                            const powerUpKey = allPowerUpTypes[Math.floor(Math.random() * allPowerUpTypes.length)];
+                            powerUps.push({x: ex, y: ey, type: powerUpKey, symbol: powerUpTypes[powerUpKey].symbol});
+                        }
                     }
                     break;
                 }
@@ -535,7 +547,7 @@
 
     function checkCollisions() {
         const levelData = levelDesigns[gameState.currentLevel];
-        const currentEnemyName = levelData.enemyName ? levelData.enemyName.slice(0, -1).toLowerCase() : "";
+        const currentEnemyName = (levelData && levelData.enemyName) ? levelData.enemyName.slice(0, -1).toLowerCase() : "";
 
         players.forEach((p) => {
             if (!p.isAlive || p.isHit) return;
@@ -590,7 +602,7 @@
                         case 'kick_bomb': p.canKickBomb = true; break;
                         case 'speed': p.speed += 2; break;
                         case 'extra_life': p.lives++; break;
-                        case 'wall_destroyer': p.canDestroyWalls = true; break;
+                        case 'wall_destroyer': p.specialBombs++; break;
                     }
                     powerUps.splice(index, 1);
                     updateInfoPanel();
@@ -681,7 +693,19 @@
         }
         
         powerUps.forEach(p => { if(getTile(p.x, p.y) === TILES.EMPTY) ctx.fillText(p.symbol, p.x * TILE_SIZE + TILE_SIZE / 2, p.y * TILE_SIZE + TILE_SIZE / 2); });
-        bombs.forEach(bomb => ctx.fillText('💣', bomb.x * TILE_SIZE + TILE_SIZE / 2, bomb.y * TILE_SIZE + TILE_SIZE / 2));
+        
+        bombs.forEach(bomb => {
+            ctx.save();
+            if (bomb.isSpecial) {
+                const scale = 1 + Math.sin(Date.now() / 100) * 0.1;
+                ctx.translate(bomb.x * TILE_SIZE + TILE_SIZE / 2, bomb.y * TILE_SIZE + TILE_SIZE / 2);
+                ctx.scale(scale, scale);
+                ctx.fillText('💣', 0, 0);
+            } else {
+                ctx.fillText('💣', bomb.x * TILE_SIZE + TILE_SIZE / 2, bomb.y * TILE_SIZE + TILE_SIZE / 2);
+            }
+            ctx.restore();
+        });
         
         explosions.forEach(exp => {
             const centerX = exp.x * TILE_SIZE + TILE_SIZE / 2;
@@ -759,9 +783,25 @@
 
     function placeBomb(player) {
         if (!player || !player.isAlive || player.bombCooldown > 0 || gameState.inputCooldown > 0) return;
-        if (bombs.filter(b => b.ownerId === player.id).length < player.bombsMax && !isBombAt(player.x, player.y)) {
-            bombs.push({ x: player.x, y: player.y, timer: 120, exploded: false, ownerId: player.id, isKicked: false, vx: 0, vy: 0, kickTimer: 0 });
+        
+        const now = Date.now();
+        const doubleTap = now - player.lastBombTime < 300 && player.lastBombX === player.x && player.lastBombY === player.y;
+
+        if (doubleTap && player.specialBombs > 0) {
+            // Remove the regular bomb placed on the first tap
+            const lastBombIndex = bombs.findIndex(b => b.x === player.x && b.y === player.y && !b.isSpecial);
+            if (lastBombIndex > -1) bombs.splice(lastBombIndex, 1);
+            
+            bombs.push({ x: player.x, y: player.y, timer: 120, exploded: false, ownerId: player.id, isKicked: false, vx: 0, vy: 0, kickTimer: 0, isSpecial: true });
+            player.specialBombs--;
+            player.lastBombTime = 0; // Prevent triple tap issues
+            updateInfoPanel();
+        } else if (bombs.filter(b => b.ownerId === player.id).length < player.bombsMax && !isBombAt(player.x, player.y)) {
+            bombs.push({ x: player.x, y: player.y, timer: 120, exploded: false, ownerId: player.id, isKicked: false, vx: 0, vy: 0, kickTimer: 0, isSpecial: false });
             player.bombCooldown = 15;
+            player.lastBombTime = now;
+            player.lastBombX = player.x;
+            player.lastBombY = player.y;
         }
     }
 
