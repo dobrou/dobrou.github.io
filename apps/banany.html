@@ -1,4 +1,30 @@
 <!DOCTYPE html>
+<!--
+    Popis programu:
+    Útěk banánů je arkádová hra pro 1-4 hráče inspirovaná klasikou Bomberman. Hráči procházejí různými levely (džungle, hory, hrad), bojují s příšerkami a sbírají bonusy. Cílem je porazit finálního bosse a dojít za králem banánů. Hra podporuje klávesnici, gamepady a dotykové ovládání s dynamickým připojením hráčů.
+
+    Historie příkazů:
+    - Vytvoř hru, kde jsi banán, kladeš bomby, honí tě opice v bludišti.
+    - Přidej levely: hory s rampouchy a hrad s duchy a králem banánů.
+    - Přidej superschopnosti: kopání do bomby, více bomb, větší plamen, procházení zdí a bombami.
+    - Oprav postup do dalšího levelu a přidej všechny levely.
+    - Přidej podporu gamepadu, 3 životy (nový za 18 zabití), řetězové reakce bomb, hezčí výbuchy, ať příšerky neprochází bombou, a 2 bonusy na level včetně kopání.
+    - Oprav podporu gamepadu a přidej hru pro více hráčů.
+    - Oprav ovládání šipkami a přidej dynamické připojování hráčů podle použitého ovladače.
+    - Změň postavy na banány různých barev.
+    - Zruš barvy, použij různé ovoce/zeleninu (banán, okurka, mrkev, lilek).
+    - Změň počítadlo životů na obrázky a zvětši herní plochu.
+    - Oprav posouvání obrazovky a připojování druhého gamepadu.
+    - Umožni potvrzovat dialogy akční klávesou.
+    - Přidej více levelů do džungle a hor, hratelný trůnní sál a finálního bosse (Krále opic) s lasery.
+    - Přidej cheaty pro skok do levelu (LEVEL#) a plynulý pohyb postav.
+    - Oprav pohyb nepřátel a vrať původní grafiku džungle.
+    - Vylepši finálního bosse (bez laserů, přidání stíhačky s lasery) a trůnní sál (aktivace run).
+    - Změň bonus ničení zdí na speciální bombu aktivovanou dvojklikem a zrychli nepřátele.
+    - Hráč po smrti ztratí dočasné bonusy, přidej grafický ukazatel speciálních bomb.
+    - Oprav chybu v posledním levelu a pád hry při ničení zdí.
+    - Zpomal stíhačku a oprav pád hry v boss levelu.
+-->
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
@@ -338,7 +364,7 @@
             fighterJet = createEntity({start: {x: 1, y: Math.floor(ROWS/2)}});
             fighterJet.symbol = '✈️';
             fighterJet.attackTimer = 120;
-            fighterJet.speed = 6;
+            fighterJet.speed = 4; // Zpomalení stíhačky
             
             gameState.enemiesRemaining = 2; // Boss + Jet
         } else if (levelData.enemyCount > 0) {
@@ -487,9 +513,11 @@
                 const dx = targetPlayer.px - fighterJet.px;
                 const dy = targetPlayer.py - fighterJet.py;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                const vx = (dx / dist) * 8;
-                const vy = (dy / dist) * 8;
-                projectiles.push({px: fighterJet.px, py: fighterJet.py, vx, vy, symbol: '⚡', timer: 180});
+                if (dist > 0) {
+                    const vx = (dx / dist) * 8;
+                    const vy = (dy / dist) * 8;
+                    projectiles.push({px: fighterJet.px, py: fighterJet.py, vx, vy, symbol: '⚡', timer: 180});
+                }
             }
             fighterJet.attackTimer = 150 + Math.random() * 60;
         }
