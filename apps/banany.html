@@ -160,11 +160,11 @@
 
     // --- Herní stavy a objekty ---
     const TILES = { EMPTY: 0, INDESTRUCTIBLE: 1, DESTRUCTIBLE: 2 };
-    let levelMap = [], bombs = [], explosions = [], enemies = [], powerUps = [], lasers = [], bossProjectiles = [];
+    let levelMap = [], bombs = [], explosions = [], enemies = [], powerUps = [], projectiles = [];
     let players = [];
     let boss = null;
     let fighterJet = null;
-    let gameState = { currentLevel: 1, enemiesRemaining: 0, isPaused: false, killCount: 0, gameActive: false, inputCooldown: 0 };
+    let gameState = { currentLevel: 1, enemiesRemaining: 0, isPaused: false, killCount: 0, gameActive: false, inputCooldown: 0, activatedTiles: new Set(), kingArrived: false };
 
     const PLAYER_CONFIG = [
         { id: 'keyboard1', symbol: '🥕', start: { x: COLS - 2, y: 1 }, controls: { type: 'keyboard', up: 'arrowup', down: 'arrowdown', left: 'arrowleft', right: 'arrowright', bomb: ' ' } },
@@ -190,7 +190,7 @@
         6: { name: "Hrad - 2. patro", bgColor: '#495057', enemyType: '👻', enemyName: "Duchové", enemyCount: 6, wallType: '🧱', destructibleWallType: '🛢️' },
         7: { name: "Hrad - 3. patro", bgColor: '#343a40', enemyType: '👻', enemyName: "Duchové", enemyCount: 7, wallType: '🧱', destructibleWallType: '🛢️' },
         8: { name: "Aréna Krále Opic", bgColor: '#d32f2f', enemyType: '', enemyName: "Král Opic", enemyCount: 2, wallType: '🧱', destructibleWallType: '🛢️', isBossLevel: true },
-        9: { name: "Hrad - Trůnní sál", bgColor: '#212121', enemyCount: 0, isFinalLevel: true }
+        9: { name: "Hrad - Trůnní sál", bgColor: '#212121', enemyCount: 0, isFinalLevel: true, goalTiles: [{x:3, y:3}, {x:13, y:3}, {x:3, y:9}, {x:13, y:9}] }
     };
 
     function createEntity(config) {
@@ -324,7 +324,7 @@
         enemies = [];
         boss = null;
         fighterJet = null;
-        lasers = [];
+        projectiles = [];
         bossProjectiles = [];
 
         if (levelData.isBossLevel) {
@@ -363,6 +363,8 @@
     function initializeLevel(level) {
         gameState.isPaused = false;
         gameState.currentLevel = level;
+        gameState.activatedTiles.clear();
+        gameState.kingArrived = false;
         players.forEach(p => {
             p.x = p.start.x; p.y = p.start.y;
             p.px = p.x * TILE_SIZE + TILE_SIZE / 2;
@@ -410,7 +412,7 @@
         updateBombs();
         if (boss && boss.isAlive) updateBoss();
         if (fighterJet && fighterJet.isAlive) updateFighterJet();
-        lasers = lasers.filter(l => --l.timer > 0);
+        updateProjectiles();
         updateBossProjectiles();
         checkCollisions();
     }
@@ -482,12 +484,29 @@
             const activePlayers = players.filter(p => p.isAlive);
             if (activePlayers.length > 0) {
                 const targetPlayer = activePlayers[Math.floor(Math.random() * activePlayers.length)];
-                const isHorizontal = Math.random() > 0.5;
-                const line = isHorizontal ? targetPlayer.y : targetPlayer.x;
-                lasers.push({ isHorizontal, line, timer: 120, state: 'warning', color: 'red' });
+                const dx = targetPlayer.px - fighterJet.px;
+                const dy = targetPlayer.py - fighterJet.py;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const vx = (dx / dist) * 8;
+                const vy = (dy / dist) * 8;
+                projectiles.push({px: fighterJet.px, py: fighterJet.py, vx, vy, symbol: '⚡', timer: 180});
             }
             fighterJet.attackTimer = 150 + Math.random() * 60;
         }
+    }
+
+    function updateProjectiles() {
+        projectiles.forEach((p, index) => {
+            p.px += p.vx;
+            p.py += p.vy;
+            p.timer--;
+            const gridX = Math.round((p.px - TILE_SIZE / 2) / TILE_SIZE);
+            const gridY = Math.round((p.py - TILE_SIZE / 2) / TILE_SIZE);
+
+            if (p.timer <= 0 || getTile(gridX, gridY) !== TILES.EMPTY) {
+                projectiles.splice(index, 1);
+            }
+        });
     }
 
     function updateBossProjectiles() {
@@ -531,10 +550,10 @@
         if (bomb.exploded) return;
         bomb.exploded = true;
         const owner = players.find(p => p.id === bomb.ownerId);
-        createExplosion(bomb.x, bomb.y, owner ? owner.bombRange : 1, bomb.isSpecial);
+        createExplosion(bomb.x, bomb.y, owner ? owner.bombRange : 1, owner && owner.canDestroyWalls);
     }
 
-    function createExplosion(x, y, range, isSpecial = false) {
+    function createExplosion(x, y, range, canDestroyWalls = false) {
         const explosionTiles = [{ x, y, timer: 20 }];
         const directions = [{x:1, y:0}, {x:-1, y:0}, {x:0, y:1}, {x:0, y:-1}];
         directions.forEach(dir => {
@@ -544,7 +563,7 @@
                 const tile = getTile(ex, ey);
 
                 if (tile === TILES.INDESTRUCTIBLE) {
-                    if (isSpecial) {
+                    if (canDestroyWalls) {
                         if (ex > 0 && ex < COLS - 1 && ey > 0 && ey < ROWS - 1) {
                             levelMap[ey][ex] = TILES.EMPTY;
                             const powerUpKey = allPowerUpTypes[Math.floor(Math.random() * allPowerUpTypes.length)];
@@ -578,13 +597,15 @@
             if (boss && boss.isAlive && p.x === boss.x && p.y === boss.y) hit = "Rozmačkal tě Král Opic!";
             
             explosions.forEach(exp => { if (exp.x === p.x && exp.y === p.y) hit = "Zasáhla tě exploze!"; });
-            lasers.forEach(l => {
-                if (l.state === 'firing') {
-                    if ((l.isHorizontal && l.line === p.y) || (!l.isHorizontal && l.line === p.x)) {
-                        hit = "Zasáhl tě laser!";
-                    }
+            
+            projectiles.forEach((proj, index) => {
+                const dist = Math.sqrt(Math.pow(p.px - proj.px, 2) + Math.pow(p.py - proj.py, 2));
+                if (dist < TILE_SIZE / 2) {
+                    hit = "Zasáhl tě laser!";
+                    projectiles.splice(index, 1);
                 }
             });
+
             if (hit) handlePlayerHit(p, hit);
         });
 
@@ -644,8 +665,19 @@
         if (levelData.isFinalLevel && !gameState.isPaused) {
             const kingX = Math.floor(COLS / 2);
             const kingY = 2;
-            if (players.some(p => p.isAlive && p.x === kingX && p.y === kingY)) {
-                showFinalScene();
+            if (!gameState.kingArrived) {
+                levelData.goalTiles.forEach(tile => {
+                    if (players.some(p => p.isAlive && p.x === tile.x && p.y === tile.y)) {
+                        gameState.activatedTiles.add(`${tile.x},${tile.y}`);
+                    }
+                });
+                if (gameState.activatedTiles.size === levelData.goalTiles.length) {
+                    gameState.kingArrived = true;
+                }
+            } else {
+                if (players.some(p => p.isAlive && p.x === kingX && p.y === kingY)) {
+                    showFinalScene();
+                }
             }
         }
     }
@@ -720,6 +752,14 @@
             return;
         }
         
+        if (levelData.isFinalLevel && !gameState.kingArrived) {
+            levelData.goalTiles.forEach(tile => {
+                if (!gameState.activatedTiles.has(`${tile.x},${tile.y}`)) {
+                    ctx.fillText('✨', tile.x * TILE_SIZE + TILE_SIZE / 2, tile.y * TILE_SIZE + TILE_SIZE / 2);
+                }
+            });
+        }
+
         powerUps.forEach(p => { if(getTile(p.x, p.y) === TILES.EMPTY) ctx.fillText(p.symbol, p.x * TILE_SIZE + TILE_SIZE / 2, p.y * TILE_SIZE + TILE_SIZE / 2); });
         
         bombs.forEach(bomb => {
@@ -745,7 +785,8 @@
             ctx.beginPath(); ctx.arc(centerX, centerY, TILE_SIZE / 2 * progress, 0, 2 * Math.PI); ctx.fill();
         });
 
-        drawLasers();
+        projectiles.forEach(p => { ctx.fillStyle = 'red'; ctx.fillText(p.symbol, p.px, p.py); });
+
         drawBossProjectiles();
 
         players.forEach(p => {
@@ -771,25 +812,10 @@
              ctx.fillText(fighterJet.symbol, fighterJet.px, fighterJet.py);
         }
 
-        if (levelData.isFinalLevel) {
+        if (levelData.isFinalLevel && gameState.kingArrived) {
             ctx.font = `${TILE_SIZE * 2}px sans-serif`;
             ctx.fillText('👑', canvas.width / 2, TILE_SIZE * 2);
         }
-    }
-
-    function drawLasers() {
-        lasers.forEach(l => {
-            const color = l.color || 'red';
-            if (l.state === 'warning') {
-                ctx.fillStyle = `rgba(${color === 'red' ? '255,0,0' : '255,165,0'}, 0.3)`;
-                if (l.isHorizontal) ctx.fillRect(0, l.line * TILE_SIZE, canvas.width, TILE_SIZE);
-                else ctx.fillRect(l.line * TILE_SIZE, 0, TILE_SIZE, canvas.height);
-            } else if (l.state === 'firing') {
-                ctx.fillStyle = color;
-                if (l.isHorizontal) ctx.fillRect(0, l.line * TILE_SIZE, canvas.width, TILE_SIZE);
-                else ctx.fillRect(l.line * TILE_SIZE, 0, TILE_SIZE, canvas.height);
-            }
-        });
     }
 
     function drawBossProjectiles() {
