@@ -25,6 +25,7 @@
     - Oprav chybu v posledním levelu a pád hry při ničení zdí.
     - Zpomal stíhačku a oprav pád hry v boss levelu.
     - Změň úkol v posledním levelu na posuvné puzzle.
+    - Změň chování stíhačky, aby nestřílela zblízka a nelétala přímo na hráče.
 -->
 <html lang="cs">
 <head>
@@ -503,29 +504,53 @@
 
     function updateFighterJet() {
         if (!fighterJet.isMoving) {
-            const activePlayers = players.filter(p => p.isAlive);
-            if (activePlayers.length > 0) {
-                const targetPlayer = activePlayers[Math.floor(Math.random() * activePlayers.length)];
-                const dx = Math.sign(targetPlayer.x - fighterJet.x);
-                const dy = Math.sign(targetPlayer.y - fighterJet.y);
-                moveEntity(fighterJet, dx, dy);
+            fighterJet.moveCounter = (fighterJet.moveCounter || 0) - 1;
+            if (fighterJet.moveCounter <= 0) {
+                const directions = [{x:1, y:0}, {x:-1, y:0}, {x:0, y:1}, {x:0, y:-1}];
+                const dir = directions[Math.floor(Math.random() * directions.length)];
+                moveEntity(fighterJet, dir.x, dir.y);
+                fighterJet.moveCounter = Math.floor(Math.random() * 20) + 10;
             }
         }
         fighterJet.attackTimer--;
         if (fighterJet.attackTimer <= 0) {
             const activePlayers = players.filter(p => p.isAlive);
-            if (activePlayers.length > 0) {
-                const targetPlayer = activePlayers[Math.floor(Math.random() * activePlayers.length)];
-                const dx = targetPlayer.px - fighterJet.px;
-                const dy = targetPlayer.py - fighterJet.py;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist > 0) {
-                    const vx = (dx / dist) * 8;
-                    const vy = (dy / dist) * 8;
-                    projectiles.push({px: fighterJet.px, py: fighterJet.py, vx, vy, symbol: '⚡', timer: 180});
+            let fired = false;
+
+            for (const player of activePlayers) {
+                let pathIsClear = true;
+                // Vertical check
+                if (player.x === fighterJet.x) {
+                    for (let y = Math.min(player.y, fighterJet.y) + 1; y < Math.max(player.y, fighterJet.y); y++) {
+                        if (getTile(fighterJet.x, y) !== TILES.EMPTY) {
+                            pathIsClear = false;
+                            break;
+                        }
+                    }
+                    if (pathIsClear) {
+                        const vy = Math.sign(player.py - fighterJet.py) * 8;
+                        projectiles.push({px: fighterJet.px, py: fighterJet.py, vx: 0, vy: vy, symbol: '⚡', timer: 180});
+                        fired = true;
+                        break;
+                    }
+                }
+                // Horizontal check
+                if (player.y === fighterJet.y) {
+                    for (let x = Math.min(player.x, fighterJet.x) + 1; x < Math.max(player.x, fighterJet.x); x++) {
+                        if (getTile(x, fighterJet.y) !== TILES.EMPTY) {
+                            pathIsClear = false;
+                            break;
+                        }
+                    }
+                    if (pathIsClear) {
+                        const vx = Math.sign(player.px - fighterJet.px) * 8;
+                        projectiles.push({px: fighterJet.px, py: fighterJet.py, vx: vx, vy: 0, symbol: '⚡', timer: 180});
+                        fired = true;
+                        break;
+                    }
                 }
             }
-            fighterJet.attackTimer = 150 + Math.random() * 60;
+            fighterJet.attackTimer = 90 + Math.random() * 30;
         }
     }
 
