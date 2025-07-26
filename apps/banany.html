@@ -24,6 +24,7 @@
     - Hráč po smrti ztratí dočasné bonusy, přidej grafický ukazatel speciálních bomb.
     - Oprav chybu v posledním levelu a pád hry při ničení zdí.
     - Zpomal stíhačku a oprav pád hry v boss levelu.
+    - Změň úkol v posledním levelu na posuvné puzzle.
 -->
 <html lang="cs">
 <head>
@@ -190,7 +191,8 @@
     let players = [];
     let boss = null;
     let fighterJet = null;
-    let gameState = { currentLevel: 1, enemiesRemaining: 0, isPaused: false, killCount: 0, gameActive: false, inputCooldown: 0, activatedTiles: new Set(), kingArrived: false };
+    let gameState = { currentLevel: 1, enemiesRemaining: 0, isPaused: false, killCount: 0, gameActive: false, inputCooldown: 0, kingArrived: false };
+    let puzzle = { grid: [], solvedGrid: [], emptyTile: {x:0, y:0}, size: 3, offsetX: 0, offsetY: 0 };
 
     const PLAYER_CONFIG = [
         { id: 'keyboard1', symbol: '🥕', start: { x: COLS - 2, y: 1 }, controls: { type: 'keyboard', up: 'arrowup', down: 'arrowdown', left: 'arrowleft', right: 'arrowright', bomb: ' ' } },
@@ -216,7 +218,7 @@
         6: { name: "Hrad - 2. patro", bgColor: '#495057', enemyType: '👻', enemyName: "Duchové", enemyCount: 6, wallType: '🧱', destructibleWallType: '🛢️' },
         7: { name: "Hrad - 3. patro", bgColor: '#343a40', enemyType: '👻', enemyName: "Duchové", enemyCount: 7, wallType: '🧱', destructibleWallType: '🛢️' },
         8: { name: "Aréna Krále Opic", bgColor: '#d32f2f', enemyType: '', enemyName: "Král Opic", enemyCount: 2, wallType: '🧱', destructibleWallType: '🛢️', isBossLevel: true },
-        9: { name: "Hrad - Trůnní sál", bgColor: '#212121', enemyCount: 0, isFinalLevel: true, goalTiles: [{x:3, y:3}, {x:13, y:3}, {x:3, y:9}, {x:13, y:9}] }
+        9: { name: "Hrad - Trůnní sál", bgColor: '#212121', enemyCount: 0, isFinalLevel: true }
     };
 
     function createEntity(config) {
@@ -391,7 +393,6 @@
     function initializeLevel(level) {
         gameState.isPaused = false;
         gameState.currentLevel = level;
-        gameState.activatedTiles.clear();
         gameState.kingArrived = false;
         players.forEach(p => {
             p.x = p.start.x; p.y = p.start.y;
@@ -403,6 +404,9 @@
         bombs = []; explosions = []; powerUps = [];
         generateLevel();
         spawnEntities();
+        if (levelDesigns[level].isFinalLevel) {
+            initializePuzzle();
+        }
         updateInfoPanel();
     }
     
@@ -580,10 +584,10 @@
         if (bomb.exploded) return;
         bomb.exploded = true;
         const owner = players.find(p => p.id === bomb.ownerId);
-        createExplosion(bomb.x, bomb.y, owner ? owner.bombRange : 1, bomb.isSpecial);
+        createExplosion(bomb.x, bomb.y, owner ? owner.bombRange : 1, owner && owner.canDestroyWalls);
     }
 
-    function createExplosion(x, y, range, isSpecial = false) {
+    function createExplosion(x, y, range, canDestroyWalls = false) {
         const explosionTiles = [{ x, y, timer: 20 }];
         const directions = [{x:1, y:0}, {x:-1, y:0}, {x:0, y:1}, {x:0, y:-1}];
         directions.forEach(dir => {
@@ -593,7 +597,7 @@
                 const tile = getTile(ex, ey);
 
                 if (tile === TILES.INDESTRUCTIBLE) {
-                    if (isSpecial) {
+                    if (canDestroyWalls) {
                         if (ex > 0 && ex < COLS - 1 && ey > 0 && ey < ROWS - 1) {
                             levelMap[ey][ex] = TILES.EMPTY;
                             const powerUpKey = allPowerUpTypes[Math.floor(Math.random() * allPowerUpTypes.length)];
@@ -696,12 +700,7 @@
             const kingX = Math.floor(COLS / 2);
             const kingY = 2;
             if (!gameState.kingArrived) {
-                levelData.goalTiles.forEach(tile => {
-                    if (players.some(p => p.isAlive && p.x === tile.x && p.y === tile.y)) {
-                        gameState.activatedTiles.add(`${tile.x},${tile.y}`);
-                    }
-                });
-                if (gameState.activatedTiles.size === levelData.goalTiles.length) {
+                if (checkPuzzleSolved()) {
                     gameState.kingArrived = true;
                 }
             } else {
@@ -783,11 +782,7 @@
         }
         
         if (levelData.isFinalLevel && !gameState.kingArrived) {
-            levelData.goalTiles.forEach(tile => {
-                if (!gameState.activatedTiles.has(`${tile.x},${tile.y}`)) {
-                    ctx.fillText('✨', tile.x * TILE_SIZE + TILE_SIZE / 2, tile.y * TILE_SIZE + TILE_SIZE / 2);
-                }
-            });
+            drawPuzzle();
         }
 
         powerUps.forEach(p => { if(getTile(p.x, p.y) === TILES.EMPTY) ctx.fillText(p.symbol, p.x * TILE_SIZE + TILE_SIZE / 2, p.y * TILE_SIZE + TILE_SIZE / 2); });
@@ -896,6 +891,11 @@
         if (!entity || !entity.isAlive || entity.isMoving) return;
         const newX = entity.x + dx;
         const newY = entity.y + dy;
+        
+        if (levelDesigns[gameState.currentLevel].isFinalLevel && !gameState.kingArrived) {
+            if (tryMovePuzzlePiece(entity, dx, dy)) return;
+        }
+
         const targetTile = getTile(newX, newY);
         const bombAtTarget = bombs.find(b => b.x === newX && b.y === newY);
 
@@ -1101,6 +1101,106 @@
             }
         }
     });
+
+    // --- Puzzle logika ---
+    function initializePuzzle() {
+        puzzle.offsetX = Math.floor((COLS - puzzle.size) / 2);
+        puzzle.offsetY = Math.floor((ROWS - puzzle.size) / 2);
+        puzzle.grid = [];
+        puzzle.solvedGrid = [];
+        let count = 1;
+        for (let r = 0; r < puzzle.size; r++) {
+            puzzle.grid[r] = [];
+            puzzle.solvedGrid[r] = [];
+            for (let c = 0; c < puzzle.size; c++) {
+                const value = count % (puzzle.size * puzzle.size);
+                puzzle.grid[r][c] = value;
+                puzzle.solvedGrid[r][c] = value;
+                count++;
+            }
+        }
+        puzzle.emptyTile = { r: puzzle.size - 1, c: puzzle.size - 1 };
+        
+        // Shuffle puzzle
+        for (let i = 0; i < 100; i++) {
+            const moves = [];
+            if (puzzle.emptyTile.r > 0) moves.push({r: -1, c: 0});
+            if (puzzle.emptyTile.r < puzzle.size - 1) moves.push({r: 1, c: 0});
+            if (puzzle.emptyTile.c > 0) moves.push({r: 0, c: -1});
+            if (puzzle.emptyTile.c < puzzle.size - 1) moves.push({r: 0, c: 1});
+            const randomMove = moves[Math.floor(Math.random() * moves.length)];
+            const tileToMove = { r: puzzle.emptyTile.r + randomMove.r, c: puzzle.emptyTile.c + randomMove.c };
+            
+            [puzzle.grid[tileToMove.r][tileToMove.c], puzzle.grid[puzzle.emptyTile.r][puzzle.emptyTile.c]] = 
+            [puzzle.grid[puzzle.emptyTile.r][puzzle.emptyTile.c], puzzle.grid[tileToMove.r][tileToMove.c]];
+            
+            puzzle.emptyTile = tileToMove;
+        }
+    }
+
+    function tryMovePuzzlePiece(player, dx, dy) {
+        const targetX = player.x + dx;
+        const targetY = player.y + dy;
+
+        // Check if target is within puzzle area
+        if (targetX >= puzzle.offsetX && targetX < puzzle.offsetX + puzzle.size &&
+            targetY >= puzzle.offsetY && targetY < puzzle.offsetY + puzzle.size) {
+            
+            const puzzleC = targetX - puzzle.offsetX;
+            const puzzleR = targetY - puzzle.offsetY;
+
+            // Check if player is pushing towards the empty tile
+            if (puzzle.emptyTile.r === puzzleR + dy && puzzle.emptyTile.c === puzzleC + dx) {
+                [puzzle.grid[puzzleR][puzzleC], puzzle.grid[puzzle.emptyTile.r][puzzle.emptyTile.c]] = 
+                [puzzle.grid[puzzle.emptyTile.r][puzzle.emptyTile.c], puzzle.grid[puzzleR][puzzleC]];
+                
+                puzzle.emptyTile = { r: puzzleR, c: puzzleC };
+                moveEntity(player, dx, dy);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function checkPuzzleSolved() {
+        for (let r = 0; r < puzzle.size; r++) {
+            for (let c = 0; c < puzzle.size; c++) {
+                if (puzzle.grid[r][c] !== puzzle.solvedGrid[r][c]) return false;
+            }
+        }
+        return true;
+    }
+
+    function drawPuzzle() {
+        ctx.save();
+        ctx.font = `${TILE_SIZE}px sans-serif`;
+        for (let r = 0; r < puzzle.size; r++) {
+            for (let c = 0; c < puzzle.size; c++) {
+                const tileValue = puzzle.grid[r][c];
+                if (tileValue === 0) continue;
+                
+                const x = (puzzle.offsetX + c) * TILE_SIZE;
+                const y = (puzzle.offsetY + r) * TILE_SIZE;
+                
+                ctx.fillStyle = '#4a5568';
+                ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                ctx.strokeStyle = '#2d3748';
+                ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
+                
+                // Draw part of the crown
+                ctx.fillStyle = '#f7b733';
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(x, y, TILE_SIZE, TILE_SIZE);
+                ctx.clip();
+                const solvedR = Math.floor((tileValue - 1) / puzzle.size);
+                const solvedC = (tileValue - 1) % puzzle.size;
+                ctx.fillText('👑', (puzzle.offsetX + solvedC) * TILE_SIZE + TILE_SIZE / 2, (puzzle.offsetY + solvedR) * TILE_SIZE + TILE_SIZE / 2);
+                ctx.restore();
+            }
+        }
+        ctx.restore();
+    }
 
 
     // --- Spuštění hry ---
