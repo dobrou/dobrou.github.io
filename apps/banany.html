@@ -263,7 +263,9 @@
 
     // --- Pomocné a UI funkce ---
     function getTile(x, y) {
-        if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return TILES.INDESTRUCTIBLE;
+        if (isNaN(x) || isNaN(y) || x < 0 || x >= COLS || y < 0 || y >= ROWS) {
+            return TILES.INDESTRUCTIBLE;
+        }
         return levelMap[y][x];
     }
     function isBombAt(x, y) { return bombs.some(bomb => bomb.x === x && bomb.y === y); }
@@ -578,10 +580,10 @@
         if (bomb.exploded) return;
         bomb.exploded = true;
         const owner = players.find(p => p.id === bomb.ownerId);
-        createExplosion(bomb.x, bomb.y, owner ? owner.bombRange : 1, owner && owner.canDestroyWalls);
+        createExplosion(bomb.x, bomb.y, owner ? owner.bombRange : 1, bomb.isSpecial);
     }
 
-    function createExplosion(x, y, range, canDestroyWalls = false) {
+    function createExplosion(x, y, range, isSpecial = false) {
         const explosionTiles = [{ x, y, timer: 20 }];
         const directions = [{x:1, y:0}, {x:-1, y:0}, {x:0, y:1}, {x:0, y:-1}];
         directions.forEach(dir => {
@@ -591,7 +593,7 @@
                 const tile = getTile(ex, ey);
 
                 if (tile === TILES.INDESTRUCTIBLE) {
-                    if (canDestroyWalls) {
+                    if (isSpecial) {
                         if (ex > 0 && ex < COLS - 1 && ey > 0 && ey < ROWS - 1) {
                             levelMap[ey][ex] = TILES.EMPTY;
                             const powerUpKey = allPowerUpTypes[Math.floor(Math.random() * allPowerUpTypes.length)];
