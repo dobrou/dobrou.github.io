@@ -163,6 +163,7 @@
     let levelMap = [], bombs = [], explosions = [], enemies = [], powerUps = [], lasers = [], bossProjectiles = [];
     let players = [];
     let boss = null;
+    let fighterJet = null;
     let gameState = { currentLevel: 1, enemiesRemaining: 0, isPaused: false, killCount: 0, gameActive: false, inputCooldown: 0 };
 
     const PLAYER_CONFIG = [
@@ -188,7 +189,7 @@
         5: { name: "Hrad - 1. patro", bgColor: '#6c757d', enemyType: '👻', enemyName: "Duchové", enemyCount: 5, wallType: '🧱', destructibleWallType: '🛢️' },
         6: { name: "Hrad - 2. patro", bgColor: '#495057', enemyType: '👻', enemyName: "Duchové", enemyCount: 6, wallType: '🧱', destructibleWallType: '🛢️' },
         7: { name: "Hrad - 3. patro", bgColor: '#343a40', enemyType: '👻', enemyName: "Duchové", enemyCount: 7, wallType: '🧱', destructibleWallType: '🛢️' },
-        8: { name: "Aréna Krále Opic", bgColor: '#d32f2f', enemyType: '', enemyName: "Král Opic", enemyCount: 1, wallType: '🧱', destructibleWallType: '🛢️', isBossLevel: true },
+        8: { name: "Aréna Krále Opic", bgColor: '#d32f2f', enemyType: '', enemyName: "Král Opic", enemyCount: 2, wallType: '🧱', destructibleWallType: '🛢️', isBossLevel: true },
         9: { name: "Hrad - Trůnní sál", bgColor: '#212121', enemyCount: 0, isFinalLevel: true }
     };
 
@@ -215,6 +216,7 @@
         player.canWalkThroughWalls = false;
         player.canWalkThroughBombs = false;
         player.canKickBomb = false;
+        player.canDestroyWalls = false;
         player.isHit = false;
         player.hitTimer = 0;
         player.bombCooldown = 0;
@@ -228,6 +230,7 @@
         player.canWalkThroughWalls = false;
         player.canWalkThroughBombs = false;
         player.canKickBomb = false;
+        player.canDestroyWalls = false;
         player.specialBombs = 0;
         player.speed = 4;
     }
@@ -269,6 +272,7 @@
             if (p.canWalkThroughWalls) powerUpsHTML += `<span class="ml-2">${powerUpTypes.walk_walls.symbol}</span>`;
             if (p.canWalkThroughBombs) powerUpsHTML += `<span class="ml-2">${powerUpTypes.walk_bombs.symbol}</span>`;
             if (p.speed > 4) powerUpsHTML += `<span class="ml-2">${powerUpTypes.speed.symbol}</span>`;
+            if (p.canDestroyWalls) powerUpsHTML += `<span class="ml-2">${powerUpTypes.wall_destroyer.symbol}</span>`;
             if (p.specialBombs > 0) powerUpsHTML += `<span class="ml-2">${powerUpTypes.wall_destroyer.symbol.repeat(p.specialBombs)}</span>`;
             powerUpsHTML += `</div>`;
 
@@ -319,18 +323,24 @@
         gameState.enemiesRemaining = levelData.enemyCount;
         enemies = [];
         boss = null;
+        fighterJet = null;
         lasers = [];
         bossProjectiles = [];
 
         if (levelData.isBossLevel) {
-            boss = createEntity({start: {x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2)}});
+            boss = createEntity({start: {x: Math.floor(COLS / 2), y: 2}});
             boss.symbol = '🦍';
             boss.hp = 10;
             boss.isHit = false;
             boss.hitTimer = 0;
-            boss.attackTimer = 180;
             boss.moveCounter = 120;
-            gameState.enemiesRemaining = 1;
+
+            fighterJet = createEntity({start: {x: 1, y: Math.floor(ROWS/2)}});
+            fighterJet.symbol = '✈️';
+            fighterJet.attackTimer = 120;
+            fighterJet.speed = 6;
+            
+            gameState.enemiesRemaining = 2; // Boss + Jet
         } else if (levelData.enemyCount > 0) {
             for (let i = 0; i < levelData.enemyCount; i++) {
                 let placed = false;
@@ -399,13 +409,14 @@
         moveEnemies();
         updateBombs();
         if (boss && boss.isAlive) updateBoss();
+        if (fighterJet && fighterJet.isAlive) updateFighterJet();
         lasers = lasers.filter(l => --l.timer > 0);
         updateBossProjectiles();
         checkCollisions();
     }
     
     function updatePositions() {
-        const allEntities = [...players, ...enemies, boss].filter(e => e);
+        const allEntities = [...players, ...enemies, boss, fighterJet].filter(e => e);
         allEntities.forEach(entity => {
             if (!entity.isMoving) return;
             const targetPX = entity.targetX * TILE_SIZE + TILE_SIZE / 2;
@@ -454,23 +465,29 @@
                 boss.moveCounter = 90 + Math.random() * 60;
             }
         }
+    }
 
-        boss.attackTimer--;
-        if (boss.attackTimer <= 0) {
+    function updateFighterJet() {
+        if (!fighterJet.isMoving) {
             const activePlayers = players.filter(p => p.isAlive);
             if (activePlayers.length > 0) {
                 const targetPlayer = activePlayers[Math.floor(Math.random() * activePlayers.length)];
-                if (Math.random() > 0.5) { // Laser
-                    const isHorizontal = Math.random() > 0.5;
-                    const line = isHorizontal ? targetPlayer.y : targetPlayer.x;
-                    lasers.push({ isHorizontal, line, timer: 120, state: 'warning' });
-                } else { // Kokosová bomba
-                    bossProjectiles.push({ x: targetPlayer.x, y: targetPlayer.y, timer: 90, state: 'warning' });
-                }
+                const dx = Math.sign(targetPlayer.x - fighterJet.x);
+                const dy = Math.sign(targetPlayer.y - fighterJet.y);
+                moveEntity(fighterJet, dx, dy);
             }
-            boss.attackTimer = 120 + Math.random() * 60;
         }
-        lasers.forEach(l => { if (l.state === 'warning' && l.timer < 60) l.state = 'firing'; });
+        fighterJet.attackTimer--;
+        if (fighterJet.attackTimer <= 0) {
+            const activePlayers = players.filter(p => p.isAlive);
+            if (activePlayers.length > 0) {
+                const targetPlayer = activePlayers[Math.floor(Math.random() * activePlayers.length)];
+                const isHorizontal = Math.random() > 0.5;
+                const line = isHorizontal ? targetPlayer.y : targetPlayer.x;
+                lasers.push({ isHorizontal, line, timer: 120, state: 'warning', color: 'red' });
+            }
+            fighterJet.attackTimer = 150 + Math.random() * 60;
+        }
     }
 
     function updateBossProjectiles() {
@@ -558,6 +575,8 @@
             if (currentEnemyName) {
                 enemies.forEach(enemy => { if (enemy.x === p.x && enemy.y === p.y) hit = `Chytil tě ${currentEnemyName}!`; });
             }
+            if (boss && boss.isAlive && p.x === boss.x && p.y === boss.y) hit = "Rozmačkal tě Král Opic!";
+            
             explosions.forEach(exp => { if (exp.x === p.x && exp.y === p.y) hit = "Zasáhla tě exploze!"; });
             lasers.forEach(l => {
                 if (l.state === 'firing') {
@@ -588,8 +607,13 @@
                 boss.hitTimer = 30;
                 if (boss.hp <= 0) {
                     boss.isAlive = false;
-                    gameState.enemiesRemaining = 0;
+                    gameState.enemiesRemaining--;
                 }
+                updateInfoPanel();
+            }
+            if (fighterJet && fighterJet.isAlive && exp.x === fighterJet.x && exp.y === fighterJet.y) {
+                fighterJet.isAlive = false;
+                gameState.enemiesRemaining--;
                 updateInfoPanel();
             }
         });
@@ -743,6 +767,9 @@
             ctx.fillText(boss.symbol, boss.px, boss.py);
             ctx.restore();
         }
+        if (fighterJet && fighterJet.isAlive) {
+             ctx.fillText(fighterJet.symbol, fighterJet.px, fighterJet.py);
+        }
 
         if (levelData.isFinalLevel) {
             ctx.font = `${TILE_SIZE * 2}px sans-serif`;
@@ -752,12 +779,13 @@
 
     function drawLasers() {
         lasers.forEach(l => {
+            const color = l.color || 'red';
             if (l.state === 'warning') {
-                ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+                ctx.fillStyle = `rgba(${color === 'red' ? '255,0,0' : '255,165,0'}, 0.3)`;
                 if (l.isHorizontal) ctx.fillRect(0, l.line * TILE_SIZE, canvas.width, TILE_SIZE);
                 else ctx.fillRect(l.line * TILE_SIZE, 0, TILE_SIZE, canvas.height);
             } else if (l.state === 'firing') {
-                ctx.fillStyle = 'red';
+                ctx.fillStyle = color;
                 if (l.isHorizontal) ctx.fillRect(0, l.line * TILE_SIZE, canvas.width, TILE_SIZE);
                 else ctx.fillRect(l.line * TILE_SIZE, 0, TILE_SIZE, canvas.height);
             }
