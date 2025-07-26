@@ -223,6 +223,14 @@
         player.lastBombY = -1;
         return player;
     }
+    
+    function resetTemporaryPowerups(player) {
+        player.canWalkThroughWalls = false;
+        player.canWalkThroughBombs = false;
+        player.canKickBomb = false;
+        player.specialBombs = 0;
+        player.speed = 4;
+    }
 
     // --- Pomocné a UI funkce ---
     function getTile(x, y) {
@@ -261,7 +269,7 @@
             if (p.canWalkThroughWalls) powerUpsHTML += `<span class="ml-2">${powerUpTypes.walk_walls.symbol}</span>`;
             if (p.canWalkThroughBombs) powerUpsHTML += `<span class="ml-2">${powerUpTypes.walk_bombs.symbol}</span>`;
             if (p.speed > 4) powerUpsHTML += `<span class="ml-2">${powerUpTypes.speed.symbol}</span>`;
-            if (p.specialBombs > 0) powerUpsHTML += `<span class="ml-2">${powerUpTypes.wall_destroyer.symbol}×${p.specialBombs}</span>`;
+            if (p.specialBombs > 0) powerUpsHTML += `<span class="ml-2">${powerUpTypes.wall_destroyer.symbol.repeat(p.specialBombs)}</span>`;
             powerUpsHTML += `</div>`;
 
             playerDiv.innerHTML = `<span>Hráč ${i+1}:</span> <span>${livesHTML}</span> ${powerUpsHTML}`;
@@ -350,12 +358,7 @@
             p.px = p.x * TILE_SIZE + TILE_SIZE / 2;
             p.py = p.y * TILE_SIZE + TILE_SIZE / 2;
             p.isMoving = false;
-            // Reset temporary power-ups
-            p.canWalkThroughWalls = false;
-            p.canWalkThroughBombs = false;
-            p.canKickBomb = false;
-            p.canDestroyWalls = false;
-            p.speed = 4;
+            resetTemporaryPowerups(p);
         });
         bombs = []; explosions = []; powerUps = [];
         generateLevel();
@@ -627,6 +630,7 @@
     function handlePlayerHit(player, reason) {
         if (!player.isAlive) return;
         player.lives--;
+        resetTemporaryPowerups(player);
         if (player.lives <= 0) {
             player.isAlive = false;
         } else {
@@ -788,13 +792,12 @@
         const doubleTap = now - player.lastBombTime < 300 && player.lastBombX === player.x && player.lastBombY === player.y;
 
         if (doubleTap && player.specialBombs > 0) {
-            // Remove the regular bomb placed on the first tap
             const lastBombIndex = bombs.findIndex(b => b.x === player.x && b.y === player.y && !b.isSpecial);
             if (lastBombIndex > -1) bombs.splice(lastBombIndex, 1);
             
             bombs.push({ x: player.x, y: player.y, timer: 120, exploded: false, ownerId: player.id, isKicked: false, vx: 0, vy: 0, kickTimer: 0, isSpecial: true });
             player.specialBombs--;
-            player.lastBombTime = 0; // Prevent triple tap issues
+            player.lastBombTime = 0;
             updateInfoPanel();
         } else if (bombs.filter(b => b.ownerId === player.id).length < player.bombsMax && !isBombAt(player.x, player.y)) {
             bombs.push({ x: player.x, y: player.y, timer: 120, exploded: false, ownerId: player.id, isKicked: false, vx: 0, vy: 0, kickTimer: 0, isSpecial: false });
