@@ -26,6 +26,7 @@
     - Zpomal stíhačku a oprav pád hry v boss levelu.
     - Změň úkol v posledním levelu na posuvné puzzle.
     - Oprav chybu v puzzle levelu, která způsobovala zamrznutí.
+    - Přidej "splash" efekt pro speciální bomby.
 -->
 <html lang="cs">
 <head>
@@ -609,10 +610,10 @@
         if (bomb.exploded) return;
         bomb.exploded = true;
         const owner = players.find(p => p.id === bomb.ownerId);
-        createExplosion(bomb.x, bomb.y, owner ? owner.bombRange : 1, owner && owner.canDestroyWalls);
+        createExplosion(bomb.x, bomb.y, owner ? owner.bombRange : 1, bomb.isSpecial);
     }
 
-    function createExplosion(x, y, range, canDestroyWalls = false) {
+    function createExplosion(x, y, range, isSpecial = false) {
         const explosionTiles = [{ x, y, timer: 20 }];
         const directions = [{x:1, y:0}, {x:-1, y:0}, {x:0, y:1}, {x:0, y:-1}];
         directions.forEach(dir => {
@@ -621,23 +622,39 @@
                 const ey = y + dir.y * i;
                 const tile = getTile(ex, ey);
 
-                if (tile === TILES.INDESTRUCTIBLE) {
-                    if (canDestroyWalls) {
-                        if (ex > 0 && ex < COLS - 1 && ey > 0 && ey < ROWS - 1) {
-                            levelMap[ey][ex] = TILES.EMPTY;
-                            const powerUpKey = allPowerUpTypes[Math.floor(Math.random() * allPowerUpTypes.length)];
-                            powerUps.push({x: ex, y: ey, type: powerUpKey, symbol: powerUpTypes[powerUpKey].symbol});
-                        }
-                    }
-                    break;
+                if (tile === TILES.EMPTY) {
+                    explosionTiles.push({ x: ex, y: ey, timer: 20 });
+                    bombs.forEach(b => { if(b.x === ex && b.y === ey) triggerExplosion(b); });
+                    continue;
                 }
                 
                 explosionTiles.push({ x: ex, y: ey, timer: 20 });
-                bombs.forEach(b => { if(b.x === ex && b.y === ey) triggerExplosion(b); });
+
                 if (tile === TILES.DESTRUCTIBLE) {
                     levelMap[ey][ex] = TILES.EMPTY;
-                    break;
+                } else if (tile === TILES.INDESTRUCTIBLE && isSpecial) {
+                    if (ex > 0 && ex < COLS - 1 && ey > 0 && ey < ROWS - 1) {
+                        levelMap[ey][ex] = TILES.EMPTY;
+                        const powerUpKey = allPowerUpTypes[Math.floor(Math.random() * allPowerUpTypes.length)];
+                        powerUps.push({x: ex, y: ey, type: powerUpKey, symbol: powerUpTypes[powerUpKey].symbol});
+                    }
                 }
+                
+                if (isSpecial) {
+                    const perpendicularDirs = (dir.x === 0)
+                        ? [{x: 1, y: 0}, {x: -1, y: 0}]
+                        : [{x: 0, y: 1}, {x: 0, y: -1}];
+                    
+                    perpendicularDirs.forEach(pDir => {
+                        const splashX = ex + pDir.x;
+                        const splashY = ey + pDir.y;
+                        if (getTile(splashX, splashY) === TILES.EMPTY) {
+                            explosionTiles.push({ x: splashX, y: splashY, timer: 20 });
+                        }
+                    });
+                }
+
+                break; 
             }
         });
         explosions.push(...explosionTiles);
