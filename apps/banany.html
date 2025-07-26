@@ -25,7 +25,7 @@
     - Oprav chybu v posledním levelu a pád hry při ničení zdí.
     - Zpomal stíhačku a oprav pád hry v boss levelu.
     - Změň úkol v posledním levelu na posuvné puzzle.
-    - Změň chování stíhačky, aby nestřílela zblízka a nelétala přímo na hráče.
+    - Oprav chybu v puzzle levelu, která způsobovala zamrznutí.
 -->
 <html lang="cs">
 <head>
@@ -1212,16 +1212,8 @@
                 ctx.strokeStyle = '#2d3748';
                 ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
                 
-                // Draw part of the crown
                 ctx.fillStyle = '#f7b733';
-                ctx.save();
-                ctx.beginPath();
-                ctx.rect(x, y, TILE_SIZE, TILE_SIZE);
-                ctx.clip();
-                const solvedR = Math.floor((tileValue - 1) / puzzle.size);
-                const solvedC = (tileValue - 1) % puzzle.size;
-                ctx.fillText('👑', (puzzle.offsetX + solvedC) * TILE_SIZE + TILE_SIZE / 2, (puzzle.offsetY + solvedR) * TILE_SIZE + TILE_SIZE / 2);
-                ctx.restore();
+                ctx.fillText(tileValue, x + TILE_SIZE / 2, y + TILE_SIZE / 2);
             }
         }
         ctx.restore();
