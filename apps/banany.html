@@ -27,6 +27,7 @@
     - Změň úkol v posledním levelu na posuvné puzzle.
     - Oprav chybu v puzzle levelu, která způsobovala zamrznutí.
     - Přidej "splash" efekt pro speciální bomby.
+    - Oprav puzzle level odstraněním zdí a sniž počet zničitelných zdí v ostatních levelech.
 -->
 <html lang="cs">
 <head>
@@ -322,18 +323,35 @@
     // --- Generování levelu ---
     function generateLevel() {
         levelMap = Array.from({ length: ROWS }, () => Array(COLS).fill(TILES.EMPTY));
-        for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-            if (y === 0 || y === ROWS - 1 || x === 0 || x === COLS - 1 || (y % 2 === 0 && x % 2 === 0)) {
+        
+        // Vnější zdi
+        for (let y = 0; y < ROWS; y++) {
+            for (let x = 0; x < COLS; x++) {
+                if (y === 0 || y === ROWS - 1 || x === 0 || x === COLS - 1) {
+                    levelMap[y][x] = TILES.INDESTRUCTIBLE;
+                }
+            }
+        }
+
+        const levelData = levelDesigns[gameState.currentLevel];
+        if (levelData.isFinalLevel) return; // Pro puzzle level necháme jen okraj
+
+        // Vnitřní pevné zdi
+        for (let y = 2; y < ROWS - 1; y += 2) {
+            for (let x = 2; x < COLS - 1; x += 2) {
                 levelMap[y][x] = TILES.INDESTRUCTIBLE;
             }
         }
+
         let destructibleWalls = [];
-        if (!levelDesigns[gameState.currentLevel].isBossLevel && !levelDesigns[gameState.currentLevel].isFinalLevel) {
+        if (!levelData.isBossLevel) {
             for (let y = 1; y < ROWS - 1; y++) {
                 for (let x = 1; x < COLS - 1; x++) {
-                    const isStartArea = PLAYER_CONFIG.some(p => Math.abs(p.start.x - x) < 2 && Math.abs(p.start.y - y) < 2);
-                    if (levelMap[y][x] === TILES.EMPTY && !isStartArea) {
-                        if(Math.random() > 0.2) {
+                    if (levelMap[y][x] === TILES.EMPTY) {
+                        const isStartArea = PLAYER_CONFIG.some(p => Math.abs(p.start.x - x) < 3 && Math.abs(p.start.y - y) < 3);
+                        if (isStartArea) continue;
+
+                        if (Math.random() > 0.3) { // Méně zdí
                             levelMap[y][x] = TILES.DESTRUCTIBLE;
                             destructibleWalls.push({x, y});
                         }
