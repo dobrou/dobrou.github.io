@@ -28,8 +28,8 @@ Hra pro více hráčů (kooperace):
 
 Finální boss level (Level 17):
 - Obsahuje 5 velkých, červených bossů.
-- Boss má rotující lasery, které ničí vnitřní zdi bludiště a ubírají život při dotyku.
-- Boss střílí projektily (🔥), které ubírají 2 životy a také ničí vnitřní zdi.
+- Boss má rotující lasery, které se zastaví o zdi a ubírají život při dotyku.
+- Boss střílí projektily (🔥), které ubírají 2 životy a ničí vnitřní zdi. Střelba je méně častá a postupná.
 
 Ovládání:
 - Klávesnice: Hráč 1 (šipky + mezerník), Hráč 2 (WASD + levý Shift), Hráč 3 (IJKL + pravý Shift).
@@ -443,7 +443,7 @@ Ostatní:
             // Level 12
             [
                 [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                [1,0,1,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,1,0,1],
+                [1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,1],
                 [1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1,1,0,1],
@@ -453,7 +453,7 @@ Ostatní:
                 [1,0,1,0,0,0,0,0,1,0,1,1,1,0,1,0,1,0,1,0,1],
                 [1,0,1,0,1,1,1,1,1,0,0,0,1,0,1,0,1,0,0,0,1],
                 [1,0,1,0,1,0,0,0,0,0,0,0,1,0,0,0,1,1,1,0,1],
-                [1,0,1,0,1,0,1,1,1,1,1,0,0,0,1,0,0,0,1,0,1],
+                [1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,0,0,1,0,1],
                 [1,0,1,0,1,0,1,0,0,0,1,0,1,0,1,1,1,0,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,1,0,1,0,1],
                 [1,0,1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],
@@ -461,7 +461,7 @@ Ostatní:
                 [1,1,1,1,1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0,1],
                 [1,0,0,0,0,0,1,0,1,0,0,0,1,0,1,0,1,0,0,0,1],
                 [1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,0,1,1,1,0,1],
-                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1],
                 [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
             ],
             // Level 13
@@ -659,8 +659,8 @@ Ostatní:
 
             var target = players[0];
             if (players.length > 1 && players[1]) {
-                var dist1 = Math.hypot(this.x - players[0].x, this.y - players[0].y);
-                var dist2 = Math.hypot(this.x - players[1].x, this.y - players[1].y);
+                var dist1 = Math.sqrt(Math.pow(this.x - players[0].x, 2) + Math.pow(this.y - players[0].y, 2));
+                var dist2 = Math.sqrt(Math.pow(this.x - players[1].x, 2) + Math.pow(this.y - players[1].y, 2));
                 if (dist2 < dist1) {
                     target = players[1];
                 }
@@ -678,11 +678,11 @@ Ostatní:
             }
         }
         
-        function Boss(x, y) {
+        function Boss(x, y, initialDelay) {
             Enemy.call(this, x, y);
             this.moveDelay = 800;
-            this.shootCooldown = 2000;
-            this.lastShot = Date.now();
+            this.shootCooldown = 4000;
+            this.lastShot = Date.now() + initialDelay;
             this.lasers = [
                 { angle: Math.random() * Math.PI * 2, length: TILE_SIZE * 4, speed: 0.02 },
                 { angle: Math.random() * Math.PI * 2, length: TILE_SIZE * 4, speed: -0.02 }
@@ -716,6 +716,21 @@ Ostatní:
             this.lasers.forEach(function(laser) {
                 var endX = centerX + Math.cos(laser.angle) * laser.length;
                 var endY = centerY + Math.sin(laser.angle) * laser.length;
+
+                // Raycasting to find the wall
+                for (var i = 0; i < laser.length; i++) {
+                    var checkX = centerX + Math.cos(laser.angle) * i;
+                    var checkY = centerY + Math.sin(laser.angle) * i;
+                    if (isWall(Math.floor(checkX / TILE_SIZE), Math.floor(checkY / TILE_SIZE))) {
+                        endX = checkX;
+                        endY = checkY;
+                        break;
+                    }
+                }
+                
+                // Store the endpoint for collision detection
+                laser.endX = endX;
+                laser.endY = endY;
                 
                 ctx.beginPath();
                 ctx.moveTo(centerX, centerY);
@@ -856,11 +871,11 @@ Ostatní:
             potionEffectActive = false;
             
             if (currentLevel === mazeLevels.length) {
-                bosses.push(new Boss(gridSize - 2, gridSize - 2));
-                bosses.push(new Boss(1, gridSize - 2));
-                bosses.push(new Boss(gridSize - 2, 1));
-                bosses.push(new Boss(Math.floor(gridSize/2), 1));
-                bosses.push(new Boss(Math.floor(gridSize/2), gridSize - 2));
+                bosses.push(new Boss(gridSize - 2, gridSize - 2, 0));
+                bosses.push(new Boss(1, gridSize - 2, 800));
+                bosses.push(new Boss(gridSize - 2, 1, 1600));
+                bosses.push(new Boss(Math.floor(gridSize/2), 1, 2400));
+                bosses.push(new Boss(Math.floor(gridSize/2), gridSize - 2, 3200));
             } else {
                 var enemyCount = Math.min(1 + Math.floor(currentLevel / 2), 3);
                 for (var i = 0; i < enemyCount; i++) {
@@ -935,7 +950,7 @@ Ostatní:
             // Dynamická aktivace hráčů
             if (activePlayerCount < 2 && pads && pads[1]) {
                  var pad2 = pads[1];
-                 if (pad2 && (pad2.buttons.some(function(b) { return b.pressed; }) || pad2.axes.some(function(a) { return Math.abs(a) > 0.5; }))) {
+                 if (pad2 && (pad2.buttons.some(function(b){return b.pressed;}) || pad2.axes.some(function(a){return Math.abs(a) > 0.5;}))) {
                     console.log(`Druhý gamepad aktivován. Restartuji pro 2 hráče.`);
                     activePlayerCount = 2;
                     initLevel();
@@ -944,7 +959,7 @@ Ostatní:
             }
             if (activePlayerCount < 3 && pads && pads[2]) {
                 var pad3 = pads[2];
-                if (pad3 && (pad3.buttons.some(function(b) { return b.pressed; }) || pad3.axes.some(function(a) { return Math.abs(a) > 0.5; }))) {
+                if (pad3 && (pad3.buttons.some(function(b){return b.pressed;}) || pad3.axes.some(function(a){return Math.abs(a) > 0.5;}))) {
                    console.log(`Třetí gamepad aktivován. Restartuji pro 3 hráče.`);
                    activePlayerCount = 3;
                    initLevel();
@@ -1017,23 +1032,6 @@ Ostatní:
                 b.move();
                 b.shoot();
                 b.updateLasers();
-                
-                var bossCenterX = b.x * TILE_SIZE + TILE_SIZE / 2;
-                var bossCenterY = b.y * TILE_SIZE + TILE_SIZE / 2;
-                b.lasers.forEach(function(laser) {
-                    var endX = bossCenterX + Math.cos(laser.angle) * laser.length;
-                    var endY = bossCenterY + Math.sin(laser.angle) * laser.length;
-                    for (var i = 0.1; i <= 1; i += 0.1) {
-                        var checkPx = bossCenterX + (endX - bossCenterX) * i;
-                        var checkPy = bossCenterY + (endY - bossCenterY) * i;
-                        var gx = Math.floor(checkPx / TILE_SIZE);
-                        var gy = Math.floor(checkPy / TILE_SIZE);
-                        
-                        if (isWall(gx, gy) && gx > 0 && gx < gridSize - 1 && gy > 0 && gy < gridSize - 1) {
-                            maze[gy][gx] = 0;
-                        }
-                    }
-                });
             });
 
             for (var i = projectiles.length - 1; i >= 0; i--) {
@@ -1097,8 +1095,8 @@ Ostatní:
 
                         b.lasers.forEach(function(laser) {
                              if(collisionDetected) return;
-                            var endX = bossCenterX + Math.cos(laser.angle) * laser.length;
-                            var endY = bossCenterY + Math.sin(laser.angle) * laser.length;
+                            var endX = laser.endX;
+                            var endY = laser.endY;
                             
                             for (var i = 0.1; i <= 1; i += 0.1) {
                                 var checkX = bossCenterX + (endX - bossCenterX) * i;
@@ -1118,17 +1116,15 @@ Ostatní:
                 }
             });
 
-            if (!portal.isLocked) {
-                var allOnPortal = true;
-                for(var i = 0; i < players.length; i++) {
-                    if(players[i].x !== portal.x || players[i].y !== portal.y) {
-                        allOnPortal = false;
-                        break;
-                    }
+            var allOnPortal = true;
+            for(var i = 0; i < players.length; i++) {
+                if(players[i].x !== portal.x || players[i].y !== portal.y) {
+                    allOnPortal = false;
+                    break;
                 }
-                if (allOnPortal) {
-                    nextLevel();
-                }
+            }
+            if (!portal.isLocked && allOnPortal) {
+                nextLevel();
             }
 
             if (potion && players.some(function(p) { return p.x === potion.x && p.y === potion.y; })) {
