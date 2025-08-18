@@ -171,14 +171,6 @@
         // --- ZMĚNA: Výchozí souřadnice jsou nyní pro Václavské náměstí ---
         const pragueCenter = { lat: 50.0815, lng: 14.4272 };
 
-        const cityCenters = {
-            'p': { lat: 50.08750, lng: 14.42139 }, // Prague
-            'b': { lat: 49.19250, lng: 16.60833 }, // Brno
-            'o': { lat: 49.83556, lng: 18.29250 }, // Ostrava
-            'z': { lat: 49.74750, lng: 13.37750 }, // Plzen
-            'l': { lat: 50.767, lng: 15.067 },    // Liberec
-        };
-
         let gameActive = false;
         let gestureTimer = null;
 
@@ -222,6 +214,14 @@
                 initializeGame();
             }
         }
+
+        const cityCenters = {
+            'p': { lat: 50.08750, lng: 14.42139 }, // Prague
+            'b': { lat: 49.19250, lng: 16.60833 }, // Brno
+            'o': { lat: 49.83556, lng: 18.29250 }, // Ostrava
+            'z': { lat: 49.74750, lng: 13.37750 }, // Plzen
+            'l': { lat: 50.767, lng: 15.067 },    // Liberec
+        };
 
         let keysPressed = {};
         let touchState = { left: false, right: false };
