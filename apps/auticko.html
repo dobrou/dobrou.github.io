@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Jízda autem po satelitní mapě</title>
-    
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
      crossorigin=""/>
@@ -50,15 +50,15 @@
             width: 12px;
             height: 24px;
             transform: translate(-50%, -50%);
-            background-color: #f1c40f;
-            border: 1px solid #f39c12;
+            background-color: #3498db;
+            border: 1px solid #2980b9;
             border-radius: 4px;
             transition: transform 0.1s linear;
             z-index: 1000;
             box-shadow: 0 0 5px rgba(0,0,0,0.7);
             display: none;
         }
-        
+
         #car::before {
             content: '';
             position: absolute;
@@ -71,7 +71,7 @@
             border-right: 4px solid transparent;
             border-bottom: 6px solid #2c3e50;
         }
-        
+
         #teleport-overlay {
             position: absolute;
             top: 0;
@@ -111,12 +111,12 @@
             cursor: pointer;
             color: white;
         }
-        
+
         #teleport-button {
             background-color: #27ae60;
             margin-right: 10px;
         }
-        
+
         #teleport-cancel-button {
             background-color: #c0392b;
         }
@@ -126,7 +126,7 @@
             color: #e74c3c;
             min-height: 1.2em;
         }
-        
+
         .leaflet-control-attribution { display: none; }
     </style>
 </head>
@@ -135,7 +135,7 @@
         <div id="map"></div>
         <div id="loader-text">Zjišťování polohy...</div>
     </div>
-    
+
     <div id="car"></div>
 
     <div id="teleport-overlay">
@@ -170,7 +170,15 @@
         const zoomLevel = 19;
         // --- ZMĚNA: Výchozí souřadnice jsou nyní pro Václavské náměstí ---
         const pragueCenter = { lat: 50.0815, lng: 14.4272 };
-        
+
+        const cityCenters = {
+            'p': { lat: 50.08750, lng: 14.42139 }, // Prague
+            'b': { lat: 49.19250, lng: 16.60833 }, // Brno
+            'o': { lat: 49.83556, lng: 18.29250 }, // Ostrava
+            'z': { lat: 49.74750, lng: 13.37750 }, // Plzen
+            'l': { lat: 50.767, lng: 15.067 },    // Liberec
+        };
+
         let gameActive = false;
         let gestureTimer = null;
 
@@ -222,7 +230,7 @@
         function setupControls() {
             document.addEventListener('keydown', handleKeyDown);
             document.addEventListener('keyup', (e) => { keysPressed[e.key] = false; });
-            
+
             mapWrapper.addEventListener('touchstart', handleTouchStart, { passive: false });
             mapWrapper.addEventListener('touchmove', handleTouchMove, { passive: false });
             mapWrapper.addEventListener('touchend', handleTouchEnd, { passive: false });
@@ -237,12 +245,18 @@
                 gamepadState.connected = false;
             });
         }
-        
+
         function handleKeyDown(e) {
-            if (e.key.toLowerCase() === 't' && !teleportOverlay.style.display) {
+            const key = e.key.toLowerCase();
+            if (key === 't' && !teleportOverlay.style.display) {
                 e.preventDefault();
                 showTeleportMenu();
-            } else {
+            } else if (cityCenters[key]) {
+                e.preventDefault();
+                mapCenter = cityCenters[key];
+                map.setView([mapCenter.lat, mapCenter.lng], map.getZoom());
+            }
+            else {
                 keysPressed[e.key] = true;
             }
         }
