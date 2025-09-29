@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Laser Ball</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        body, html {
+            font-family: 'Press Start 2P', cursive;
+            overflow: hidden; /* Zabráníme posouvání stránky */
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            touch-action: none; /* Vypne defaultní dotykové akce jako zoom */
+        }
+        canvas {
+            background: #1a1a2e; /* Tmavě modré pozadí pro vesmírný pocit */
+            display: block;
+        }
+        /* Přidáme animaci blikání pro text "Klikni pro start" */
+        .blinking-cursor {
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink {
+            50% {
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+
+    <div id="game-container" class="relative w-full h-full">
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- Herní informace přes celou plochu -->
+        <div id="game-info" class="absolute top-0 left-0 w-full flex justify-between items-center text-xl p-4 text-shadow-lg z-10">
+            <div>Životy: <span id="lives">5</span></div>
+            <div>Úroveň: <span id="level">1</span></div>
+            <div>Kostky: <span id="brick-count">0</span></div>
+            <div>Skóre: <span id="score">0</span></div>
+        </div>
+        
+        <!-- Overlay pro start a konec hry -->
+        <div id="game-overlay" class="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center rounded-lg z-20">
+            <h2 id="game-status" class="text-5xl text-red-500 mb-4">Hra prohrána!</h2>
+            <p id="final-score" class="text-2xl mb-8"></p>
+            <button id="restart-button" class="bg-cyan-500 text-gray-900 px-8 py-4 rounded-lg text-2xl hover:bg-cyan-400 transition-transform transform hover:scale-105">
+                Hrát znovu <span class="blinking-cursor">_</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const livesSpan = document.getElementById('lives');
+        const scoreSpan = document.getElementById('score');
+        const brickCountSpan = document.getElementById('brick-count');
+        const levelSpan = document.getElementById('level');
+        const gameOverlay = document.getElementById('game-overlay');
+        const gameStatus = document.getElementById('game-status');
+        const finalScoreText = document.getElementById('final-score');
+        const restartButton = document.getElementById('restart-button');
+
+        let balls, paddle, lives, score, gameOver, gameRunning, bricks, powerUps, paddleLasers, enemyProjectiles;
+        let currentLevel = 1;
+        let remainingBricks = 0;
+        const keyboardState = { ArrowLeft: false, ArrowRight: false };
+
+        const POWER_UP_TYPES = [
+            { type: 'laser', color: '#f0ff00', symbol: 'L' },
+            { type: 'piercing', color: '#ff4500', symbol: 'P' },
+            { type: 'enlarge', color: '#00f6ff', symbol: 'E' },
+            { type: 'slow', color: '#ff38a2', symbol: 'S' },
+            { type: 'life', color: '#39ff14', symbol: '+' },
+            { type: 'multiBall', color: '#ff9a21', symbol: 'M' }
+        ];
+
+        const COLOR_MAP = {
+            '1': '#8E2DE2', '2': '#E22D2D', '3': '#E2A32D', '4': '#1a75ff',
+            'W': '#FFFFFF', 'Y': '#f0ff00', 'G': '#228B22', 'B': '#A52A2A',
+            'S': '#C0C0C0', 'C': '#00f6ff'
+        };
+
+        const levels = [
+            { level: 1, layout: [" YY  YY ", "YWWYYWWY", "YWWYYWWY", "        ", "Y  YY  Y", " YYYYYY "] },
+            { level: 2, layout: [" 22  22 ", "22222222", "22222222", " 222222 ", "  2222  ", "   22   "] },
+            { level: 3, layout: ["   33   ", "  3333  ", " 333333 ", "33333333", "   33   ", "   33   ", "   33   "] },
+            { level: 4, layout: ["   44   ", "  4WW4  ", " 4WWWW4 ", "4WWWWWW4", " 4WWWW4 ", "  4WW4  ", "   44   "] },
+            { level: 5, layout: ["   2    ", "  2S2   ", " 2SSS2  ", " SSSSS  ", " SSSSS  ", " 33333  ", "  333   "] }, // Raketa
+            { level: 6, layout: [" WWWWWW ", "WCCWWCCW", "WWWWWWWW", "WWWWWWWW", "W WW WW W"] }, // Duch
+            { level: 7, layout: ["   22   ", "  2222  ", " BBBBBB ", " B WW B ", " B WW B ", " BBBBBB "] }, // Dům
+            { level: 8, layout: ["  GGGG  ", " GGGGGG ", "GGGGGGGG", "  BBBB  ", "  BBBB  ", "  BBBB  "] }, // Strom
+            { level: 9, layout: ["   S    ", "   S    ", "   S    ", " SSSSS  ", " SSSSS  ", "   B    ", "  BBB   "] }, // Meč
+            { level: 10, layout: ["SSSSSSSS", "SYYYYYYS", "SYYYYYYS", "SYYYYYYS", "SSSSSSSS"] }, // Štít
+            { level: 11, layout: ["   Y    ", "  YYY   ", "YYYYYYY ", "  YYY   ", "   Y    "] }, // Hvězda
+            { level: 12, layout: ["  WWWW  ", " 333333 ", "33333333", " 333333 ", "  WWWW  "] }, // Saturn
+            { level: 13, layout: ["  2G2G  ", " G2Y2G ", "G2Y2Y2G", " G2Y2G ", "  2G2G  ", "   G    ", "   G    "] }, // Květina
+            { level: 14, layout: ["CWCWCWCW", "WCWCWCWC", "CWCWCWCW", "WCWCWCWC", "CWCWCWCW"] } // Šachovnice
+        ];
+
+        const PADDLE_HEIGHT = 20;
+        const PADDLE_SPEED = 12;
+        const BALL_RADIUS = 12;
+        const BASE_BALL_SPEED = 7;
+        const ENEMY_SHOT_CHANCE = 0.0005; // Šance na výstřel za frame na kostku
+
+        let particles = [];
+        class Particle {
+            constructor(x, y, color) { this.x = x; this.y = y; this.color = color; this.radius = Math.random() * 3 + 1; this.velocity = { x: (Math.random() - 0.5) * 8, y: (Math.random() - 0.5) * 8 }; this.alpha = 1; this.friction = 0.98; }
+            draw() { ctx.save(); ctx.globalAlpha = this.alpha; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false); ctx.fillStyle = this.color; ctx.fill(); ctx.restore(); }
+            update() { this.velocity.x *= this.friction; this.velocity.y *= this.friction; this.x += this.velocity.x; this.y += this.velocity.y; this.alpha -= 0.02; this.draw(); }
+        }
+        function createExplosion(x, y, color) { for (let i = 0; i < 30; i++) particles.push(new Particle(x, y, color)); }
+
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; if (gameRunning) { loadLevel(); } }
+
+        function initBricks() {
+            bricks = [];
+            const levelConfig = levels[currentLevel - 1];
+            const layout = levelConfig.layout;
+            const brickPadding = 5; const brickWidth = 60; const brickHeight = 30;
+            const brickOffsetTop = 100;
+            const brickOffsetLeft = (canvas.width - (layout[0].length * (brickWidth + brickPadding))) / 2;
+            remainingBricks = 0;
+            let potentialPowerUpBricks = [];
+
+            layout.forEach((row, r) => {
+                [...row].forEach((brickChar, c) => {
+                    if (brickChar && brickChar !== ' ') {
+                        const newBrick = { x: c * (brickWidth + brickPadding) + brickOffsetLeft, y: r * (brickHeight + brickPadding) + brickOffsetTop, width: brickWidth, height: brickHeight, status: 1, color: COLOR_MAP[brickChar], powerUpType: null };
+                        bricks.push(newBrick); potentialPowerUpBricks.push(newBrick); remainingBricks++;
+                    }
+                });
+            });
+            
+            potentialPowerUpBricks.sort(() => 0.5 - Math.random());
+            const shuffledPowerUps = [...POWER_UP_TYPES].sort(() => 0.5 - Math.random());
+            for (let i = 0; i < 5 && i < potentialPowerUpBricks.length && i < shuffledPowerUps.length; i++) {
+                potentialPowerUpBricks[i].powerUpType = shuffledPowerUps[i];
+            }
+            brickCountSpan.textContent = remainingBricks;
+        }
+
+        function loadLevel() {
+            paddle = { width: canvas.width / 7, height: PADDLE_HEIGHT, x: (canvas.width - (canvas.width / 7)) / 2, y: canvas.height - 40, isShooting: false, laserTimer: null, enlargeTimer: null, isPiercingShooting: false, piercingTimer: null };
+            powerUps = []; paddleLasers = []; enemyProjectiles = [];
+            levelSpan.textContent = currentLevel; initBricks(); resetBalls();
+        }
+
+        function createNewBall(x = canvas.width / 2, y = canvas.height / 2) { return { x: x, y: y, radius: BALL_RADIUS, speed: BASE_BALL_SPEED, dx: (BASE_BALL_SPEED - 1) * (Math.random() > 0.5 ? 1 : -1), dy: -(BASE_BALL_SPEED - 1), slowTimer: null }; }
+        function resetBalls() { balls = [createNewBall()]; }
+
+        function init() {
+            lives = 5; score = 0; gameOver = false; gameRunning = false;
+            particles = []; currentLevel = 1;
+            livesSpan.textContent = lives; scoreSpan.textContent = score;
+            resizeCanvas(); loadLevel();
+            gameStatus.textContent = "Start Game"; finalScoreText.textContent = "Ovládání: Myš, Klávesnice, Gamepad, Dotyk";
+            restartButton.innerHTML = 'Klikni pro start <span class="blinking-cursor">_</span>';
+            gameOverlay.style.display = 'flex';
+        }
+
+        function drawBalls() { balls.forEach(ball => { ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2); ctx.fillStyle = ball.speed < BASE_BALL_SPEED ? '#ff38a2' : '#ff9a21'; ctx.fill(); ctx.closePath(); ctx.shadowBlur = 15; ctx.shadowColor = ball.speed < BASE_BALL_SPEED ? '#ff38a2' : '#ff9a21'; }); }
+        function drawPaddle() { ctx.beginPath(); ctx.rect(paddle.x, paddle.y, paddle.width, paddle.height); let c = '#00f6ff'; if (paddle.isShooting) c = '#f0ff00'; if (paddle.isPiercingShooting) c = '#ff4500'; ctx.fillStyle = c; ctx.fill(); ctx.closePath(); ctx.shadowBlur = 15; ctx.shadowColor = c; }
+        function drawLaserLine() { ctx.beginPath(); ctx.rect(0, canvas.height - 5, canvas.width, 5); ctx.fillStyle = '#ff0000'; ctx.fill(); ctx.closePath(); ctx.shadowBlur = 20; ctx.shadowColor = '#ff0000'; }
+        function drawBricks() { bricks.forEach(b => { if (b.status === 1) { ctx.beginPath(); ctx.rect(b.x, b.y, b.width, b.height); ctx.fillStyle = b.color; ctx.fill(); ctx.closePath(); if (b.powerUpType) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(b.x, b.y, b.width, b.height); ctx.restore(); } } }); }
+        function drawPowerUps() { powerUps.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fillStyle = p.config.color; ctx.fill(); ctx.closePath(); ctx.shadowBlur = 15; ctx.shadowColor = p.config.color; ctx.fillStyle = '#1a1a2e'; ctx.font = '12px "Press Start 2P"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(p.config.symbol, p.x, p.y); }); }
+        function drawPaddleLasers() { paddleLasers.forEach(l => { ctx.beginPath(); ctx.rect(l.x, l.y, l.width, l.height); ctx.fillStyle = l.type === 'piercing' ? '#ff4500' : '#f0ff00'; ctx.shadowColor = l.type === 'piercing' ? '#ff4500' : '#f0ff00'; ctx.fill(); ctx.closePath(); ctx.shadowBlur = 10; }); }
+        function drawEnemyProjectiles() { enemyProjectiles.forEach(p => { ctx.beginPath(); ctx.rect(p.x, p.y, p.width, p.height); ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.fill(); ctx.closePath(); ctx.shadowBlur = 10; }); }
+
+        function handleBrickHit(brick, source) {
+            if (brick.status === 0) return;
+            brick.status = 0; remainingBricks--; score += 100;
+            scoreSpan.textContent = score; brickCountSpan.textContent = remainingBricks;
+            createExplosion(source.x, source.y, brick.color);
+            if (brick.powerUpType) { powerUps.push({ x: brick.x + brick.width / 2, y: brick.y + brick.height / 2, radius: 15, speed: 3, config: brick.powerUpType }); }
+        }
+
+        function detectCollisions() {
+            balls.forEach(ball => { bricks.forEach(b => { if (b.status === 1 && ball.x + ball.radius > b.x && ball.x - ball.radius < b.x + b.width && ball.y + ball.radius > b.y && ball.y - ball.radius < b.y + b.height) { const overlapX = (b.width / 2 + ball.radius) - Math.abs(ball.x - (b.x + b.width / 2)); const overlapY = (b.height / 2 + ball.radius) - Math.abs(ball.y - (b.y + b.height / 2)); if (overlapX > 0 && overlapY > 0) { if (overlapX < overlapY) { ball.dx *= -1; ball.x += ball.dx > 0 ? overlapX : -overlapX; } else { ball.dy *= -1; ball.y += ball.dy > 0 ? overlapY : -overlapY; } handleBrickHit(b, ball); } } }); });
+            for (let i = paddleLasers.length - 1; i >= 0; i--) { const l = paddleLasers[i]; let laserHit = false; for (let j = bricks.length - 1; j >= 0; j--) { const b = bricks[j]; if (b.status === 1 && l.x < b.x + b.width && l.x + l.width > b.x && l.y < b.y + b.height && l.y + l.height > b.y) { handleBrickHit(b, { x: l.x, y: l.y }); if (l.type !== 'piercing') { laserHit = true; break; } } } if(laserHit) paddleLasers.splice(i, 1); }
+            for (let i = enemyProjectiles.length - 1; i >= 0; i--) { const p = enemyProjectiles[i]; if (p.x < paddle.x + paddle.width && p.x + p.width > paddle.x && p.y < paddle.y + paddle.height && p.y + p.height > paddle.y) { enemyProjectiles.splice(i, 1); loseLife(); createExplosion(p.x, paddle.y, '#ff9a21'); break; } }
+        }
+
+        function moveBalls() { for (let i = balls.length - 1; i >= 0; i--) { const ball = balls[i]; ball.x += ball.dx; ball.y += ball.dy; if (ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) ball.dx *= -1; if (ball.y - ball.radius < 0) ball.dy *= -1; if (ball.y + ball.radius > paddle.y && ball.y - ball.radius < paddle.y + paddle.height && ball.x > paddle.x && ball.x < paddle.x + paddle.width) { let collidePoint = (ball.x - (paddle.x + paddle.width / 2)) / (paddle.width / 2); let angle = collidePoint * (Math.PI / 3); ball.dx = ball.speed * Math.sin(angle); ball.dy = -ball.speed * Math.cos(angle); createExplosion(ball.x, paddle.y, '#00f6ff'); } if (ball.y + ball.radius > canvas.height) { balls.splice(i, 1); } } if (balls.length === 0 && gameRunning) { loseLife(); } }
+        
+        function handleControls() {
+            let paddleMovement = 0;
+            const gp = navigator.getGamepads()[0];
+            if (gp) { const horizontalAxis = gp.axes[0]; if (Math.abs(horizontalAxis) > 0.1) { paddleMovement = horizontalAxis; } }
+            if (keyboardState.ArrowLeft) { paddleMovement = -1; } if (keyboardState.ArrowRight) { paddleMovement = 1; }
+            paddle.x += paddleMovement * PADDLE_SPEED;
+            if (paddle.x < 0) paddle.x = 0; if (paddle.x + paddle.width > canvas.width) paddle.x = canvas.width - paddle.width;
+        }
+
+        function loseLife() { lives--; livesSpan.textContent = lives; createExplosion(paddle.x + paddle.width / 2, canvas.height, '#ff0000'); if (lives <= 0) { gameOver = true; endGame(false); } else { resetBalls(); } }
+        function handlePointerMove(e) {
+            if (document.pointerLockElement === canvas) {
+                paddle.x += e.movementX;
+            } else {
+                const r = e.clientX - canvas.getBoundingClientRect().left;
+                paddle.x = r - paddle.width / 2;
+            }
+        }
+        function handleTouchMove(e) { e.preventDefault(); if (e.touches.length > 0) { const r = e.touches[0].clientX - canvas.getBoundingClientRect().left; paddle.x = r - paddle.width / 2; } }
+
+        function updatePowerUps() { for (let i = powerUps.length - 1; i >= 0; i--) { const p = powerUps[i]; p.y += p.speed; if (p.x > paddle.x && p.x < paddle.x + paddle.width && p.y > paddle.y && p.y < paddle.y + paddle.height) { activatePowerUp(p.config.type); powerUps.splice(i, 1); } if (p.y - p.radius > canvas.height) powerUps.splice(i, 1); } }
+        function activatePowerUp(type) {
+            switch (type) {
+                case 'laser': paddle.isShooting = true; clearTimeout(paddle.laserTimer); paddle.laserTimer = setTimeout(() => paddle.isShooting = false, 10000); break;
+                case 'piercing': paddle.isPiercingShooting = true; clearTimeout(paddle.piercingTimer); paddle.piercingTimer = setTimeout(() => paddle.isPiercingShooting = false, 8000); break;
+                case 'enlarge': paddle.width *= 1.5; clearTimeout(paddle.enlargeTimer); paddle.enlargeTimer = setTimeout(() => paddle.width /= 1.5, 10000); break;
+                case 'slow': balls.forEach(b => { b.speed /= 2; b.dx /= 2; b.dy /= 2; clearTimeout(b.slowTimer); b.slowTimer = setTimeout(() => { b.speed *= 2; b.dx *= 2; b.dy *= 2; }, 8000); }); break;
+                case 'life': lives++; livesSpan.textContent = lives; break;
+                case 'multiBall': balls.push(createNewBall(paddle.x + paddle.width / 2, paddle.y - 20)); break;
+            }
+        }
+        function updatePaddleLasers() { for (let i = paddleLasers.length - 1; i >= 0; i--) { const l = paddleLasers[i]; l.y -= l.speed; if (l.y < -l.height) paddleLasers.splice(i, 1); } }
+        function shoot() { if (!gameRunning) return; if (paddle.isShooting) { paddleLasers.push({ x: paddle.x + paddle.width / 2 - 2.5, y: paddle.y, width: 5, height: 20, speed: 10, type: 'normal' }); } if (paddle.isPiercingShooting) { paddleLasers.push({ x: paddle.x + paddle.width / 2 - 4, y: paddle.y, width: 8, height: 25, speed: 12, type: 'piercing' }); } }
+        function updateEnemyProjectiles() { for (let i = enemyProjectiles.length - 1; i >= 0; i--) { const p = enemyProjectiles[i]; p.y += p.speed; if (p.y > canvas.height) enemyProjectiles.splice(i, 1); } }
+        
+        function handleEnemyShooting() { bricks.forEach(b => { if (b.status === 1 && Math.random() < ENEMY_SHOT_CHANCE) { enemyProjectiles.push({ x: b.x + b.width / 2 - 2, y: b.y + b.height, width: 5, height: 15, speed: 6, color: '#ff5555' }); } }); }
+
+        function endGame(isWin) { gameRunning = false; if (document.pointerLockElement === canvas) { document.exitPointerLock(); } if (isWin) { gameStatus.textContent = "Vítězství!"; gameStatus.classList.remove('text-red-500'); gameStatus.classList.add('text-green-500'); } else { gameStatus.textContent = "Hra prohrána!"; gameStatus.classList.remove('text-green-500'); gameStatus.classList.add('text-red-500'); } finalScoreText.textContent = `Tvé finální skóre: ${score}`; restartButton.innerHTML = 'Hrát znovu <span class="blinking-cursor">_</span>'; gameOverlay.style.display = 'flex'; }
+
+        function update() {
+            if (gameOver) return;
+            if (gameRunning) {
+                handleControls();
+                ctx.shadowBlur = 0; ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawLaserLine(); drawBricks(); drawBalls(); drawPaddle(); drawPowerUps(); drawPaddleLasers(); drawEnemyProjectiles();
+                particles.forEach((p, i) => p.alpha <= 0 ? particles.splice(i, 1) : p.update());
+                moveBalls(); updatePowerUps(); updatePaddleLasers(); updateEnemyProjectiles(); handleEnemyShooting(); detectCollisions();
+                if (remainingBricks <= 0) { if (currentLevel < levels.length) { currentLevel++; loadLevel(); } else { gameOver = true; endGame(true); } }
+            }
+            requestAnimationFrame(update);
+        }
+
+        let cheatCodeBuffer = '';
+        document.addEventListener('keydown', (e) => {
+            if (keyboardState.hasOwnProperty(e.key)) { keyboardState[e.key] = true; }
+            if (e.key === "Escape" && document.pointerLockElement === canvas) { document.exitPointerLock(); }
+            cheatCodeBuffer += e.key.toUpperCase();
+            const cheatMatch = cheatCodeBuffer.match(/LEVEL(\d+)/);
+            if (cheatMatch) { const levelNum = parseInt(cheatMatch[1], 10); if (levelNum > 0 && levelNum <= levels.length) { currentLevel = levelNum; balls = []; gameOver = false; if(gameRunning) loadLevel(); else currentLevel = levelNum; } cheatCodeBuffer = ''; }
+            if (cheatCodeBuffer.length > 10) { cheatCodeBuffer = cheatCodeBuffer.substring(cheatCodeBuffer.length - 10); }
+        });
+        document.addEventListener('keyup', (e) => { if (keyboardState.hasOwnProperty(e.key)) { keyboardState[e.key] = false; } });
+        
+        canvas.addEventListener('click', () => { if (gameRunning) shoot(); });
+        document.addEventListener('mousemove', handlePointerMove);
+        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+        canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+
+        restartButton.addEventListener('click', () => { init(); gameRunning = true; gameOverlay.style.display = 'none'; try { canvas.requestPointerLock(); } catch(e) { console.warn("Pointer lock not available."); } update(); });
+        window.addEventListener('resize', resizeCanvas);
+        init();
+        update();
+    </script>
+
+</body>
+</html>
+
+
