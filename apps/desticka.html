@@ -70,6 +70,8 @@
         let currentLevel = 1;
         let remainingBricks = 0;
         const keyboardState = { ArrowLeft: false, ArrowRight: false };
+        let nextLaserColorIndex = 0;
+        const laserColors = ['#ff0000', '#00ff00']; // Červená, Zelená
 
         const POWER_UP_TYPES = [
             { type: 'laser', color: '#f0ff00', symbol: 'L' },
@@ -106,8 +108,8 @@
         const PADDLE_HEIGHT = 20;
         const PADDLE_SPEED = 12;
         const BALL_RADIUS = 12;
-        const BASE_BALL_SPEED = 7;
-        const ENEMY_SHOT_CHANCE = 0.0005; // Šance na výstřel za frame na kostku
+        const BASE_BALL_SPEED = 5;
+        const ENEMY_SHOT_CHANCE = 0.0001; // Šance na výstřel za frame na kostku
 
         let particles = [];
         class Particle {
@@ -170,7 +172,25 @@
         function drawLaserLine() { ctx.beginPath(); ctx.rect(0, canvas.height - 5, canvas.width, 5); ctx.fillStyle = '#ff0000'; ctx.fill(); ctx.closePath(); ctx.shadowBlur = 20; ctx.shadowColor = '#ff0000'; }
         function drawBricks() { bricks.forEach(b => { if (b.status === 1) { ctx.beginPath(); ctx.rect(b.x, b.y, b.width, b.height); ctx.fillStyle = b.color; ctx.fill(); ctx.closePath(); if (b.powerUpType) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(b.x, b.y, b.width, b.height); ctx.restore(); } } }); }
         function drawPowerUps() { powerUps.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fillStyle = p.config.color; ctx.fill(); ctx.closePath(); ctx.shadowBlur = 15; ctx.shadowColor = p.config.color; ctx.fillStyle = '#1a1a2e'; ctx.font = '12px "Press Start 2P"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(p.config.symbol, p.x, p.y); }); }
-        function drawPaddleLasers() { paddleLasers.forEach(l => { ctx.beginPath(); ctx.rect(l.x, l.y, l.width, l.height); ctx.fillStyle = l.type === 'piercing' ? '#ff4500' : '#f0ff00'; ctx.shadowColor = l.type === 'piercing' ? '#ff4500' : '#f0ff00'; ctx.fill(); ctx.closePath(); ctx.shadowBlur = 10; }); }
+        function drawPaddleLasers() {
+            paddleLasers.forEach(l => {
+                ctx.beginPath();
+                ctx.rect(l.x, l.y, l.width, l.height);
+                if (l.type === 'piercing') {
+                    ctx.fillStyle = '#ff4500';
+                    ctx.shadowColor = '#ff4500';
+                } else if (l.color) {
+                    ctx.fillStyle = l.color;
+                    ctx.shadowColor = l.color;
+                } else { // Fallback
+                    ctx.fillStyle = '#f0ff00';
+                    ctx.shadowColor = '#f0ff00';
+                }
+                ctx.fill();
+                ctx.closePath();
+                ctx.shadowBlur = 10;
+            });
+        }
         function drawEnemyProjectiles() { enemyProjectiles.forEach(p => { ctx.beginPath(); ctx.rect(p.x, p.y, p.width, p.height); ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.fill(); ctx.closePath(); ctx.shadowBlur = 10; }); }
 
         function handleBrickHit(brick, source) {
@@ -221,7 +241,17 @@
             }
         }
         function updatePaddleLasers() { for (let i = paddleLasers.length - 1; i >= 0; i--) { const l = paddleLasers[i]; l.y -= l.speed; if (l.y < -l.height) paddleLasers.splice(i, 1); } }
-        function shoot() { if (!gameRunning) return; if (paddle.isShooting) { paddleLasers.push({ x: paddle.x + paddle.width / 2 - 2.5, y: paddle.y, width: 5, height: 20, speed: 10, type: 'normal' }); } if (paddle.isPiercingShooting) { paddleLasers.push({ x: paddle.x + paddle.width / 2 - 4, y: paddle.y, width: 8, height: 25, speed: 12, type: 'piercing' }); } }
+        function shoot() {
+            if (!gameRunning) return;
+            if (paddle.isShooting) {
+                const color = laserColors[nextLaserColorIndex % laserColors.length];
+                paddleLasers.push({ x: paddle.x + paddle.width / 2 - 2.5, y: paddle.y, width: 5, height: 20, speed: 10, type: 'normal', color: color });
+                nextLaserColorIndex++;
+            }
+            if (paddle.isPiercingShooting) {
+                paddleLasers.push({ x: paddle.x + paddle.width / 2 - 4, y: paddle.y, width: 8, height: 25, speed: 12, type: 'piercing' });
+            }
+        }
         function updateEnemyProjectiles() { for (let i = enemyProjectiles.length - 1; i >= 0; i--) { const p = enemyProjectiles[i]; p.y += p.speed; if (p.y > canvas.height) enemyProjectiles.splice(i, 1); } }
         
         function handleEnemyShooting() { bricks.forEach(b => { if (b.status === 1 && Math.random() < ENEMY_SHOT_CHANCE) { enemyProjectiles.push({ x: b.x + b.width / 2 - 2, y: b.y + b.height, width: 5, height: 15, speed: 6, color: '#ff5555' }); } }); }
@@ -265,5 +295,4 @@
 
 </body>
 </html>
-
 
