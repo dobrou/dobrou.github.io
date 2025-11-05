@@ -85,31 +85,32 @@
         const COLOR_MAP = {
             '1': '#8E2DE2', '2': '#E22D2D', '3': '#E2A32D', '4': '#1a75ff',
             'W': '#FFFFFF', 'Y': '#f0ff00', 'G': '#228B22', 'B': '#A52A2A',
-            'S': '#C0C0C0', 'C': '#00f6ff'
+            'S': '#C0C0C0', 'C': '#00f6ff',
+            'X': '#b300b3' // Střílecí kostka
         };
 
         const levels = [
-            { level: 1, layout: [" YY  YY ", "YWWYYWWY", "YWWYYWWY", "        ", "Y  YY  Y", " YYYYYY "] },
-            { level: 2, layout: [" 22  22 ", "22222222", "22222222", " 222222 ", "  2222  ", "   22   "] },
-            { level: 3, layout: ["   33   ", "  3333  ", " 333333 ", "33333333", "   33   ", "   33   ", "   33   "] },
-            { level: 4, layout: ["   44   ", "  4WW4  ", " 4WWWW4 ", "4WWWWWW4", " 4WWWW4 ", "  4WW4  ", "   44   "] },
-            { level: 5, layout: ["   2    ", "  2S2   ", " 2SSS2  ", " SSSSS  ", " SSSSS  ", " 33333  ", "  333   "] }, // Raketa
-            { level: 6, layout: [" WWWWWW ", "WCCWWCCW", "WWWWWWWW", "WWWWWWWW", "W WW WW W"] }, // Duch
-            { level: 7, layout: ["   22   ", "  2222  ", " BBBBBB ", " B WW B ", " B WW B ", " BBBBBB "] }, // Dům
-            { level: 8, layout: ["  GGGG  ", " GGGGGG ", "GGGGGGGG", "  BBBB  ", "  BBBB  ", "  BBBB  "] }, // Strom
-            { level: 9, layout: ["   S    ", "   S    ", "   S    ", " SSSSS  ", " SSSSS  ", "   B    ", "  BBB   "] }, // Meč
-            { level: 10, layout: ["SSSSSSSS", "SYYYYYYS", "SYYYYYYS", "SYYYYYYS", "SSSSSSSS"] }, // Štít
-            { level: 11, layout: ["   Y    ", "  YYY   ", "YYYYYYY ", "  YYY   ", "   Y    "] }, // Hvězda
-            { level: 12, layout: ["  WWWW  ", " 333333 ", "33333333", " 333333 ", "  WWWW  "] }, // Saturn
-            { level: 13, layout: ["  2G2G  ", " G2Y2G ", "G2Y2Y2G", " G2Y2G ", "  2G2G  ", "   G    ", "   G    "] }, // Květina
-            { level: 14, layout: ["CWCWCWCW", "WCWCWCWC", "CWCWCWCW", "WCWCWCWC", "CWCWCWCW"] } // Šachovnice
+            { level: 1, layout: [" YY  YY ", "YWWYYWWY", "YWWXYWWY", "        ", "Y  YY  Y", " YYYYYY "] },
+            { level: 2, layout: [" 22  22 ", "22222222", "2222X222", " 222222 ", "  2222  ", "   22   "] },
+            { level: 3, layout: ["   33   ", "  3333  ", " 33X333 ", "33333333", "   33   ", "   33   ", "   33   "] },
+            { level: 4, layout: ["   44   ", "  4WW4  ", " 4WWWW4 ", "4WWXWWWW4", " 4WWWW4 ", "  4WW4  ", "   44   "] },
+            { level: 5, layout: ["   2    ", "  2S2   ", " 2SXS2  ", " SSSSS  ", " SSSSS  ", " 33333  ", "  333   "] }, // Raketa
+            { level: 6, layout: [" WWWWWW ", "WCCWWCCW", "WWWWXWWW", "WWWWWWWW", "W WW WW W"] }, // Duch
+            { level: 7, layout: ["   22   ", "  2222  ", " BBBBBB ", " B WW B ", " B WX B ", " BBBBBB "] }, // Dům
+            { level: 8, layout: ["  GGGG  ", " GGGGGG ", "GGXGGGGG", "  BBBB  ", "  BBBB  ", "  BBBB  "] }, // Strom
+            { level: 9, layout: ["   S    ", "   S    ", "   X    ", " SSSSS  ", " SSSSS  ", "   B    ", "  BBB   "] }, // Meč
+            { level: 10, layout: ["SSSSSSSS", "SYYYYYYS", "SYYXYYYS", "SYYYYYYS", "SSSSSSSS"] }, // Štít
+            { level: 11, layout: ["   Y    ", "  YYY   ", "YYYXYYY ", "  YYY   ", "   Y    "] }, // Hvězda
+            { level: 12, layout: ["  WWWW  ", " 333333 ", "333X3333", " 333333 ", "  WWWW  "] }, // Saturn
+            { level: 13, layout: ["  2G2G  ", " G2Y2G ", "G2YXY2G", " G2Y2G ", "  2G2G  ", "   G    ", "   G    "] }, // Květina
+            { level: 14, layout: ["CWCWCWCW", "WCWCWCWC", "CWCXWCWC", "WCWCWCWC", "CWCWCWCW"] } // Šachovnice
         ];
 
         const PADDLE_HEIGHT = 20;
         const PADDLE_SPEED = 12;
         const BALL_RADIUS = 12;
         const BASE_BALL_SPEED = 5;
-        const ENEMY_SHOT_CHANCE = 0.0001; // Šance na výstřel za frame na kostku
+        const ENEMY_SHOT_CHANCE_SHOOTER = 0.005; // Šance na výstřel za frame pro střílecí kostku
 
         let particles = [];
         class Particle {
@@ -118,6 +119,55 @@
             update() { this.velocity.x *= this.friction; this.velocity.y *= this.friction; this.x += this.velocity.x; this.y += this.velocity.y; this.alpha -= 0.02; this.draw(); }
         }
         function createExplosion(x, y, color) { for (let i = 0; i < 30; i++) particles.push(new Particle(x, y, color)); }
+
+        // --- Nové pomocné funkce pro barvy ---
+
+        // Převod hex na RGB objekt
+        function hexToRgb(hex) {
+            let r = 0, g = 0, b = 0;
+            if (hex.length == 7) {
+                r = parseInt(hex.substring(1, 3), 16);
+                g = parseInt(hex.substring(3, 5), 16);
+                b = parseInt(hex.substring(5, 7), 16);
+            }
+            return { r, g, b };
+        }
+
+        // Převod RGB komponenty na hex
+        function componentToHex(c) {
+            var hex = Math.floor(c).toString(16);
+            return hex.length == 1 ? "0" + hex : hex;
+        }
+        
+        // Převod RGB na hex
+        function rgbToHex(r, g, b) {
+            return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+        }
+
+        // Získání hodnoty odstínu šedi (luminance)
+        function getGrayscale(r, g, b) {
+            return Math.floor(0.299 * r + 0.587 * g + 0.114 * b);
+        }
+
+        // Hlavní funkce pro interpolaci barvy
+        function interpolateColor(hexColor, level, totalLevels) {
+            if (level >= totalLevels) return hexColor; // Poslední level = plná barva
+            if (level <= 1) level = 1; // První level
+
+            const { r, g, b } = hexToRgb(hexColor);
+            const gray = getGrayscale(r, g, b);
+            
+            // Výpočet pokroku (0.0 pro level 1, 1.0 pro poslední level)
+            const progress = (level - 1) / (totalLevels - 1);
+
+            const newR = gray + (r - gray) * progress;
+            const newG = gray + (g - gray) * progress;
+            const newB = gray + (b - gray) * progress;
+
+            return rgbToHex(newR, newG, newB);
+        }
+        // --- Konec nových funkcí ---
+
 
         function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; if (gameRunning) { loadLevel(); } }
 
@@ -134,8 +184,34 @@
             layout.forEach((row, r) => {
                 [...row].forEach((brickChar, c) => {
                     if (brickChar && brickChar !== ' ') {
-                        const newBrick = { x: c * (brickWidth + brickPadding) + brickOffsetLeft, y: r * (brickHeight + brickPadding) + brickOffsetTop, width: brickWidth, height: brickHeight, status: 1, color: COLOR_MAP[brickChar], powerUpType: null };
-                        bricks.push(newBrick); potentialPowerUpBricks.push(newBrick); remainingBricks++;
+                        
+                        const originalColor = COLOR_MAP[brickChar];
+                        // Aplikujeme interpolaci barvy podle levelu
+                        const interpolatedColor = interpolateColor(originalColor, currentLevel, levels.length);
+
+                        const newBrick = { 
+                            x: c * (brickWidth + brickPadding) + brickOffsetLeft, 
+                            y: r * (brickHeight + brickPadding) + brickOffsetTop, 
+                            width: brickWidth, height: brickHeight, status: 1, 
+                            color: interpolatedColor, // Použijeme vypočítanou barvu
+                            powerUpType: null,
+                            isShooter: false,
+                            hitsRemaining: 1,
+                            flash: 0
+                        };
+
+                        if (brickChar === 'X') {
+                            newBrick.isShooter = true;
+                            newBrick.hitsRemaining = 6;
+                        }
+
+                        bricks.push(newBrick); 
+                        
+                        if (!newBrick.isShooter) {
+                            potentialPowerUpBricks.push(newBrick);
+                        }
+                        
+                        remainingBricks++;
                     }
                 });
             });
@@ -170,7 +246,39 @@
         function drawBalls() { balls.forEach(ball => { ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2); ctx.fillStyle = ball.speed < BASE_BALL_SPEED ? '#ff38a2' : '#ff9a21'; ctx.fill(); ctx.closePath(); ctx.shadowBlur = 15; ctx.shadowColor = ball.speed < BASE_BALL_SPEED ? '#ff38a2' : '#ff9a21'; }); }
         function drawPaddle() { ctx.beginPath(); ctx.rect(paddle.x, paddle.y, paddle.width, paddle.height); let c = '#00f6ff'; if (paddle.isShooting) c = '#f0ff00'; if (paddle.isPiercingShooting) c = '#ff4500'; ctx.fillStyle = c; ctx.fill(); ctx.closePath(); ctx.shadowBlur = 15; ctx.shadowColor = c; }
         function drawLaserLine() { ctx.beginPath(); ctx.rect(0, canvas.height - 5, canvas.width, 5); ctx.fillStyle = '#ff0000'; ctx.fill(); ctx.closePath(); ctx.shadowBlur = 20; ctx.shadowColor = '#ff0000'; }
-        function drawBricks() { bricks.forEach(b => { if (b.status === 1) { ctx.beginPath(); ctx.rect(b.x, b.y, b.width, b.height); ctx.fillStyle = b.color; ctx.fill(); ctx.closePath(); if (b.powerUpType) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(b.x, b.y, b.width, b.height); ctx.restore(); } } }); }
+        function drawBricks() { 
+            bricks.forEach(b => { 
+                if (b.status === 1) { 
+                    ctx.beginPath(); 
+                    ctx.rect(b.x, b.y, b.width, b.height); 
+                    
+                    let color = b.color;
+                    if (b.flash > 0) {
+                        color = '#FFFFFF';
+                        b.flash--;
+                    }
+                    ctx.fillStyle = color; 
+
+                    ctx.fill(); 
+                    ctx.closePath(); 
+
+                    if (b.isShooter) {
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.font = '14px "Press Start 2P"';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(b.hitsRemaining, b.x + b.width / 2, b.y + b.height / 2);
+                    }
+
+                    if (b.powerUpType) { 
+                        ctx.save(); 
+                        ctx.fillStyle = 'rgba(0,0,0,0.4)'; 
+                        ctx.fillRect(b.x, b.y, b.width, b.height); 
+                        ctx.restore(); 
+                    } 
+                } 
+            }); 
+        }
         function drawPowerUps() { powerUps.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fillStyle = p.config.color; ctx.fill(); ctx.closePath(); ctx.shadowBlur = 15; ctx.shadowColor = p.config.color; ctx.fillStyle = '#1a1a2e'; ctx.font = '12px "Press Start 2P"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(p.config.symbol, p.x, p.y); }); }
         function drawPaddleLasers() {
             paddleLasers.forEach(l => {
@@ -195,10 +303,24 @@
 
         function handleBrickHit(brick, source) {
             if (brick.status === 0) return;
-            brick.status = 0; remainingBricks--; score += 100;
-            scoreSpan.textContent = score; brickCountSpan.textContent = remainingBricks;
-            createExplosion(source.x, source.y, brick.color);
-            if (brick.powerUpType) { powerUps.push({ x: brick.x + brick.width / 2, y: brick.y + brick.height / 2, radius: 15, speed: 3, config: brick.powerUpType }); }
+
+            brick.hitsRemaining--;
+            brick.flash = 5; // Blesk na 5 snímků
+
+            if (brick.hitsRemaining <= 0) {
+                brick.status = 0; 
+                remainingBricks--; 
+                score += 100;
+                if (brick.isShooter) {
+                    score += 500; // Bonus za zničení střílny
+                }
+                scoreSpan.textContent = score; 
+                brickCountSpan.textContent = remainingBricks;
+                createExplosion(source.x, source.y, brick.color);
+                if (brick.powerUpType) { 
+                    powerUps.push({ x: brick.x + brick.width / 2, y: brick.y + brick.height / 2, radius: 15, speed: 3, config: brick.powerUpType }); 
+                }
+            }
         }
 
         function detectCollisions() {
@@ -254,7 +376,19 @@
         }
         function updateEnemyProjectiles() { for (let i = enemyProjectiles.length - 1; i >= 0; i--) { const p = enemyProjectiles[i]; p.y += p.speed; if (p.y > canvas.height) enemyProjectiles.splice(i, 1); } }
         
-        function handleEnemyShooting() { bricks.forEach(b => { if (b.status === 1 && Math.random() < ENEMY_SHOT_CHANCE) { enemyProjectiles.push({ x: b.x + b.width / 2 - 2, y: b.y + b.height, width: 5, height: 15, speed: 6, color: '#ff5555' }); } }); }
+        function handleEnemyShooting() { 
+            const shooter = bricks.find(b => b.isShooter && b.status === 1);
+            if (shooter && Math.random() < ENEMY_SHOT_CHANCE_SHOOTER) { 
+                enemyProjectiles.push({ 
+                    x: shooter.x + shooter.width / 2 - 2, 
+                    y: shooter.y + shooter.height, 
+                    width: 5, 
+                    height: 15, 
+                    speed: 6, 
+                    color: '#ff5555' 
+                }); 
+            } 
+        }
 
         function endGame(isWin) { gameRunning = false; if (document.pointerLockElement === canvas) { document.exitPointerLock(); } if (isWin) { gameStatus.textContent = "Vítězství!"; gameStatus.classList.remove('text-red-500'); gameStatus.classList.add('text-green-500'); } else { gameStatus.textContent = "Hra prohrána!"; gameStatus.classList.remove('text-green-500'); gameStatus.classList.add('text-red-500'); } finalScoreText.textContent = `Tvé finální skóre: ${score}`; restartButton.innerHTML = 'Hrát znovu <span class="blinking-cursor">_</span>'; gameOverlay.style.display = 'flex'; }
 
@@ -295,4 +429,3 @@
 
 </body>
 </html>
-
