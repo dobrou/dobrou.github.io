@@ -1,0 +1,822 @@
+<!--
+PROMPT PRO VYTVOŘENÍ APLIKACE (Udržovaný pro referenci):
+Vytvořte jednoduchou, statickou HTML webovou stránku s tmavým tématem, která obsahuje hru "Had".
+
+Základní principy:
+- Had se může volně pohybovat o 360 stupňů.
+- Hra musí být napsána v JavaScriptu (ES5) pro zajištění maximální kompatibility.
+- Celá hra (HTML, CSS, JS) musí být v jednom souboru.
+
+Herní mechaniky:
+- Start s 1 hráčem, auto-join až pro 4 hráče při detekci nového vstupu.
+- Hadi začínají natočení od sebe.
+- Náraz do zdi: Had se otočí (ocas = hlava), -1 bod, exploze. Neumírá.
+- Náraz hlava do těla: Útočící had umírá.
+- Náraz hlava do hlavy: Oba umírají.
+- Game Over: Zůstane 1 nebo 0 hráčů.
+- Jablka:
+    - Normální (4ks): +1 bod, +1 délka.
+    - Zlaté (1ks): 2x skóre, 2x délka.
+    - Shnilé (1ks): 1/2 skóre, 1/2 délka.
+    - Modré (1ks): 1/2 délka, skóre beze změny.
+- Růst je postupný (1 segment/snímek).
+- Animace jisker při jídle, exploze při nárazu.
+
+Ovládání:
+- Dynamické přiřazování (kdo dřív přijde, ten hraje).
+- Zdroje: Klávesnice (Šipky), Klávesnice (WASD), Myš (L/P tlačítko), Dotyk (L/P strana), Gamepady.
+
+Vizuální styl:
+- Responzivní full-screen canvas.
+- Skóre nahoře, nápověda dole (zmizí po 30s).
+- Poloprůhledné UI.
+- Had: Tlustá čára se zaoblenými konci, hlava kruh.
+
+Kód:
+- ES5, stabilní, grid-based kolize pro výkon.
+-->
+
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Snake 360</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            color: #eee;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none; /* Zabrání zoomování na mobilu */
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #gameCanvas {
+            display: block;
+            background-color: #1a1a1a;
+        }
+
+        /* UI Vrstvy */
+        .ui-layer {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            pointer-events: none; /* Aby klikání procházelo na canvas */
+            text-align: center;
+            text-shadow: 1px 1px 2px #000;
+        }
+
+        #scoreBoard {
+            top: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .player-score {
+            padding: 5px 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+            display: none; /* Skryté dokud se hráč nepřipojí */
+        }
+
+        #helpPanel {
+            bottom: 20px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            margin: 0 auto;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 10px;
+            transition: opacity 1s;
+        }
+
+        #gameOverScreen {
+            top: 0;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.85);
+            pointer-events: auto; /* Tady chceme klikat */
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 40px;
+            margin-bottom: 10px;
+            color: #ff4444;
+        }
+
+        #winnerText {
+            font-size: 24px;
+            margin-bottom: 30px;
+            color: #fff;
+        }
+
+        button.restart-btn {
+            padding: 15px 30px;
+            font-size: 20px;
+            background: #44aa44;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 4px #2e7d32;
+        }
+
+        button.restart-btn:active {
+            box-shadow: 0 2px #2e7d32;
+            transform: translateY(2px);
+        }
+
+        /* Utility pro barvy textu */
+        .p1-color { color: #00ff00; }
+        .p2-color { color: #00ffff; }
+        .p3-color { color: #ff00ff; }
+        .p4-color { color: #ffff00; }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="scoreBoard" class="ui-layer">
+        <div id="p1Score" class="player-score p1-color">P1: 0</div>
+        <div id="p2Score" class="player-score p2-color">P2: 0</div>
+        <div id="p3Score" class="player-score p3-color">P3: 0</div>
+        <div id="p4Score" class="player-score p4-color">P4: 0</div>
+    </div>
+
+    <div id="helpPanel" class="ui-layer">
+        <strong>Ovládání (Auto-Join):</strong><br>
+        Hráč 1-4 se připojí stiskem tlačítka.<br>
+        ⌨️ Šipky | WASD<br>
+        🖱️ Myš (Levé/Pravé tlačítko)<br>
+        📱 Dotyk (Levá/Pravá strana)<br>
+        🎮 Gamepady (Analog/D-pad)
+    </div>
+
+    <div id="gameOverScreen" class="ui-layer">
+        <h1>KONEC HRY</h1>
+        <div id="winnerText"></div>
+        <button class="restart-btn" id="restartBtn">Hrát znovu (Enter)</button>
+    </div>
+
+<script>
+/**
+ * ES5 SNAKE GAME
+ * Kompatibilní se staršími prohlížeči (Tizen atd.)
+ */
+
+(function() {
+    // --- KONFIGURACE ---
+    var CONFIG = {
+        baseSpeed: 3,
+        turnSpeed: 0.08,
+        startLength: 50,
+        segmentSpacing: 4, 
+        colors: ['#00ff00', '#00ffff', '#ff00ff', '#ffff00'],
+        names: ['Zelený', 'Modrý', 'Růžový', 'Žlutý'],
+        appleRadius: 6,
+        snakeWidth: 8,
+        gridSize: 40 // Velikost buňky pro optimalizaci kolizí
+    };
+
+    var canvas = document.getElementById('gameCanvas');
+    var ctx = canvas.getContext('2d');
+    
+    var gameState = 'playing'; // playing, gameover
+    var frameCount = 0;
+    
+    // Entity
+    var players = []; // Instance třídy Snake
+    var apples = [];
+    var particles = []; // Efekty
+    
+    // Input Management
+    var inputSources = {}; // Mapa: 'ID zdroje' -> PlayerIndex (0-3)
+    var inputs = {}; // Mapa: PlayerIndex -> { left: bool, right: bool }
+
+    // --- POLYFILLS & UTILS ---
+    
+    // RequestAnimationFrame polyfill
+    var requestAnimFrame = (function(){
+        return window.requestAnimationFrame       ||
+               window.webkitRequestAnimationFrame ||
+               window.mozRequestAnimationFrame    ||
+               function( callback ){
+                   window.setTimeout(callback, 1000 / 60);
+               };
+    })();
+
+    function randomRange(min, max) {
+        return Math.random() * (max - min) + min;
+    }
+
+    function dist(x1, y1, x2, y2) {
+        var dx = x1 - x2;
+        var dy = y1 - y2;
+        return Math.sqrt(dx*dx + dy*dy);
+    }
+
+    // --- TŘÍDY ---
+
+    // 1. Particle System (Exploze a jiskry)
+    function Particle(x, y, color, speed, life, type) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.life = life;
+        this.maxLife = life;
+        var angle = Math.random() * Math.PI * 2;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.type = type || 'spark'; // 'spark' nebo 'explosion'
+    }
+
+    Particle.prototype.update = function() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life--;
+        this.vx *= 0.95; // Tření
+        this.vy *= 0.95;
+    };
+
+    Particle.prototype.draw = function(ctx) {
+        ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        var size = (this.type === 'explosion') ? 3 : 2;
+        ctx.arc(this.x, this.y, size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+    };
+
+    // 2. Apple (Jablka)
+    function Apple(type) {
+        this.type = type; // normal, gold, rotten, blue
+        this.radius = CONFIG.appleRadius;
+        this.timer = 0; // Pro animaci
+        this.respawn();
+        
+        switch(type) {
+            case 'gold': this.color = '#ffD700'; break;
+            case 'rotten': this.color = '#8B4513'; break;
+            case 'blue': this.color = '#1E90FF'; break;
+            default: this.color = '#ADFF2F'; break; // Normal
+        }
+    }
+
+    // Bezpečný spawn mimo hady
+    Apple.prototype.respawn = function() {
+        var safe = false;
+        var attempts = 0;
+        
+        while(!safe && attempts < 50) {
+            this.x = randomRange(20, canvas.width - 20);
+            this.y = randomRange(20, canvas.height - 20);
+            safe = true;
+            
+            // Jednoduchá kontrola vzdálenosti od všech hlav a středů těl
+            for(var i=0; i<players.length; i++) {
+                var p = players[i];
+                if (!p.alive) continue;
+                if (dist(this.x, this.y, p.x, p.y) < 50) { safe = false; break; } // Moc blízko hlavy
+                
+                // Rychlá kontrola vzorků těla
+                for(var j=0; j<p.points.length; j+=10) {
+                    if (dist(this.x, this.y, p.points[j].x, p.points[j].y) < 20) { safe = false; break; }
+                }
+                if(!safe) break;
+            }
+            attempts++;
+        }
+    };
+
+    Apple.prototype.draw = function(ctx) {
+        this.timer += 0.1;
+        var pulse = Math.sin(this.timer) * 2;
+        
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = this.color;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius + (this.type === 'gold' ? 2 : 0) + pulse/2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    };
+
+    // 3. Snake (Hráč)
+    function Snake(id) {
+        this.id = id;
+        this.color = CONFIG.colors[id];
+        this.speed = CONFIG.baseSpeed; // Posunuto nahoru pro inicializaci bodů
+        
+        // Dynamický offset podle velikosti obrazovky (min 20px, max 100px)
+        var offset = Math.min(100, Math.min(canvas.width, canvas.height) / 4);
+        
+        if (id === 0) { this.x = offset; this.y = offset; this.angle = Math.PI/4; }
+        else if (id === 1) { this.x = canvas.width - offset; this.y = canvas.height - offset; this.angle = Math.PI + Math.PI/4; }
+        else if (id === 2) { this.x = canvas.width - offset; this.y = offset; this.angle = Math.PI - Math.PI/4; }
+        else { this.x = offset; this.y = canvas.height - offset; this.angle = -Math.PI/4; }
+
+        this.points = []; // Historie pozic {x, y}
+        
+        // Inicializace bodů - OPRAVA: Natáhneme hada dozadu, aby nebyl zmačkaný v jednom bodě (kolize)
+        for(var i=0; i<CONFIG.startLength; i++) {
+            this.points.push({
+                x: this.x - Math.cos(this.angle) * (i * this.speed),
+                y: this.y - Math.sin(this.angle) * (i * this.speed)
+            });
+        }
+        
+        this.score = 0;
+        this.targetLength = CONFIG.startLength; // Pro postupné dorůstání
+        this.alive = true;
+    }
+
+    Snake.prototype.update = function(input) {
+        if (!this.alive) return;
+
+        // Otáčení
+        if (input.left) this.angle -= CONFIG.turnSpeed;
+        if (input.right) this.angle += CONFIG.turnSpeed;
+
+        // Pohyb
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+
+        // Wall Collision (Odraz a penalizace)
+        var hitWall = false;
+        if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
+            hitWall = true;
+        }
+
+        if (hitWall) {
+            // Exploze na zdi
+            createExplosion(this.x, this.y, '#fff', 10);
+            
+            // Otočení (ocas se stane hlavou)
+            this.points.reverse();
+            var newHead = this.points[0];
+            var nextPoint = this.points[1] || newHead;
+            
+            this.x = newHead.x;
+            this.y = newHead.y;
+            
+            // Spočítáme nový úhel podle vektoru ocasu (nyní hlavy)
+            this.angle = Math.atan2(newHead.y - nextPoint.y, newHead.x - nextPoint.x);
+            
+            // Posuneme kousek od zdi, aby nedošlo k okamžité další kolizi
+            // Skok musí být dostatečný
+            this.x += Math.cos(this.angle) * 15;
+            this.y += Math.sin(this.angle) * 15;
+
+            // Vyčištění bodů, které by mohly být stále "za zdí"
+            // (Volitelné, ale pomáhá vizuálně)
+
+            // Penalizace
+            this.score = Math.max(0, this.score - 1);
+            updateScoreUI();
+        }
+
+        // Přidání nového bodu do historie
+        this.points.unshift({x: this.x, y: this.y});
+
+        // Kontrola délky (růst)
+        var currentLength = this.points.length;
+        // Pokud jsme delší než target, zkrátíme
+        if (currentLength > this.targetLength) {
+            this.points.pop();
+        } 
+        // Pokud jsme výrazně delší (např. po modrém jablku), zkrátíme rychleji
+        else if (currentLength > this.targetLength + 10) {
+            this.points.pop();
+            this.points.pop();
+            this.points.pop(); // Rychlejší smrštění
+        }
+    };
+
+    Snake.prototype.draw = function(ctx) {
+        if (!this.alive) return;
+        
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = CONFIG.snakeWidth;
+        ctx.strokeStyle = this.color;
+        
+        ctx.beginPath();
+        if (this.points.length > 0) {
+            ctx.moveTo(this.points[0].x, this.points[0].y);
+            // Optimalizace: nekreslit každý bod, pokud jsou blízko
+            // Canvas path performance je ok, ale pro 500 bodů je to dost.
+            // Zde necháme default, vizuál je prioritou.
+            for (var i = 1; i < this.points.length; i++) {
+                ctx.lineTo(this.points[i].x, this.points[i].y);
+            }
+        }
+        ctx.stroke();
+
+        // Kreslení hlavy
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, CONFIG.snakeWidth/2 + 1, 0, Math.PI*2);
+        ctx.fill();
+    };
+
+    Snake.prototype.die = function() {
+        this.alive = false;
+        createExplosion(this.x, this.y, this.color, 30);
+        // Proměnit tělo na prach (částice)
+        // Optimalizace: negenerovat částice pro každý bod, jen vzorky
+        var step = Math.max(1, Math.floor(this.points.length / 20)); 
+        for(var i=0; i<this.points.length; i+=step) {
+            particles.push(new Particle(this.points[i].x, this.points[i].y, this.color, 2, 20, 'spark'));
+        }
+        checkGameOver();
+    };
+
+    // --- GAMEPLAY FUNKCE ---
+
+    function createExplosion(x, y, color, count) {
+        for (var i = 0; i < count; i++) {
+            particles.push(new Particle(x, y, color, randomRange(1, 5), randomRange(20, 40), 'explosion'));
+        }
+    }
+
+    function spawnApple() {
+        var r = Math.random();
+        var type = 'normal';
+        if (r < 0.05) type = 'gold';       // 5%
+        else if (r < 0.10) type = 'rotten';// 5%
+        else if (r < 0.15) type = 'blue';  // 5%
+        
+        // Zkontrolovat, zda už existují speciální jablka
+        if (type !== 'normal') {
+            for(var i=0; i<apples.length; i++) {
+                if (apples[i].type === type) {
+                    type = 'normal';
+                    break;
+                }
+            }
+        }
+        
+        apples.push(new Apple(type));
+    }
+
+    function ensureApples() {
+        var normalCount = 0;
+        for(var i=0; i<apples.length; i++) if (apples[i].type === 'normal') normalCount++;
+        
+        if (normalCount < 4) {
+            spawnApple();
+        }
+        if (apples.length < 7 && Math.random() < 0.02) {
+            spawnApple();
+        }
+    }
+
+    function checkCollisions() {
+        // 1. Grid pro optimalizaci segmentů hadů
+        var grid = {};
+        
+        function addToGrid(x, y, data) {
+            var key = Math.floor(x / CONFIG.gridSize) + "," + Math.floor(y / CONFIG.gridSize);
+            if (!grid[key]) grid[key] = [];
+            grid[key].push(data);
+        }
+
+        // Naplnit grid segmenty
+        players.forEach(function(p) {
+            if (!p.alive) return;
+            // Začneme od indexu 12, aby se hlava nesrazila s vlastním krkem při ostrých točkách
+            // Krok 4 pro lepší výkon (snížení počtu záznamů)
+            for (var i = 12; i < p.points.length; i += 4) { 
+                addToGrid(p.points[i].x, p.points[i].y, {pid: p.id, idx: i});
+            }
+        });
+
+        // 2. Kontrola kolizí
+        var playersToKill = [];
+
+        players.forEach(function(p) {
+            if (!p.alive) return;
+
+            // A) Hlava vs Jablko
+            for (var i = apples.length - 1; i >= 0; i--) {
+                var a = apples[i];
+                if (dist(p.x, p.y, a.x, a.y) < (CONFIG.snakeWidth + a.radius)) {
+                    createExplosion(a.x, a.y, a.color, 10);
+                    
+                    if (a.type === 'normal') {
+                        p.score += 1;
+                        p.targetLength += 20; 
+                    } else if (a.type === 'gold') {
+                        p.score *= 2;
+                        p.targetLength *= 2;
+                    } else if (a.type === 'rotten') {
+                        p.score = Math.floor(p.score / 2);
+                        p.targetLength = Math.max(10, Math.floor(p.targetLength / 2));
+                    } else if (a.type === 'blue') {
+                        p.targetLength = Math.max(10, Math.floor(p.targetLength / 2));
+                    }
+                    
+                    apples.splice(i, 1);
+                    updateScoreUI();
+                }
+            }
+
+            // B) Hlava vs Těla (přes grid)
+            var gx = Math.floor(p.x / CONFIG.gridSize);
+            var gy = Math.floor(p.y / CONFIG.gridSize);
+            
+            for (var dx = -1; dx <= 1; dx++) {
+                for (var dy = -1; dy <= 1; dy++) {
+                    var key = (gx+dx) + "," + (gy+dy);
+                    if (grid[key]) {
+                        var cell = grid[key];
+                        for (var k = 0; k < cell.length; k++) {
+                            var seg = cell[k];
+                            var otherP = players[seg.pid];
+                            var pt = otherP.points[seg.idx];
+                            
+                            // Kolize
+                            if (dist(p.x, p.y, pt.x, pt.y) < CONFIG.snakeWidth) {
+                                playersToKill.push(p.id);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // C) Hlava vs Hlava
+            players.forEach(function(other) {
+                if (p.id !== other.id && other.alive) {
+                    if (dist(p.x, p.y, other.x, other.y) < CONFIG.snakeWidth * 2) {
+                        playersToKill.push(p.id);
+                        playersToKill.push(other.id);
+                    }
+                }
+            });
+        });
+
+        var uniqueKills = playersToKill.filter(function(item, pos) {
+            return playersToKill.indexOf(item) == pos;
+        });
+        
+        uniqueKills.forEach(function(pid) {
+            if (players[pid].alive) players[pid].die();
+        });
+    }
+
+    function checkGameOver() {
+        var aliveCount = 0;
+        var winner = null;
+        players.forEach(function(p) {
+            if (p.alive) {
+                aliveCount++;
+                winner = p;
+            }
+        });
+
+        // Logika konce hry:
+        // Pokud hraje více lidí, končíme když zbyde 1.
+        // Pokud hraje 1 člověk (single), končíme když zemře (0).
+        var totalPlayers = players.length;
+        
+        if (totalPlayers > 1 && aliveCount <= 1) {
+            endGame(winner);
+        } else if (totalPlayers === 1 && aliveCount === 0) {
+            endGame(null);
+        }
+    }
+
+    function endGame(winner) {
+        if (gameState === 'gameover') return;
+        gameState = 'gameover';
+        
+        var screen = document.getElementById('gameOverScreen');
+        var txt = document.getElementById('winnerText');
+        screen.style.display = 'flex';
+        
+        if (winner) {
+            txt.innerHTML = "Vítěz: <span style='color:" + winner.color + "'>" + CONFIG.names[winner.id] + "</span> (" + winner.score + " bodů)";
+        } else {
+            txt.innerText = "Remíza / Konec";
+        }
+    }
+
+    function restartGame() {
+        players = [];
+        apples = [];
+        particles = [];
+        inputSources = {}; 
+        inputs = {};
+        
+        document.getElementById('gameOverScreen').style.display = 'none';
+        
+        for(var i=1; i<=4; i++) {
+            document.getElementById('p'+i+'Score').style.display = 'none';
+        }
+        
+        gameState = 'playing';
+        frameCount = 0;
+    }
+
+    function updateScoreUI() {
+        players.forEach(function(p) {
+            var el = document.getElementById('p' + (p.id + 1) + 'Score');
+            el.innerText = "P" + (p.id + 1) + ": " + p.score;
+            el.style.display = 'block';
+        });
+    }
+
+    // --- INPUT HANDLER ---
+    
+    function handleInput(sourceId, action, isPress) {
+        if (gameState === 'gameover') return;
+
+        // Auto-join
+        if (typeof inputSources[sourceId] === 'undefined') {
+            if (isPress && players.length < 4) {
+                var newId = players.length;
+                inputSources[sourceId] = newId;
+                players.push(new Snake(newId));
+                updateScoreUI();
+                inputs[newId] = { left: false, right: false };
+            } else {
+                return;
+            }
+        }
+
+        var playerId = inputSources[sourceId];
+        if (!players[playerId] || !players[playerId].alive) return;
+
+        if (inputs[playerId]) {
+            if (action === 'left') inputs[playerId].left = isPress;
+            if (action === 'right') inputs[playerId].right = isPress;
+        }
+    }
+
+    // Klávesnice
+    window.addEventListener('keydown', function(e) {
+        if (gameState === 'gameover' && e.key === 'Enter') restartGame();
+        
+        var code = e.code;
+        if (code === 'ArrowLeft') handleInput('KBD_ARROWS', 'left', true);
+        if (code === 'ArrowRight') handleInput('KBD_ARROWS', 'right', true);
+        if (code === 'KeyA') handleInput('KBD_WASD', 'left', true);
+        if (code === 'KeyD') handleInput('KBD_WASD', 'right', true);
+    });
+
+    window.addEventListener('keyup', function(e) {
+        var code = e.code;
+        if (code === 'ArrowLeft') handleInput('KBD_ARROWS', 'left', false);
+        if (code === 'ArrowRight') handleInput('KBD_ARROWS', 'right', false);
+        if (code === 'KeyA') handleInput('KBD_WASD', 'left', false);
+        if (code === 'KeyD') handleInput('KBD_WASD', 'right', false);
+    });
+
+    // Myš
+    window.addEventListener('mousedown', function(e) {
+        if (gameState === 'gameover') return;
+        e.preventDefault(); 
+        if (e.button === 0) handleInput('MOUSE', 'left', true);
+        if (e.button === 2) handleInput('MOUSE', 'right', true);
+    });
+    
+    window.addEventListener('mouseup', function(e) {
+        if (e.button === 0) handleInput('MOUSE', 'left', false);
+        if (e.button === 2) handleInput('MOUSE', 'right', false);
+    });
+    window.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+
+    // Dotyk - FIX: preventDefault pro zamezení scrollu
+    window.addEventListener('touchstart', function(e) {
+        if (gameState === 'gameover') {
+            if (e.target.tagName === 'BUTTON') return;
+            return;
+        }
+        e.preventDefault(); // Důležité pro mobilní hry
+        for (var i = 0; i < e.changedTouches.length; i++) {
+            var t = e.changedTouches[i];
+            var side = t.clientX < window.innerWidth / 2 ? 'left' : 'right';
+            handleInput('TOUCH', side, true);
+        }
+    }, {passive: false});
+
+    window.addEventListener('touchend', function(e) {
+        e.preventDefault(); 
+        var hasLeft = false;
+        var hasRight = false;
+        for (var i = 0; i < e.touches.length; i++) {
+            var t = e.touches[i];
+            if (t.clientX < window.innerWidth / 2) hasLeft = true;
+            else hasRight = true;
+        }
+        
+        var pid = inputSources['TOUCH'];
+        if (typeof pid !== 'undefined' && inputs[pid]) {
+            inputs[pid].left = hasLeft;
+            inputs[pid].right = hasRight;
+        }
+    });
+
+    // Gamepad Loop
+    function updateGamepads() {
+        var gps = navigator.getGamepads ? navigator.getGamepads() : [];
+        for (var i = 0; i < gps.length; i++) {
+            var gp = gps[i];
+            if (!gp) continue;
+            
+            var id = 'GP_' + gp.index;
+            
+            if (gameState === 'gameover') {
+                if (gp.buttons[0].pressed || gp.buttons[9].pressed) restartGame();
+                continue;
+            }
+
+            var axis = gp.axes[0]; 
+            var left = (axis < -0.5) || gp.buttons[14].pressed; 
+            var right = (axis > 0.5) || gp.buttons[15].pressed; 
+            
+            if (left || right) {
+                handleInput(id, 'left', left); 
+                handleInput(id, 'right', right);
+            } else {
+                if (typeof inputSources[id] !== 'undefined') {
+                    handleInput(id, 'left', false);
+                    handleInput(id, 'right', false);
+                }
+            }
+        }
+    }
+
+    // --- MAIN LOOP ---
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+    
+    document.getElementById('restartBtn').addEventListener('click', restartGame);
+    
+    setTimeout(function() {
+        var help = document.getElementById('helpPanel');
+        if (help) help.style.opacity = 0;
+    }, 30000);
+
+    function loop() {
+        requestAnimFrame(loop);
+        updateGamepads();
+
+        if (gameState === 'playing') {
+            players.forEach(function(p) {
+                p.update(inputs[p.id] || {left:false, right:false});
+            });
+            
+            checkCollisions();
+            ensureApples();
+            
+            particles.forEach(function(p, i) {
+                p.update();
+                if (p.life <= 0) particles.splice(i, 1);
+            });
+
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height); 
+            
+            // Grid
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for(var x=0; x<canvas.width; x+=CONFIG.gridSize) { ctx.moveTo(x,0); ctx.lineTo(x, canvas.height); }
+            for(var y=0; y<canvas.height; y+=CONFIG.gridSize) { ctx.moveTo(0,y); ctx.lineTo(canvas.width, y); }
+            ctx.stroke();
+
+            apples.forEach(function(a) { a.draw(ctx); });
+            players.forEach(function(p) { p.draw(ctx); });
+            particles.forEach(function(p) { p.draw(ctx); });
+            
+            frameCount++;
+        }
+    }
+
+    loop();
+
+})();
+</script>
+</body>
+</html>
