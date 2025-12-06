@@ -24,6 +24,7 @@
     - Úprava AI nepřátel: častější pohyb, bezpečnější spawn daleko od hráčů.
     - Opravy chyb: zasekávání generování mapy, pády hry v boss levelu, oprava kolizí.
     - Zachování trvalých bonusů (plameny, bomby) při přechodu do dalšího levelu.
+    - OPRAVA: Sebrání klíče nyní správně odemyká portál (spolu s podmínkou zabití nepřátel).
 -->
 <html lang="cs">
 <head>
@@ -278,7 +279,7 @@
         5: { name: "Hrad - 1. patro", bgColor: '#6c757d', enemyType: '👻', enemyName: "Duchové", enemyCount: 5, wallType: '🧱', destructibleWallType: '🛢️' },
         6: { name: "Hrad - 2. patro", bgColor: '#495057', enemyType: '👻', enemyName: "Duchové", enemyCount: 6, wallType: '🧱', destructibleWallType: '🛢️' },
         7: { name: "Hrad - 3. patro", bgColor: '#343a40', enemyType: '👻', enemyName: "Duchové", enemyCount: 7, wallType: '🧱', destructibleWallType: '🛢️' },
-        8: { name: "Aréna Krále Opic", bgColor: '#d32f2f', enemyType: '', enemyName: "Král Opic", enemyCount: 1, wallType: '🧱', destructibleWallType: '🛢️', isBossLevel: true },
+        8: { name: "Aréna Krále Opic", bgColor: '#d32f2f', enemyType: '', enemyName: "Král Opic", enemyCount: 2, wallType: '🧱', destructibleWallType: '🛢️', isBossLevel: true },
         9: { name: "Hrad - Trůnní sál", bgColor: '#212121', enemyCount: 0, isFinalLevel: true, goalTiles: [{x:3, y:3}, {x:13, y:3}, {x:3, y:9}, {x:13, y:9}] }
     };
 
@@ -361,14 +362,19 @@
              const portalStatus = document.createElement('div');
              portalStatus.className = 'player-info';
              let statusText = "";
-             if (gameState.keyFound) {
-                 statusText += `<span>Klíč: ✅ </span>`;
-                 statusText += `<span>Portál: 🌀 OTEVŘEN!</span>`;
-                 portalStatus.style.color = '#48bb78';
-                 portalStatus.style.fontWeight = 'bold';
+             
+             const enemiesDead = gameState.enemiesRemaining <= 0;
+             const keyFound = gameState.keyFound;
+
+             if (keyFound && enemiesDead) {
+                 statusText = `<span style="color: #48bb78; font-weight: bold;">Portál: 🌀 OTEVŘEN!</span>`;
              } else {
-                 statusText += `<span>Klíč: ❌</span>`;
-                 statusText += `<span>Portál: 🔒</span>`;
+                 statusText = `<span>Portál: 🔒 (`;
+                 let missing = [];
+                 if (!keyFound) missing.push("Klíč");
+                 if (!enemiesDead) missing.push("Nepřátelé");
+                 statusText += missing.join(" + ") + `)</span>`;
+                 if(keyFound) statusText = `<span>Klíč: ✅ </span>` + statusText;
                  portalStatus.style.color = '#e53e3e';
              }
              portalStatus.innerHTML = statusText;
@@ -418,7 +424,7 @@
                 for (let x = 1; x < COLS - 1; x++) {
                     const isStartArea = PLAYER_CONFIG.some(p => Math.abs(p.start.x - x) < 2 && Math.abs(p.start.y - y) < 2);
                     if (levelMap[y][x] === TILES.EMPTY && !isStartArea) {
-                        if(Math.random() > 0.25) { // Snížená hustota zdí (z 0.2 na 0.25 = 75% šance)
+                        if(Math.random() > 0.25) { // Snížená hustota zdí
                             levelMap[y][x] = TILES.DESTRUCTIBLE;
                             destructibleWalls.push({x, y});
                         }
@@ -486,13 +492,12 @@
                 let placed = false;
                 let attempts = 0;
                 
-                // Zkusíme najít místo. Pokud to trvá moc dlouho, snížíme nároky na vzdálenost.
+                // Zkusíme najít místo.
                 while (!placed && attempts < 50) {
                     attempts++;
                     const x = Math.floor(Math.random() * (COLS - 2)) + 1;
                     const y = Math.floor(Math.random() * (ROWS - 2)) + 1;
                     
-                    // Bezpečná vzdálenost (zmenšuje se s počtem pokusů)
                     let safeDistance = 9;
                     if (safetyBreak > 20) safeDistance = 6;
                     if (safetyBreak > 50) safeDistance = 3;
@@ -510,7 +515,7 @@
                 }
                 safetyBreak++;
             }
-            // Update skutečného počtu, kdyby se nepodařilo umístit všechny
+            // Update skutečného počtu
             gameState.enemiesRemaining = enemies.length;
         }
     }
@@ -521,15 +526,13 @@
         gameState.kingArrived = false;
         gameState.keyFound = false; // Reset klíče
         
-        // V boss levelu a posledním levelu je klíč automaticky "nalezen" (nebo se to řeší jinak)
+        // V boss levelu a posledním levelu je klíč automaticky "nalezen"
         if (levelDesigns[level].isBossLevel || levelDesigns[level].isFinalLevel) {
              gameState.keyFound = true; 
         }
 
         players.forEach(p => {
             p.x = p.start.x; p.y = p.start.y;
-            // Pozice v pixelech se nyní nastavuje dynamicky v draw/update podle TILE_SIZE,
-            // ale pro jistotu zde nastavíme základní hodnoty, které se hned přepočítají.
             p.px = p.x * TILE_SIZE + TILE_SIZE / 2;
             p.py = p.y * TILE_SIZE + TILE_SIZE / 2;
             p.isMoving = false;
@@ -542,9 +545,7 @@
             initializePuzzle();
         }
         
-        // Zavolat resize pro přepočítání pozic
         resizeGame();
-        
         updateInfoPanel();
     }
     
@@ -597,7 +598,6 @@
     function updatePositions() {
         const allEntities = [...players, ...enemies, boss, fighterJet].filter(e => e);
         allEntities.forEach(entity => {
-            // Zajistit, že pixelové souřadnice odpovídají aktuálnímu TILE_SIZE, pokud se nehýbe
             if (!entity.isMoving) {
                  entity.px = entity.x * TILE_SIZE + TILE_SIZE / 2;
                  entity.py = entity.y * TILE_SIZE + TILE_SIZE / 2;
@@ -609,8 +609,6 @@
             const dx = targetPX - entity.px;
             const dy = targetPY - entity.py;
             
-            // Rychlost pohybu musí být také závislá na TILE_SIZE, aby to na velkých displejích nebylo pomalé
-            // Základní rychlost 4 při TILE_SIZE 40 => poměr 0.1
             const currentSpeed = entity.speed * (TILE_SIZE / 40); 
 
             if (Math.abs(dx) < currentSpeed && Math.abs(dy) < currentSpeed) {
@@ -634,7 +632,7 @@
                 const directions = [{x:1, y:0}, {x:-1, y:0}, {x:0, y:1}, {x:0, y:-1}];
                 const dir = directions[Math.floor(Math.random() * directions.length)];
                 moveEntity(enemy, dir.x, dir.y);
-                enemy.moveCounter = Math.floor(Math.random() * 30) + 15; // Faster movement
+                enemy.moveCounter = Math.floor(Math.random() * 30) + 15;
             }
         });
     }
@@ -660,11 +658,11 @@
             const activePlayers = players.filter(p => p.isAlive);
             if (activePlayers.length > 0) {
                 const targetPlayer = activePlayers[Math.floor(Math.random() * activePlayers.length)];
-                if (Math.random() > 0.5) { // Laser
+                if (Math.random() > 0.5) { 
                     const isHorizontal = Math.random() > 0.5;
                     const line = isHorizontal ? targetPlayer.y : targetPlayer.x;
                     lasers.push({ isHorizontal, line, timer: 120, state: 'warning' });
-                } else { // Kokosová bomba
+                } else { 
                     bossProjectiles.push({ x: targetPlayer.x, y: targetPlayer.y, timer: 90, state: 'warning' });
                 }
             }
@@ -690,7 +688,6 @@
 
             for (const player of activePlayers) {
                 let pathIsClear = true;
-                // Vertical check
                 if (player.x === fighterJet.x) {
                     for (let y = Math.min(player.y, fighterJet.y) + 1; y < Math.max(player.y, fighterJet.y); y++) {
                         if (getTile(fighterJet.x, y) !== TILES.EMPTY) {
@@ -705,7 +702,6 @@
                         break;
                     }
                 }
-                // Horizontal check
                 if (player.y === fighterJet.y) {
                     for (let x = Math.min(player.x, fighterJet.x) + 1; x < Math.max(player.x, fighterJet.x); x++) {
                         if (getTile(x, fighterJet.y) !== TILES.EMPTY) {
@@ -802,13 +798,6 @@
 
                 if (tile === TILES.DESTRUCTIBLE) {
                     levelMap[ey][ex] = TILES.EMPTY;
-                    // Spawn bonus po zničení zdi s malou šancí nebo speciální pravidlo
-                    if (gameState.portal.x === ex && gameState.portal.y === ey) {
-                        // Portal revealed (visual only here, handled in draw)
-                    } else {
-                         // Pokud je na tomto místě klíč, tak se objeví. Pokud ne, tak možná bonus
-                         // (bonusy se generují v generateLevel a jsou už v poli powerUps na souřadnicích)
-                    }
                 } else if (tile === TILES.INDESTRUCTIBLE && isSpecial) {
                     if (ex > 0 && ex < COLS - 1 && ey > 0 && ey < ROWS - 1) {
                         levelMap[ey][ex] = TILES.EMPTY;
@@ -897,35 +886,46 @@
         players.forEach(p => {
              powerUps.forEach((powerUp, index) => {
                 if(getTile(powerUp.x, powerUp.y) === TILES.EMPTY && p.x === powerUp.x && p.y === powerUp.y) {
-                    switch(powerUp.type) {
-                        case 'range': p.bombRange++; break;
-                        case 'extra_bomb': p.bombsMax++; break;
-                        case 'walk_walls': p.canWalkThroughWalls = true; break;
-                        case 'walk_bombs': p.canWalkThroughBombs = true; break;
-                        case 'kick_bomb': p.canKickBomb = true; break;
-                        case 'speed': p.speed += 2; break;
-                        case 'extra_life': p.lives++; break;
-                        case 'wall_destroyer': p.specialBombs++; break;
+                    let collected = false;
+                    if (powerUp.type === 'key') {
+                        gameState.keyFound = true;
+                        collected = true;
+                    } else {
+                        switch(powerUp.type) {
+                            case 'range': p.bombRange++; collected = true; break;
+                            case 'extra_bomb': p.bombsMax++; collected = true; break;
+                            case 'walk_walls': p.canWalkThroughWalls = true; collected = true; break;
+                            case 'walk_bombs': p.canWalkThroughBombs = true; collected = true; break;
+                            case 'kick_bomb': p.canKickBomb = true; collected = true; break;
+                            case 'speed': p.speed += 2; collected = true; break;
+                            case 'extra_life': p.lives++; collected = true; break;
+                            case 'wall_destroyer': p.specialBombs++; collected = true; break;
+                            case 'invincibility': 
+                                p.isInvincible = true; 
+                                p.invincibilityTimer = 600;
+                                collected = true; 
+                                break;
+                        }
                     }
-                    powerUps.splice(index, 1);
-                    updateInfoPanel();
+                    if(collected) {
+                        powerUps.splice(index, 1);
+                        updateInfoPanel();
+                    }
                 }
             });
             
             // Check for Portal Entry
             if (!levelData.isFinalLevel && !levelData.isBossLevel) {
                  if (gameState.portal && p.x === gameState.portal.x && p.y === gameState.portal.y) {
-                     if (gameState.keyFound) {
+                     // Portal is open ONLY if key is found AND all enemies are dead
+                     if (gameState.keyFound && gameState.enemiesRemaining <= 0) {
                         levelComplete();
                      }
                  }
             } else if (levelData.isBossLevel && gameState.enemiesRemaining <= 0) {
-                 // V boss levelu stačí porazit bosse (klíč je automaticky)
                  levelComplete();
             }
         });
-
-        // Automatické dokončení bylo odstraněno dle požadavku.
 
         if (levelData.isFinalLevel && !gameState.isPaused) {
             const kingX = Math.floor(COLS / 2);
@@ -1014,7 +1014,8 @@
         
         // Draw Portal
         if (!levelData.isFinalLevel && !levelData.isBossLevel && gameState.portal.x !== -1 && levelMap[gameState.portal.y][gameState.portal.x] === TILES.EMPTY) {
-            if (gameState.keyFound) {
+             const canEnter = gameState.keyFound && gameState.enemiesRemaining <= 0;
+             if (canEnter) {
                  // Active
                  ctx.save();
                  const angle = Date.now() / 200;
@@ -1068,11 +1069,9 @@
         players.forEach(p => {
             if (p.isAlive) {
                 ctx.save();
-                // Blinking if recently hit or invincibility effect
                 if (p.isHit && Math.floor(p.hitTimer / 10) % 2 === 0) {
                      ctx.globalAlpha = 0.5;
                 } else if (p.isInvincible) {
-                     // Gold glow effect
                      ctx.shadowColor = 'gold';
                      ctx.shadowBlur = 10 + Math.sin(Date.now() / 100) * 5;
                 } else {
@@ -1377,98 +1376,6 @@
             }
         }
     });
-
-    // --- Puzzle logika ---
-    function initializePuzzle() {
-        puzzle.offsetX = Math.floor((COLS - puzzle.size) / 2);
-        puzzle.offsetY = Math.floor((ROWS - puzzle.size) / 2);
-        puzzle.grid = [];
-        puzzle.solvedGrid = [];
-        let count = 1;
-        for (let r = 0; r < puzzle.size; r++) {
-            puzzle.grid[r] = [];
-            puzzle.solvedGrid[r] = [];
-            for (let c = 0; c < puzzle.size; c++) {
-                const value = count % (puzzle.size * puzzle.size);
-                puzzle.grid[r][c] = value;
-                puzzle.solvedGrid[r][c] = value;
-                count++;
-            }
-        }
-        puzzle.emptyTile = { r: puzzle.size - 1, c: puzzle.size - 1 };
-        
-        // Shuffle puzzle
-        for (let i = 0; i < 100; i++) {
-            const moves = [];
-            if (puzzle.emptyTile.r > 0) moves.push({r: -1, c: 0});
-            if (puzzle.emptyTile.r < puzzle.size - 1) moves.push({r: 1, c: 0});
-            if (puzzle.emptyTile.c > 0) moves.push({r: 0, c: -1});
-            if (puzzle.emptyTile.c < puzzle.size - 1) moves.push({r: 0, c: 1});
-            const randomMove = moves[Math.floor(Math.random() * moves.length)];
-            const tileToMove = { r: puzzle.emptyTile.r + randomMove.r, c: puzzle.emptyTile.c + randomMove.c };
-            
-            [puzzle.grid[tileToMove.r][tileToMove.c], puzzle.grid[puzzle.emptyTile.r][puzzle.emptyTile.c]] = 
-            [puzzle.grid[puzzle.emptyTile.r][puzzle.emptyTile.c], puzzle.grid[tileToMove.r][tileToMove.c]];
-            
-            puzzle.emptyTile = tileToMove;
-        }
-    }
-
-    function tryMovePuzzlePiece(player, dx, dy) {
-        const targetX = player.x + dx;
-        const targetY = player.y + dy;
-
-        // Check if target is within puzzle area
-        if (targetX >= puzzle.offsetX && targetX < puzzle.offsetX + puzzle.size &&
-            targetY >= puzzle.offsetY && targetY < puzzle.offsetY + puzzle.size) {
-            
-            const puzzleC = targetX - puzzle.offsetX;
-            const puzzleR = targetY - puzzle.offsetY;
-
-            // Check if player is pushing towards the empty tile
-            if (puzzle.emptyTile.r === puzzleR + dy && puzzle.emptyTile.c === puzzleC + dx) {
-                [puzzle.grid[puzzleR][puzzleC], puzzle.grid[puzzle.emptyTile.r][puzzle.emptyTile.c]] = 
-                [puzzle.grid[puzzle.emptyTile.r][puzzle.emptyTile.c], puzzle.grid[puzzleR][puzzleC]];
-                
-                puzzle.emptyTile = { r: puzzleR, c: puzzleC };
-                moveEntity(player, dx, dy);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    function checkPuzzleSolved() {
-        for (let r = 0; r < puzzle.size; r++) {
-            for (let c = 0; c < puzzle.size; c++) {
-                if (puzzle.grid[r][c] !== puzzle.solvedGrid[r][c]) return false;
-            }
-        }
-        return true;
-    }
-
-    function drawPuzzle() {
-        ctx.save();
-        ctx.font = `${TILE_SIZE}px sans-serif`;
-        for (let r = 0; r < puzzle.size; r++) {
-            for (let c = 0; c < puzzle.size; c++) {
-                const tileValue = puzzle.grid[r][c];
-                if (tileValue === 0) continue;
-                
-                const x = (puzzle.offsetX + c) * TILE_SIZE;
-                const y = (puzzle.offsetY + r) * TILE_SIZE;
-                
-                ctx.fillStyle = '#4a5568';
-                ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
-                ctx.strokeStyle = '#2d3748';
-                ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
-                
-                ctx.fillStyle = '#f7b733';
-                ctx.fillText(tileValue, x + TILE_SIZE / 2, y + TILE_SIZE / 2);
-            }
-        }
-        ctx.restore();
-    }
 
 
     // --- Spuštění hry ---
