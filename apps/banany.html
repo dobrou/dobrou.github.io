@@ -28,6 +28,11 @@
     - Oprav chybu v puzzle levelu, která způsobovala zamrznutí.
     - Přidej "splash" efekt pro speciální bomby.
     - Oprav puzzle level odstraněním zdí a sniž počet zničitelných zdí v ostatních levelech.
+    - Přidej mechaniku klíče pro odemčení portálu.
+    - Zvyš počet bonusů a pravděpodobnost výskytu bomb a plamínků.
+    - Ujisti se, že bonusy bomb a plamínků zůstávají mezi levely.
+    - Maximalizuj herní plochu, zmenši nadpis a dej ho do řádku s infopanelem, odstraň zbytečné okraje.
+    - Oprav chybu ReferenceError: updateProjectiles is not defined.
 -->
 <html lang="cs">
 <head>
@@ -49,7 +54,7 @@
             background-color: #1a202c;
             color: #f7fafc;
             display: flex;
-            flex-direction: column; /* Uspořádat prvky pod sebe */
+            flex-direction: column;
             justify-content: center;
             align-items: center;
         }
@@ -57,11 +62,22 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 1rem;
+            gap: 0.5rem; /* Menší mezera */
             width: 100%;
             height: 100%;
-            padding: 1rem;
+            padding: 0.5rem; /* Menší padding */
             box-sizing: border-box;
+        }
+        .header-row {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-shrink: 0;
+            background-color: #2d3748;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
         }
         .canvas-wrapper {
             flex-grow: 1; /* Nechat plátno zabrat co nejvíce místa */
@@ -84,26 +100,21 @@
         }
         .info-panel {
             display: flex;
-            justify-content: space-around;
+            justify-content: flex-end; /* Zarovnat doprava */
             align-items: center;
             flex-wrap: wrap;
-            gap: 1rem;
-            width: 100%;
-            max-width: 1200px; /* Omezit šířku panelu */
-            min-height: 40px;
-            font-size: 0.8rem; /* Zmenšené písmo pro více informací */
-            padding: 0.5rem;
-            background-color: #2d3748;
-            border-radius: 0.5rem;
-            flex-shrink: 0; /* Panel se nebude zmenšovat */
+            gap: 0.5rem;
+            flex-grow: 1;
+            font-size: 0.7rem; /* Ještě menší písmo pro úsporu místa */
         }
         .player-info {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.3rem;
             background-color: #4a5568;
-            padding: 0.25rem 0.5rem;
+            padding: 0.2rem 0.4rem;
             border-radius: 0.25rem;
+            white-space: nowrap;
         }
         .modal {
             display: none; /* Skryto defaultně */
@@ -163,8 +174,10 @@
 <body>
 
 <div class="game-container">
-    <h1 class="text-3xl text-yellow-400 flex-shrink-0">Útěk banánů</h1>
-    <div id="infoPanel" class="info-panel"></div>
+    <div class="header-row">
+        <h1 class="text-sm md:text-base text-yellow-400 m-0 whitespace-nowrap">Útěk banánů</h1>
+        <div id="infoPanel" class="info-panel"></div>
+    </div>
     <div class="canvas-wrapper">
         <canvas id="gameCanvas"></canvas>
     </div>
@@ -194,7 +207,17 @@
     let players = [];
     let boss = null;
     let fighterJet = null;
-    let gameState = { currentLevel: 1, enemiesRemaining: 0, isPaused: false, killCount: 0, gameActive: false, inputCooldown: 0, kingArrived: false };
+    let gameState = { 
+        currentLevel: 1, 
+        enemiesRemaining: 0, 
+        isPaused: false, 
+        killCount: 0, 
+        gameActive: false, 
+        inputCooldown: 0, 
+        kingArrived: false,
+        portal: { x: -1, y: -1 },
+        keyFound: false
+    };
     let puzzle = { grid: [], solvedGrid: [], emptyTile: {x:0, y:0}, size: 3, offsetX: 0, offsetY: 0 };
 
     const PLAYER_CONFIG = [
@@ -207,11 +230,26 @@
     let cheatBuffer = "";
     
     const powerUpTypes = {
-        range: { symbol: '🔥' }, extra_bomb: { symbol: '💣' }, walk_walls: { symbol: '💨' },
-        walk_bombs: { symbol: '🛡️' }, kick_bomb: { symbol: '👟' }, speed: { symbol: '🏃'},
-        extra_life: { symbol: '❤️' }, wall_destroyer: { symbol: '💥' }
+        range: { symbol: '🔥', weight: 4 }, // Vyšší váha pro častější výskyt
+        extra_bomb: { symbol: '💣', weight: 4 },
+        walk_walls: { symbol: '💨', weight: 1 },
+        walk_bombs: { symbol: '🛡️', weight: 1 },
+        kick_bomb: { symbol: '👟', weight: 1 },
+        speed: { symbol: '🏃', weight: 1},
+        extra_life: { symbol: '❤️', weight: 0.5 },
+        wall_destroyer: { symbol: '💥', weight: 1 },
+        key: { symbol: '🔑', weight: 0 } // Klíč se generuje zvlášť
     };
-    const allPowerUpTypes = Object.keys(powerUpTypes);
+    // Vytvoříme pole klíčů s váženou pravděpodobností
+    const weightedPowerUps = [];
+    Object.keys(powerUpTypes).forEach(key => {
+        if (key !== 'key') {
+            for(let i=0; i<powerUpTypes[key].weight * 2; i++) {
+                weightedPowerUps.push(key);
+            }
+        }
+    });
+
     const levelDesigns = {
         1: { name: "Džungle I", bgColor: '#4CAF50', enemyType: '🐵', enemyName: "Opice", enemyCount: 3, wallType: '🌳', destructibleWallType: '🌿' },
         2: { name: "Džungle II", bgColor: '#388E3C', enemyType: '🐍', enemyName: "Hadi", enemyCount: 4, wallType: '🌳', destructibleWallType: '🌿' },
@@ -221,7 +259,7 @@
         6: { name: "Hrad - 2. patro", bgColor: '#495057', enemyType: '👻', enemyName: "Duchové", enemyCount: 6, wallType: '🧱', destructibleWallType: '🛢️' },
         7: { name: "Hrad - 3. patro", bgColor: '#343a40', enemyType: '👻', enemyName: "Duchové", enemyCount: 7, wallType: '🧱', destructibleWallType: '🛢️' },
         8: { name: "Aréna Krále Opic", bgColor: '#d32f2f', enemyType: '', enemyName: "Král Opic", enemyCount: 2, wallType: '🧱', destructibleWallType: '🛢️', isBossLevel: true },
-        9: { name: "Hrad - Trůnní sál", bgColor: '#212121', enemyCount: 0, isFinalLevel: true }
+        9: { name: "Hrad - Trůnní sál", bgColor: '#212121', enemyCount: 0, isFinalLevel: true, goalTiles: [{x:3, y:3}, {x:13, y:3}, {x:3, y:9}, {x:13, y:9}] }
     };
 
     function createEntity(config) {
@@ -293,6 +331,26 @@
         const infoPanel = document.getElementById('infoPanel');
         infoPanel.innerHTML = '';
         if (!gameState.gameActive) return;
+        
+        // Zobrazení stavu portálu a klíče
+        if (!levelDesigns[gameState.currentLevel].isFinalLevel) {
+             const portalStatus = document.createElement('div');
+             portalStatus.className = 'player-info';
+             let statusText = "";
+             if (gameState.keyFound) {
+                 statusText += `<span>Klíč: ✅ </span>`;
+                 statusText += `<span>Portál: 🌀 OTEVŘEN!</span>`;
+                 portalStatus.style.color = '#48bb78';
+                 portalStatus.style.fontWeight = 'bold';
+             } else {
+                 statusText += `<span>Klíč: ❌</span>`;
+                 statusText += `<span>Portál: 🔒</span>`;
+                 portalStatus.style.color = '#e53e3e';
+             }
+             portalStatus.innerHTML = statusText;
+             infoPanel.appendChild(portalStatus);
+        }
+
         players.forEach((p, i) => {
             const playerDiv = document.createElement('div');
             playerDiv.className = 'player-info';
@@ -323,48 +381,53 @@
     // --- Generování levelu ---
     function generateLevel() {
         levelMap = Array.from({ length: ROWS }, () => Array(COLS).fill(TILES.EMPTY));
-        
-        // Vnější zdi
-        for (let y = 0; y < ROWS; y++) {
-            for (let x = 0; x < COLS; x++) {
-                if (y === 0 || y === ROWS - 1 || x === 0 || x === COLS - 1) {
-                    levelMap[y][x] = TILES.INDESTRUCTIBLE;
-                }
-            }
-        }
-
-        const levelData = levelDesigns[gameState.currentLevel];
-        if (levelData.isFinalLevel) return; // Pro puzzle level necháme jen okraj
-
-        // Vnitřní pevné zdi
-        for (let y = 2; y < ROWS - 1; y += 2) {
-            for (let x = 2; x < COLS - 1; x += 2) {
+        for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+            if (y === 0 || y === ROWS - 1 || x === 0 || x === COLS - 1 || (y % 2 === 0 && x % 2 === 0)) {
                 levelMap[y][x] = TILES.INDESTRUCTIBLE;
             }
         }
-
         let destructibleWalls = [];
-        if (!levelData.isBossLevel) {
+        const levelData = levelDesigns[gameState.currentLevel];
+        if (!levelData.isBossLevel && !levelData.isFinalLevel) {
             for (let y = 1; y < ROWS - 1; y++) {
                 for (let x = 1; x < COLS - 1; x++) {
-                    if (levelMap[y][x] === TILES.EMPTY) {
-                        const isStartArea = PLAYER_CONFIG.some(p => Math.abs(p.start.x - x) < 3 && Math.abs(p.start.y - y) < 3);
-                        if (isStartArea) continue;
-
-                        if (Math.random() > 0.3) { // Méně zdí
+                    const isStartArea = PLAYER_CONFIG.some(p => Math.abs(p.start.x - x) < 2 && Math.abs(p.start.y - y) < 2);
+                    if (levelMap[y][x] === TILES.EMPTY && !isStartArea) {
+                        if(Math.random() > 0.2) {
                             levelMap[y][x] = TILES.DESTRUCTIBLE;
                             destructibleWalls.push({x, y});
                         }
                     }
                 }
             }
-            const numPowerUps = Math.min(4, destructibleWalls.length);
+            
+            // Umístění portálu a klíče
+            gameState.portal = { x: -1, y: -1 };
+            if (destructibleWalls.length >= 2) {
+                 // Portál
+                 let idx = Math.floor(Math.random() * destructibleWalls.length);
+                 gameState.portal = destructibleWalls[idx];
+                 destructibleWalls.splice(idx, 1);
+                 
+                 // Klíč
+                 idx = Math.floor(Math.random() * destructibleWalls.length);
+                 const keyPos = destructibleWalls[idx];
+                 powerUps.push({x: keyPos.x, y: keyPos.y, type: 'key', symbol: powerUpTypes['key'].symbol});
+                 destructibleWalls.splice(idx, 1);
+            }
+
+            // Více bonusů: 6 až 10 bonusů na level
+            const numPowerUps = Math.min(Math.floor(Math.random() * 5) + 6, destructibleWalls.length);
             for(let i = 0; i < numPowerUps; i++) {
-                const powerUpKey = allPowerUpTypes[Math.floor(Math.random() * allPowerUpTypes.length)];
+                const powerUpKey = weightedPowerUps[Math.floor(Math.random() * weightedPowerUps.length)];
                 const wallIndex = Math.floor(Math.random() * destructibleWalls.length);
                 const wall = destructibleWalls.splice(wallIndex, 1)[0];
                 powerUps.push({x: wall.x, y: wall.y, type: powerUpKey, symbol: powerUpTypes[powerUpKey].symbol});
             }
+        } else if (levelData.isBossLevel) {
+             // Pro boss level portál uprostřed
+             gameState.portal = { x: Math.floor(COLS/2), y: Math.floor(ROWS/2) };
+             // Klíč se objeví po smrti bosse
         }
     }
 
@@ -414,6 +477,13 @@
         gameState.isPaused = false;
         gameState.currentLevel = level;
         gameState.kingArrived = false;
+        gameState.keyFound = false; // Reset klíče
+        
+        // V boss levelu a posledním levelu je klíč automaticky "nalezen" (nebo se to řeší jinak)
+        if (levelDesigns[level].isBossLevel || levelDesigns[level].isFinalLevel) {
+             gameState.keyFound = true; 
+        }
+
         players.forEach(p => {
             p.x = p.start.x; p.y = p.start.y;
             p.px = p.x * TILE_SIZE + TILE_SIZE / 2;
@@ -650,10 +720,17 @@
 
                 if (tile === TILES.DESTRUCTIBLE) {
                     levelMap[ey][ex] = TILES.EMPTY;
+                    // Spawn bonus po zničení zdi s malou šancí nebo speciální pravidlo
+                    if (gameState.portal.x === ex && gameState.portal.y === ey) {
+                        // Portal revealed (visual only here, handled in draw)
+                    } else {
+                         // Pokud je na tomto místě klíč, tak se objeví. Pokud ne, tak možná bonus
+                         // (bonusy se generují v generateLevel a jsou už v poli powerUps na souřadnicích)
+                    }
                 } else if (tile === TILES.INDESTRUCTIBLE && isSpecial) {
                     if (ex > 0 && ex < COLS - 1 && ey > 0 && ey < ROWS - 1) {
                         levelMap[ey][ex] = TILES.EMPTY;
-                        const powerUpKey = allPowerUpTypes[Math.floor(Math.random() * allPowerUpTypes.length)];
+                        const powerUpKey = weightedPowerUps[Math.floor(Math.random() * weightedPowerUps.length)];
                         powerUps.push({x: ex, y: ey, type: powerUpKey, symbol: powerUpTypes[powerUpKey].symbol});
                     }
                 }
@@ -750,6 +827,18 @@
                     updateInfoPanel();
                 }
             });
+            
+            // Check for Portal Entry
+            if (!levelData.isFinalLevel && !levelData.isBossLevel) {
+                 if (gameState.portal && p.x === gameState.portal.x && p.y === gameState.portal.y) {
+                     if (gameState.keyFound) {
+                        levelComplete();
+                     }
+                 }
+            } else if (levelData.isBossLevel && gameState.enemiesRemaining <= 0) {
+                 // V boss levelu stačí porazit bosse (klíč je automaticky)
+                 levelComplete();
+            }
         });
 
         if (gameState.gameActive && gameState.enemiesRemaining <= 0 && !levelData.isFinalLevel) {
@@ -841,6 +930,26 @@
             return;
         }
         
+        // Draw Portal
+        if (!levelData.isFinalLevel && !levelData.isBossLevel && gameState.portal.x !== -1 && levelMap[gameState.portal.y][gameState.portal.x] === TILES.EMPTY) {
+            if (gameState.keyFound) {
+                 // Active
+                 ctx.save();
+                 const angle = Date.now() / 200;
+                 ctx.translate(gameState.portal.x * TILE_SIZE + TILE_SIZE / 2, gameState.portal.y * TILE_SIZE + TILE_SIZE / 2);
+                 ctx.rotate(angle);
+                 ctx.font = `${TILE_SIZE}px sans-serif`;
+                 ctx.fillText('🌀', 0, 0);
+                 ctx.restore();
+            } else {
+                 // Inactive
+                 ctx.font = `${TILE_SIZE * 0.8}px sans-serif`;
+                 ctx.filter = 'grayscale(100%)';
+                 ctx.fillText('🔒', gameState.portal.x * TILE_SIZE + TILE_SIZE / 2, gameState.portal.y * TILE_SIZE + TILE_SIZE / 2);
+                 ctx.filter = 'none';
+            }
+        }
+        
         if (levelData.isFinalLevel && !gameState.kingArrived) {
             drawPuzzle();
         }
@@ -901,6 +1010,20 @@
             ctx.font = `${TILE_SIZE * 2}px sans-serif`;
             ctx.fillText('👑', canvas.width / 2, TILE_SIZE * 2);
         }
+    }
+
+    function drawLasers() {
+        lasers.forEach(l => {
+            if (l.state === 'warning') {
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+                if (l.isHorizontal) ctx.fillRect(0, l.line * TILE_SIZE, canvas.width, TILE_SIZE);
+                else ctx.fillRect(l.line * TILE_SIZE, 0, TILE_SIZE, canvas.height);
+            } else if (l.state === 'firing') {
+                ctx.fillStyle = 'red';
+                if (l.isHorizontal) ctx.fillRect(0, l.line * TILE_SIZE, canvas.width, TILE_SIZE);
+                else ctx.fillRect(l.line * TILE_SIZE, 0, TILE_SIZE, canvas.height);
+            }
+        });
     }
 
     function drawBossProjectiles() {
