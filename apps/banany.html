@@ -1,43 +1,34 @@
 <!DOCTYPE html>
 <!--
     Popis programu:
-    Útěk banánů je arkádová hra pro 1-4 hráče inspirovaná klasikou Bomberman. Hráči procházejí různými levely (džungle, hory, hrad), bojují s příšerkami a sbírají bonusy. Cílem je porazit finálního bosse a dojít za králem banánů. Hra podporuje klávesnici, gamepady a dotykové ovládání s dynamickým připojením hráčů.
+    Útěk banánů je arkádová hra pro 1-4 hráče inspirovaná klasikou Bomberman. Hráči ovládají ovocné/zeleninové postavičky, procházejí různými prostředími (džungle, hory, hrad), bojují s nepřáteli a sbírají bonusy. Cílem je přežít, porazit finálního bosse a v trůnním sále složit puzzle pro osvobození krále banánů. Hra podporuje klávesnici, gamepady a dotykové ovládání s dynamickým připojením hráčů.
 
-    Historie příkazů:
-    - Vytvoř hru, kde jsi banán, kladeš bomby, honí tě opice v bludišti.
-    - Přidej levely: hory s rampouchy a hrad s duchy a králem banánů.
-    - Přidej superschopnosti: kopání do bomby, více bomb, větší plamen, procházení zdí a bombami.
-    - Oprav postup do dalšího levelu a přidej všechny levely.
-    - Přidej podporu gamepadu, 3 životy (nový za 18 zabití), řetězové reakce bomb, hezčí výbuchy, ať příšerky neprochází bombou, a 2 bonusy na level včetně kopání.
-    - Oprav podporu gamepadu a přidej hru pro více hráčů.
-    - Oprav ovládání šipkami a přidej dynamické připojování hráčů podle použitého ovladače.
-    - Změň postavy na banány různých barev.
-    - Zruš barvy, použij různé ovoce/zeleninu (banán, okurka, mrkev, lilek).
-    - Změň počítadlo životů na obrázky a zvětši herní plochu.
-    - Oprav posouvání obrazovky a připojování druhého gamepadu.
-    - Umožni potvrzovat dialogy akční klávesou.
-    - Přidej více levelů do džungle a hor, hratelný trůnní sál a finálního bosse (Krále opic) s lasery.
-    - Přidej cheaty pro skok do levelu (LEVEL#) a plynulý pohyb postav.
-    - Oprav pohyb nepřátel a vrať původní grafiku džungle.
-    - Vylepši finálního bosse (bez laserů, přidání stíhačky s lasery) a trůnní sál (aktivace run).
-    - Změň bonus ničení zdí na speciální bombu aktivovanou dvojklikem a zrychli nepřátele.
-    - Hráč po smrti ztratí dočasné bonusy, přidej grafický ukazatel speciálních bomb.
-    - Oprav chybu v posledním levelu a pád hry při ničení zdí.
-    - Zpomal stíhačku a oprav pád hry v boss levelu.
-    - Změň úkol v posledním levelu na posuvné puzzle.
-    - Oprav chybu v puzzle levelu, která způsobovala zamrznutí.
-    - Přidej "splash" efekt pro speciální bomby.
-    - Oprav puzzle level odstraněním zdí a sniž počet zničitelných zdí v ostatních levelech.
-    - Přidej mechaniku klíče pro odemčení portálu.
-    - Zvyš počet bonusů a pravděpodobnost výskytu bomb a plamínků.
-    - Ujisti se, že bonusy bomb a plamínků zůstávají mezi levely.
-    - Maximalizuj herní plochu, zmenši nadpis a dej ho do řádku s infopanelem, odstraň zbytečné okraje.
-    - Oprav chybu ReferenceError: updateProjectiles is not defined.
+    Historie příkazů a úprav:
+    - Vytvoření základního enginu hry: pohyb v mřížce, kladení bomb, ničení zdí.
+    - Implementace základních levelů (Džungle, Hory, Hrad) a nepřátel.
+    - Přidání superschopností a bonusů (dosah plamene, počet bomb, kopání, procházení zdí).
+    - Implementace systému životů a restartování levelu po smrti.
+    - Přidání podpory pro Gamepady a dotykové ovládání na mobilních zařízeních.
+    - Rozšíření pro více hráčů (Local Multiplayer 1-4 hráči).
+    - Vizuální rozlišení hráčů (Banán, Okurka, Mrkev, Lilek).
+    - Přepracování UI: grafické ukazatele životů a bonusů, odstranění textových čísel.
+    - Optimalizace zobrazení: maximalizace herní plochy, odstranění okrajů a scrollování.
+    - Úprava ovládání dialogů: potvrzování akčním tlačítkem (mezerník/A).
+    - Rozšíření obsahu: více pater pro každé prostředí.
+    - Přidání finálního bosse (Král Opic) a nepřátelské stíhačky s lasery.
+    - Implementace "Boss Fight" mechanik: boss má životy, stíhačka střílí jen při přímém výhledu.
+    - Přidání logického úkolu do posledního levelu: posuvné puzzle s obrazem krále.
+    - Implementace mechaniky "Klíč a Portál": pro postup je nutné najít klíč a dojít k portálu.
+    - Přidání "Speciální bomby" (aktivace dvojstiskem/dvojklikem), která ničí i pevné zdi a má "splash" efekt.
+    - Přidání bonusu Nesmrtelnost (Hvězda) na 10 sekund.
+    - Úprava AI nepřátel: častější pohyb, bezpečnější spawn daleko od hráčů.
+    - Opravy chyb: zasekávání generování mapy, pády hry v boss levelu, oprava kolizí.
+    - Zachování trvalých bonusů (plameny, bomby) při přechodu do dalšího levelu.
 -->
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Útěk banánů</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -46,7 +37,9 @@
     <style>
         html, body {
             height: 100%;
+            width: 100%;
             margin: 0;
+            padding: 0;
             overflow: hidden; /* Zamezit jakémukoliv scrollování */
         }
         body {
@@ -55,17 +48,16 @@
             color: #f7fafc;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-start; /* Zarovnat nahoru */
             align-items: center;
         }
         .game-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 0.5rem; /* Menší mezera */
             width: 100%;
             height: 100%;
-            padding: 0.5rem; /* Menší padding */
+            padding: 4px; /* Minimální padding */
             box-sizing: border-box;
         }
         .header-row {
@@ -76,48 +68,48 @@
             gap: 1rem;
             flex-shrink: 0;
             background-color: #2d3748;
-            padding: 0.5rem;
-            border-radius: 0.5rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            min-height: 40px;
         }
         .canvas-wrapper {
-            flex-grow: 1; /* Nechat plátno zabrat co nejvíce místa */
+            flex-grow: 1;
             width: 100%;
             position: relative;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 0; /* Důležité pro flexbox v některých prohlížečích */
+            overflow: hidden;
+            margin-top: 4px;
         }
         canvas {
-            border-radius: 0.5rem;
+            border-radius: 0.25rem;
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
             image-rendering: pixelated;
-            image-rendering: -moz-crisp-edges;
-            image-rendering: crisp-edges;
-            max-width: 100%;   /* Udržet v kontejneru */
-            max-height: 100%;  /* Udržet v kontejneru */
-            object-fit: contain; /* Zachovat poměr stran */
+            /* Canvas size is set by JS now */
         }
         .info-panel {
             display: flex;
-            justify-content: flex-end; /* Zarovnat doprava */
+            justify-content: flex-end;
             align-items: center;
-            flex-wrap: wrap;
+            flex-wrap: nowrap; /* Zabraň zalomení */
             gap: 0.5rem;
             flex-grow: 1;
-            font-size: 0.7rem; /* Ještě menší písmo pro úsporu místa */
+            font-size: 0.6rem; /* Kompaktní písmo */
+            overflow-x: auto; /* Povolit horizontální scroll v panelu, kdyby bylo moc hráčů */
+            scrollbar-width: none; /* Skrýt scrollbar */
         }
         .player-info {
             display: flex;
             align-items: center;
-            gap: 0.3rem;
+            gap: 0.2rem;
             background-color: #4a5568;
-            padding: 0.2rem 0.4rem;
+            padding: 0.2rem 0.3rem;
             border-radius: 0.25rem;
             white-space: nowrap;
         }
         .modal {
-            display: none; /* Skryto defaultně */
+            display: none;
             position: fixed;
             z-index: 100;
             left: 0;
@@ -139,12 +131,12 @@
             width: 500px;
         }
         .modal-content h2 {
-            font-size: 1.75rem;
-            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
             color: #f7b733;
         }
         .modal-content p {
-            font-size: 1rem;
+            font-size: 0.9rem;
             line-height: 1.5;
             margin-bottom: 1.5rem;
         }
@@ -174,8 +166,8 @@
 <body>
 
 <div class="game-container">
-    <div class="header-row">
-        <h1 class="text-sm md:text-base text-yellow-400 m-0 whitespace-nowrap">Útěk banánů</h1>
+    <div id="headerRow" class="header-row">
+        <h1 class="text-xs md:text-sm text-yellow-400 m-0 whitespace-nowrap">Útěk banánů</h1>
         <div id="infoPanel" class="info-panel"></div>
     </div>
     <div class="canvas-wrapper">
@@ -195,11 +187,38 @@
     // --- Nastavení hry ---
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const TILE_SIZE = 40;
+    
+    // TILE_SIZE je nyní dynamická proměnná
+    let TILE_SIZE = 40;
     const COLS = 17;
     const ROWS = 13;
-    canvas.width = COLS * TILE_SIZE;
-    canvas.height = ROWS * TILE_SIZE;
+
+    function resizeGame() {
+        const header = document.getElementById('headerRow');
+        const containerPadding = 8; // 4px padding top/bottom from .game-container
+        
+        const availableWidth = window.innerWidth - containerPadding;
+        const availableHeight = window.innerHeight - header.offsetHeight - containerPadding;
+        
+        // Vypočítat maximální velikost dlaždice, aby se vešla celá mřížka
+        const maxTileWidth = Math.floor(availableWidth / COLS);
+        const maxTileHeight = Math.floor(availableHeight / ROWS);
+        
+        TILE_SIZE = Math.min(maxTileWidth, maxTileHeight);
+        
+        // Nastavit velikost plátna
+        canvas.width = COLS * TILE_SIZE;
+        canvas.height = ROWS * TILE_SIZE;
+        
+        // Překreslit, pokud hra běží
+        if (gameState && !gameState.isPaused) {
+            draw();
+        } else if (gameState && gameState.isPaused) {
+            draw(); // Překreslit i při pauze (pro zobrazení pozadí)
+        }
+    }
+
+    window.addEventListener('resize', resizeGame);
 
     // --- Herní stavy a objekty ---
     const TILES = { EMPTY: 0, INDESTRUCTIBLE: 1, DESTRUCTIBLE: 2 };
@@ -238,7 +257,8 @@
         speed: { symbol: '🏃', weight: 1},
         extra_life: { symbol: '❤️', weight: 0.5 },
         wall_destroyer: { symbol: '💥', weight: 1 },
-        key: { symbol: '🔑', weight: 0 } // Klíč se generuje zvlášť
+        key: { symbol: '🔑', weight: 0 }, // Klíč se generuje zvlášť
+        invincibility: { symbol: '⭐', weight: 0.5 } // Vzácná nesmrtelnost
     };
     // Vytvoříme pole klíčů s váženou pravděpodobností
     const weightedPowerUps = [];
@@ -258,7 +278,7 @@
         5: { name: "Hrad - 1. patro", bgColor: '#6c757d', enemyType: '👻', enemyName: "Duchové", enemyCount: 5, wallType: '🧱', destructibleWallType: '🛢️' },
         6: { name: "Hrad - 2. patro", bgColor: '#495057', enemyType: '👻', enemyName: "Duchové", enemyCount: 6, wallType: '🧱', destructibleWallType: '🛢️' },
         7: { name: "Hrad - 3. patro", bgColor: '#343a40', enemyType: '👻', enemyName: "Duchové", enemyCount: 7, wallType: '🧱', destructibleWallType: '🛢️' },
-        8: { name: "Aréna Krále Opic", bgColor: '#d32f2f', enemyType: '', enemyName: "Král Opic", enemyCount: 2, wallType: '🧱', destructibleWallType: '🛢️', isBossLevel: true },
+        8: { name: "Aréna Krále Opic", bgColor: '#d32f2f', enemyType: '', enemyName: "Král Opic", enemyCount: 1, wallType: '🧱', destructibleWallType: '🛢️', isBossLevel: true },
         9: { name: "Hrad - Trůnní sál", bgColor: '#212121', enemyCount: 0, isFinalLevel: true, goalTiles: [{x:3, y:3}, {x:13, y:3}, {x:3, y:9}, {x:13, y:9}] }
     };
 
@@ -292,6 +312,8 @@
         player.lastBombTime = 0;
         player.lastBombX = -1;
         player.lastBombY = -1;
+        player.isInvincible = false;
+        player.invincibilityTimer = 0;
         return player;
     }
     
@@ -302,6 +324,8 @@
         player.canDestroyWalls = false;
         player.specialBombs = 0;
         player.speed = 4;
+        player.isInvincible = false;
+        player.invincibilityTimer = 0;
     }
 
     // --- Pomocné a UI funkce ---
@@ -365,6 +389,7 @@
             if (p.speed > 4) powerUpsHTML += `<span class="ml-2">${powerUpTypes.speed.symbol}</span>`;
             if (p.canDestroyWalls) powerUpsHTML += `<span class="ml-2">${powerUpTypes.wall_destroyer.symbol}</span>`;
             if (p.specialBombs > 0) powerUpsHTML += `<span class="ml-2">${powerUpTypes.wall_destroyer.symbol.repeat(p.specialBombs)}</span>`;
+            if (p.isInvincible) powerUpsHTML += `<span class="ml-2 animate-pulse text-yellow-300">${powerUpTypes.invincibility.symbol}</span>`;
             powerUpsHTML += `</div>`;
 
             playerDiv.innerHTML = `<span>Hráč ${i+1}:</span> <span>${livesHTML}</span> ${powerUpsHTML}`;
@@ -393,7 +418,7 @@
                 for (let x = 1; x < COLS - 1; x++) {
                     const isStartArea = PLAYER_CONFIG.some(p => Math.abs(p.start.x - x) < 2 && Math.abs(p.start.y - y) < 2);
                     if (levelMap[y][x] === TILES.EMPTY && !isStartArea) {
-                        if(Math.random() > 0.2) {
+                        if(Math.random() > 0.25) { // Snížená hustota zdí (z 0.2 na 0.25 = 75% šance)
                             levelMap[y][x] = TILES.DESTRUCTIBLE;
                             destructibleWalls.push({x, y});
                         }
@@ -455,21 +480,38 @@
             
             gameState.enemiesRemaining = 2; // Boss + Jet
         } else if (levelData.enemyCount > 0) {
-            for (let i = 0; i < levelData.enemyCount; i++) {
+            let placedCount = 0;
+            let safetyBreak = 0;
+            while (placedCount < levelData.enemyCount && safetyBreak < 100) {
                 let placed = false;
-                while (!placed) {
+                let attempts = 0;
+                
+                // Zkusíme najít místo. Pokud to trvá moc dlouho, snížíme nároky na vzdálenost.
+                while (!placed && attempts < 50) {
+                    attempts++;
                     const x = Math.floor(Math.random() * (COLS - 2)) + 1;
                     const y = Math.floor(Math.random() * (ROWS - 2)) + 1;
-                    const isTooClose = PLAYER_CONFIG.some(p => (Math.abs(p.start.x - x) + Math.abs(p.start.y - y)) < 9);
+                    
+                    // Bezpečná vzdálenost (zmenšuje se s počtem pokusů)
+                    let safeDistance = 9;
+                    if (safetyBreak > 20) safeDistance = 6;
+                    if (safetyBreak > 50) safeDistance = 3;
+
+                    const isTooClose = PLAYER_CONFIG.some(p => (Math.abs(p.start.x - x) + Math.abs(p.start.y - y)) < safeDistance);
+                    
                     if (getTile(x, y) === TILES.EMPTY && !isTooClose) {
                         const enemy = createEntity({start: {x, y}});
                         enemy.type = levelData.enemyType;
                         enemy.moveCounter = 0;
                         enemies.push(enemy);
                         placed = true;
+                        placedCount++;
                     }
                 }
+                safetyBreak++;
             }
+            // Update skutečného počtu, kdyby se nepodařilo umístit všechny
+            gameState.enemiesRemaining = enemies.length;
         }
     }
 
@@ -486,6 +528,8 @@
 
         players.forEach(p => {
             p.x = p.start.x; p.y = p.start.y;
+            // Pozice v pixelech se nyní nastavuje dynamicky v draw/update podle TILE_SIZE,
+            // ale pro jistotu zde nastavíme základní hodnoty, které se hned přepočítají.
             p.px = p.x * TILE_SIZE + TILE_SIZE / 2;
             p.py = p.y * TILE_SIZE + TILE_SIZE / 2;
             p.isMoving = false;
@@ -497,6 +541,10 @@
         if (levelDesigns[level].isFinalLevel) {
             initializePuzzle();
         }
+        
+        // Zavolat resize pro přepočítání pozic
+        resizeGame();
+        
         updateInfoPanel();
     }
     
@@ -529,6 +577,13 @@
                 p.hitTimer--;
                 if (p.hitTimer <= 0) p.isHit = false;
             }
+            if (p.isInvincible) {
+                p.invincibilityTimer--;
+                if (p.invincibilityTimer <= 0) {
+                    p.isInvincible = false;
+                    updateInfoPanel();
+                }
+            }
         });
         moveEnemies();
         updateBombs();
@@ -542,21 +597,31 @@
     function updatePositions() {
         const allEntities = [...players, ...enemies, boss, fighterJet].filter(e => e);
         allEntities.forEach(entity => {
-            if (!entity.isMoving) return;
+            // Zajistit, že pixelové souřadnice odpovídají aktuálnímu TILE_SIZE, pokud se nehýbe
+            if (!entity.isMoving) {
+                 entity.px = entity.x * TILE_SIZE + TILE_SIZE / 2;
+                 entity.py = entity.y * TILE_SIZE + TILE_SIZE / 2;
+                 return;
+            }
+
             const targetPX = entity.targetX * TILE_SIZE + TILE_SIZE / 2;
             const targetPY = entity.targetY * TILE_SIZE + TILE_SIZE / 2;
             const dx = targetPX - entity.px;
             const dy = targetPY - entity.py;
             
-            if (Math.abs(dx) < entity.speed && Math.abs(dy) < entity.speed) {
+            // Rychlost pohybu musí být také závislá na TILE_SIZE, aby to na velkých displejích nebylo pomalé
+            // Základní rychlost 4 při TILE_SIZE 40 => poměr 0.1
+            const currentSpeed = entity.speed * (TILE_SIZE / 40); 
+
+            if (Math.abs(dx) < currentSpeed && Math.abs(dy) < currentSpeed) {
                 entity.px = targetPX;
                 entity.py = targetPY;
                 entity.x = entity.targetX;
                 entity.y = entity.targetY;
                 entity.isMoving = false;
             } else {
-                entity.px += Math.sign(dx) * entity.speed;
-                entity.py += Math.sign(dy) * entity.speed;
+                entity.px += Math.sign(dx) * currentSpeed;
+                entity.py += Math.sign(dy) * currentSpeed;
             }
         });
     }
@@ -589,6 +654,23 @@
                 boss.moveCounter = 90 + Math.random() * 60;
             }
         }
+
+        boss.attackTimer--;
+        if (boss.attackTimer <= 0) {
+            const activePlayers = players.filter(p => p.isAlive);
+            if (activePlayers.length > 0) {
+                const targetPlayer = activePlayers[Math.floor(Math.random() * activePlayers.length)];
+                if (Math.random() > 0.5) { // Laser
+                    const isHorizontal = Math.random() > 0.5;
+                    const line = isHorizontal ? targetPlayer.y : targetPlayer.x;
+                    lasers.push({ isHorizontal, line, timer: 120, state: 'warning' });
+                } else { // Kokosová bomba
+                    bossProjectiles.push({ x: targetPlayer.x, y: targetPlayer.y, timer: 90, state: 'warning' });
+                }
+            }
+            boss.attackTimer = 120 + Math.random() * 60;
+        }
+        lasers.forEach(l => { if (l.state === 'warning' && l.timer < 60) l.state = 'firing'; });
     }
 
     function updateFighterJet() {
@@ -617,7 +699,7 @@
                         }
                     }
                     if (pathIsClear) {
-                        const vy = Math.sign(player.py - fighterJet.py) * 8;
+                        const vy = Math.sign(player.py - fighterJet.py) * 8 * (TILE_SIZE/40);
                         projectiles.push({px: fighterJet.px, py: fighterJet.py, vx: 0, vy: vy, symbol: '⚡', timer: 180});
                         fired = true;
                         break;
@@ -632,7 +714,7 @@
                         }
                     }
                     if (pathIsClear) {
-                        const vx = Math.sign(player.px - fighterJet.px) * 8;
+                        const vx = Math.sign(player.px - fighterJet.px) * 8 * (TILE_SIZE/40);
                         projectiles.push({px: fighterJet.px, py: fighterJet.py, vx: vx, vy: 0, symbol: '⚡', timer: 180});
                         fired = true;
                         break;
@@ -762,22 +844,24 @@
         players.forEach((p) => {
             if (!p.isAlive || p.isHit) return;
             let hit = false;
-            if (currentEnemyName) {
-                enemies.forEach(enemy => { if (enemy.x === p.x && enemy.y === p.y) hit = `Chytil tě ${currentEnemyName}!`; });
-            }
-            if (boss && boss.isAlive && p.x === boss.x && p.y === boss.y) hit = "Rozmačkal tě Král Opic!";
-            
-            explosions.forEach(exp => { if (exp.x === p.x && exp.y === p.y) hit = "Zasáhla tě exploze!"; });
-            
-            projectiles.forEach((proj, index) => {
-                const dist = Math.sqrt(Math.pow(p.px - proj.px, 2) + Math.pow(p.py - proj.py, 2));
-                if (dist < TILE_SIZE / 2) {
-                    hit = "Zasáhl tě laser!";
-                    projectiles.splice(index, 1);
+            if (!p.isInvincible) {
+                if (currentEnemyName) {
+                    enemies.forEach(enemy => { if (enemy.x === p.x && enemy.y === p.y) hit = `Chytil tě ${currentEnemyName}!`; });
                 }
-            });
+                if (boss && boss.isAlive && p.x === boss.x && p.y === boss.y) hit = "Rozmačkal tě Král Opic!";
+                
+                explosions.forEach(exp => { if (exp.x === p.x && exp.y === p.y) hit = "Zasáhla tě exploze!"; });
+                
+                projectiles.forEach((proj, index) => {
+                    const dist = Math.sqrt(Math.pow(p.px - proj.px, 2) + Math.pow(p.py - proj.py, 2));
+                    if (dist < TILE_SIZE / 2) {
+                        hit = "Zasáhl tě laser!";
+                        projectiles.splice(index, 1);
+                    }
+                });
 
-            if (hit) handlePlayerHit(p, hit);
+                if (hit) handlePlayerHit(p, hit);
+            }
         });
 
         explosions.forEach(exp => {
@@ -841,9 +925,7 @@
             }
         });
 
-        if (gameState.gameActive && gameState.enemiesRemaining <= 0 && !levelData.isFinalLevel) {
-            levelComplete();
-        }
+        // Automatické dokončení bylo odstraněno dle požadavku.
 
         if (levelData.isFinalLevel && !gameState.isPaused) {
             const kingX = Math.floor(COLS / 2);
@@ -986,7 +1068,18 @@
         players.forEach(p => {
             if (p.isAlive) {
                 ctx.save();
-                ctx.globalAlpha = (p.isHit && Math.floor(p.hitTimer / 10) % 2 === 0) ? 0.5 : 1.0;
+                // Blinking if recently hit or invincibility effect
+                if (p.isHit && Math.floor(p.hitTimer / 10) % 2 === 0) {
+                     ctx.globalAlpha = 0.5;
+                } else if (p.isInvincible) {
+                     // Gold glow effect
+                     ctx.shadowColor = 'gold';
+                     ctx.shadowBlur = 10 + Math.sin(Date.now() / 100) * 5;
+                } else {
+                     ctx.globalAlpha = 1.0;
+                     ctx.shadowBlur = 0;
+                }
+                
                 ctx.fillStyle = 'black';
                 ctx.fillText(p.symbol, p.px, p.py);
                 ctx.restore();
