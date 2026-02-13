@@ -1,676 +1,740 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { ArrowUp, RotateCcw, RotateCw, Play, Trash2, RefreshCw, Flame, Volume2, VolumeX, Zap, Snail, Rabbit, List, Lock, Check, Gauge } from 'lucide-react';
-
-// Konstanty hry
-const GRID_SIZE = 6;
-const DIRECTIONS = [
-  { label: 'Sever', dx: 0, dy: -1, rotate: 0 },   // 0: Nahoru
-  { label: 'Východ', dx: 1, dy: 0, rotate: 90 },  // 1: Doprava
-  { label: 'Jih', dx: 0, dy: 1, rotate: 180 },    // 2: Dolů
-  { label: 'Západ', dx: -1, dy: 0, rotate: 270 }  // 3: Doleva
-];
-
-// Zvukový syntezátor
-const playSound = (type) => {
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Želví Programátor</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React a ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel pro JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    
-    const now = ctx.currentTime;
-    
-    if (type === 'step') {
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-      osc.start(now);
-      osc.stop(now + 0.1);
-    } else if (type === 'turn') {
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(300, now);
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
-      osc.start(now);
-      osc.stop(now + 0.1);
-    } else if (type === 'fire') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(800, now);
-      osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
-      osc.start(now);
-      osc.stop(now + 0.3);
-    } else if (type === 'win') {
-      osc.type = 'square';
-      [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
-        const osc2 = ctx.createOscillator();
-        const gain2 = ctx.createGain();
-        osc2.connect(gain2);
-        gain2.connect(ctx.destination);
-        osc2.frequency.value = freq;
-        gain2.gain.setValueAtTime(0.05, now + i*0.1);
-        gain2.gain.exponentialRampToValueAtTime(0.001, now + i*0.1 + 0.3);
-        osc2.start(now + i*0.1);
-        osc2.stop(now + i*0.1 + 0.3);
-      });
-    } else if (type === 'lose') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(150, now);
-      osc.frequency.linearRampToValueAtTime(50, now + 0.5);
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
-      osc.start(now);
-      osc.stop(now + 0.5);
-    } else if (type === 'click') {
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(800, now);
-      gain.gain.setValueAtTime(0.05, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-      osc.start(now);
-      osc.stop(now + 0.05);
-    }
-  } catch (e) {
-    // Silent fail
-  }
-};
-
-export default function TurtleGame() {
-  const [turtle, setTurtle] = useState({ x: 0, y: 0, dir: 1 });
-  const [walls, setWalls] = useState([]); 
-  const [iceWalls, setIceWalls] = useState([]); 
-  
-  const [startTurtle, setStartTurtle] = useState({ x: 0, y: 0, dir: 1 });
-  const [initialWalls, setInitialWalls] = useState([]);
-  const [initialIceWalls, setInitialIceWalls] = useState([]);
-
-  const [diamond, setDiamond] = useState({ x: 5, y: 5 });
-  
-  const [program, setProgram] = useState([]);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentStep, setCurrentStep] = useState(-1);
-  const [gameStatus, setGameStatus] = useState('idle');
-  const [message, setMessage] = useState("Dostaň želvičku k diamantu!");
-  
-  const [speed, setSpeed] = useState(400); 
-  const [soundEnabled, setSoundEnabled] = useState(true);
-
-  const [projectile, setProjectile] = useState(null);
-
-  // Drag & Drop State
-  const [draggedItemIndex, setDraggedItemIndex] = useState(null);
-  const [dropTargetIndex, setDropTargetIndex] = useState(null); // Index před který vkládáme
-
-  const safePlaySound = (type) => {
-    if (soundEnabled) playSound(type);
-  };
-
-  const initGame = () => {
-    setProgram([]);
-    setCurrentStep(-1);
-    setIsPlaying(false);
-    setGameStatus('idle');
-    setProjectile(null);
-    setMessage("Dostaň želvičku k diamantu!");
-
-    let newTurtle = { x: 0, y: 0, dir: 1 };
-    let newDiamond = { x: GRID_SIZE - 1, y: GRID_SIZE - 1 };
-    
-    let newWalls = [];
-    let newIceWalls = [];
-    
-    const generateObstacles = (count, array, otherArray) => {
-      for (let i = 0; i < count; i++) {
-        let attempts = 0;
-        while (attempts < 20) {
-          let wx = Math.floor(Math.random() * GRID_SIZE);
-          let wy = Math.floor(Math.random() * GRID_SIZE);
-          
-          const isTaken = 
-            (wx === newTurtle.x && wy === newTurtle.y) || 
-            (wx === newDiamond.x && wy === newDiamond.y) ||
-            newWalls.some(w => w.x === wx && w.y === wy) ||
-            newIceWalls.some(w => w.x === wx && w.y === wy);
-
-          if (!isTaken) {
-            array.push({ x: wx, y: wy });
-            break;
-          }
-          attempts++;
+    <style>
+        /* Animace pro shake efekt při chybě */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+            20%, 40%, 60%, 80% { transform: translateX(4px); }
         }
-      }
-    };
-
-    generateObstacles(6, newWalls, newIceWalls);
-    generateObstacles(5, newIceWalls, newWalls);
-
-    setTurtle(newTurtle);
-    setWalls(newWalls);
-    setIceWalls(newIceWalls);
-    setDiamond(newDiamond);
-
-    setStartTurtle({ ...newTurtle });
-    setInitialWalls([...newWalls]);
-    setInitialIceWalls([...newIceWalls]);
-  };
-
-  useEffect(() => {
-    initGame();
-  }, []);
-
-  const addCommand = (type) => {
-    if (gameStatus !== 'idle' && gameStatus !== 'lost' && gameStatus !== 'won') return;
-    safePlaySound('click');
-    if (gameStatus === 'lost' || gameStatus === 'won') {
-        setGameStatus('idle');
-        setTurtle(startTurtle);
-        setWalls(initialWalls);
-        setIceWalls(initialIceWalls);
-    }
-    setProgram([...program, { id: Date.now() + Math.random(), type }]);
-  };
-
-  const removeCommand = (index) => {
-    if (isPlaying) return;
-    safePlaySound('click');
-    const newProgram = [...program];
-    newProgram.splice(index, 1);
-    setProgram(newProgram);
-    setGameStatus('idle');
-  };
-
-  const clearProgram = () => {
-    if (isPlaying) return;
-    safePlaySound('click');
-    setProgram([]);
-    setGameStatus('idle');
-    setTurtle(startTurtle);
-    setWalls(initialWalls);
-    setIceWalls(initialIceWalls);
-  };
-
-  // --- Drag & Drop Logika ---
-  
-  const handleDragStart = (e, index) => {
-    setDraggedItemIndex(index);
-    e.dataTransfer.effectAllowed = "move";
-    // Trik pro "neviditelné" tažení originálu, aby byl vidět jen kurzor/ghost
-    // Ale u Reactu je lepší nechat originál viditelný a jen ho "vyšednout" pomocí CSS třídy
-  };
-
-  const handleDragOver = (e, index) => {
-    e.preventDefault(); // Nutné aby fungoval Drop
-    e.dataTransfer.dropEffect = "move";
-    
-    // Pokud jsme nad jinou položkou, než kterou táhneme, nastavíme ji jako cíl
-    // Cílem je index, PŘED který se má prvek vložit
-    if (draggedItemIndex === null) return;
-
-    if (index !== dropTargetIndex) {
-        setDropTargetIndex(index);
-    }
-  };
-
-  const handleDragLeave = (e) => {
-      // Volitelné: vyčištění targetu, pokud opustíme kontejner
-      // Ale v praxi to způsobuje blikání, když přejíždíme mezi dětmi
-  }
-  
-  // Speciální zóna na konci seznamu
-  const handleDragOverEnd = (e) => {
-      e.preventDefault();
-      if (draggedItemIndex === null) return;
-      
-      // Pokud jsme na konci, cílový index je délka pole
-      const endIndex = program.length;
-      if (dropTargetIndex !== endIndex) {
-          setDropTargetIndex(endIndex);
-      }
-  }
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    
-    if (draggedItemIndex === null || dropTargetIndex === null) return;
-    
-    const newProgram = [...program];
-    const itemToMove = newProgram[draggedItemIndex];
-    
-    // 1. Odstraníme prvek ze staré pozice
-    newProgram.splice(draggedItemIndex, 1);
-    
-    // 2. Vypočítáme novou pozici pro vložení
-    // Pokud jsme brali prvek z menšího indexu než je cíl, cíl se po odstranění posunul o -1
-    let insertionIndex = dropTargetIndex;
-    if (draggedItemIndex < dropTargetIndex) {
-        insertionIndex -= 1;
-    }
-    
-    // 3. Vložíme na novou pozici
-    newProgram.splice(insertionIndex, 0, itemToMove);
-    
-    setProgram(newProgram);
-    setDraggedItemIndex(null);
-    setDropTargetIndex(null);
-    safePlaySound('click');
-  };
-
-  const handleDragEnd = () => {
-      setDraggedItemIndex(null);
-      setDropTargetIndex(null);
-  };
-
-  const runProgram = async () => {
-    if (program.length === 0) return;
-    
-    setIsPlaying(true);
-    setGameStatus('running');
-    setCurrentStep(-1);
-    setMessage("Pozor, start!");
-    safePlaySound('click');
-
-    setTurtle(startTurtle);
-    setWalls(initialWalls);
-    setIceWalls(initialIceWalls);
-    setProjectile(null);
-
-    await new Promise(r => setTimeout(r, 500));
-    setMessage("Jedu!");
-
-    let currentTurtle = { ...startTurtle };
-    let currentWalls = [...initialWalls];
-    let currentIceWalls = [...initialIceWalls];
-
-    for (let i = 0; i < program.length; i++) {
-      setCurrentStep(i);
-      const cmd = program[i];
-      
-      await new Promise(r => setTimeout(r, speed));
-
-      const move = DIRECTIONS[currentTurtle.dir];
-      
-      if (cmd.type === 'FORWARD') {
-        const nextX = currentTurtle.x + move.dx;
-        const nextY = currentTurtle.y + move.dy;
-
-        const hitWall = currentWalls.some(w => w.x === nextX && w.y === nextY);
-        const hitIce = currentIceWalls.some(w => w.x === nextX && w.y === nextY);
-        const outOfBounds = nextX < 0 || nextX >= GRID_SIZE || nextY < 0 || nextY >= GRID_SIZE;
-
-        if (hitWall || hitIce || outOfBounds) {
-          setGameStatus('lost');
-          safePlaySound('lose');
-          if (hitWall) setMessage("Au! Kámen!");
-          else if (hitIce) setMessage("Brrr! Led!");
-          else setMessage("Au! Okraj!");
-          setIsPlaying(false);
-          return; 
+        .shake {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
         }
-
-        currentTurtle.x = nextX;
-        currentTurtle.y = nextY;
-        safePlaySound('step');
-      } 
-      else if (cmd.type === 'LEFT') {
-        currentTurtle.dir = (currentTurtle.dir + 3) % 4;
-        safePlaySound('turn');
-      } 
-      else if (cmd.type === 'RIGHT') {
-        currentTurtle.dir = (currentTurtle.dir + 1) % 4;
-        safePlaySound('turn');
-      }
-      else if (cmd.type === 'MELT') {
-        const targetX = currentTurtle.x + move.dx;
-        const targetY = currentTurtle.y + move.dy;
-
-        safePlaySound('fire');
-        setProjectile({
-            x: currentTurtle.x,
-            y: currentTurtle.y,
-            targetX: currentTurtle.x + move.dx * 0.8, 
-            targetY: currentTurtle.y + move.dy * 0.8,
-            type: 'fire',
-            rotation: DIRECTIONS[currentTurtle.dir].rotate
-        });
-
-        await new Promise(r => setTimeout(r, 300));
-        setProjectile(null);
         
-        const iceIndex = currentIceWalls.findIndex(w => w.x === targetX && w.y === targetY);
-        
-        if (iceIndex !== -1) {
-          currentIceWalls.splice(iceIndex, 1);
-          setIceWalls([...currentIceWalls]);
-          setMessage("Psss...");
-        } else {
-           setMessage("Nic.");
+        /* Zákaz výběru textu pro lepší UX při drag&drop */
+        body {
+            user-select: none;
+            -webkit-user-select: none;
         }
-      }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-200">
+    <div id="root"></div>
 
-      setTurtle({ ...currentTurtle });
+    <script type="text/babel">
+        const { useState, useEffect, Fragment } = React;
 
-      if (currentTurtle.x === diamond.x && currentTurtle.y === diamond.y) {
-        setGameStatus('won');
-        safePlaySound('win');
-        setMessage("Hurá! Diamant!");
-        setIsPlaying(false);
-        return;
-      }
-    }
-
-    if (gameStatus !== 'won') {
-      setIsPlaying(false);
-      setGameStatus('lost');
-      setMessage("Konec programu...");
-    }
-  };
-
-  const ActionCard = ({ icon: Icon, onClick, colorClass }) => (
-    <button
-      onClick={onClick}
-      disabled={isPlaying}
-      className={`w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-2xl shadow-lg border-2 border-slate-700 transition-all transform hover:-translate-y-1 active:translate-y-1 active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${colorClass} bg-slate-800`}
-    >
-      <Icon size={32} strokeWidth={3} />
-    </button>
-  );
-
-  return (
-    <div className="min-h-screen bg-slate-900 text-slate-200 p-2 sm:p-4 font-sans flex flex-col items-center select-none">
-      
-      {/* Hlavička */}
-      <header className="w-full max-w-4xl flex flex-wrap justify-between items-center mb-6 bg-slate-800 p-3 rounded-2xl shadow-xl border border-slate-700 gap-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-emerald-600 text-white p-2 rounded-xl shadow-lg shadow-emerald-900/50">
-             <span className="text-2xl">🐢</span>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-6">
-            <div className="flex items-center gap-1 bg-slate-900 p-1.5 rounded-xl border border-slate-700">
-                <Gauge size={16} className="text-slate-500 mr-2 ml-1" />
-                <button 
-                    onClick={() => setSpeed(800)} 
-                    className={`p-2 rounded-lg transition-all ${speed === 800 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}
-                >
-                    <Snail size={20} />
-                </button>
-                <button 
-                    onClick={() => setSpeed(400)} 
-                    className={`p-2 rounded-lg transition-all ${speed === 400 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}
-                >
-                    <Rabbit size={20} />
-                </button>
-                <button 
-                    onClick={() => setSpeed(150)} 
-                    className={`p-2 rounded-lg transition-all ${speed === 150 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}
-                >
-                    <Zap size={20} />
-                </button>
-            </div>
-
-            <button 
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className={`p-3 rounded-xl border-2 transition-colors ${soundEnabled ? 'bg-slate-700 border-slate-600 text-emerald-400' : 'bg-slate-900 border-slate-800 text-slate-600'}`}
+        // --- IKONY (Lucide React portované pro inline použití) ---
+        const Icon = ({ children, size = 24, className, ...props }) => (
+            <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width={size} 
+                height={size} 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                className={className} 
+                {...props}
             >
-                {soundEnabled ? <Volume2 size={24} /> : <VolumeX size={24} />}
-            </button>
+                {children}
+            </svg>
+        );
 
-            <button 
-              onClick={initGame} 
-              disabled={isPlaying}
-              className="p-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition-all disabled:opacity-50 border-2 border-slate-600 hover:border-slate-500 shadow-lg active:scale-95"
-            >
-              <RefreshCw size={24} />
-            </button>
-        </div>
-      </header>
+        const ArrowUp = (props) => <Icon {...props}><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></Icon>;
+        const RotateCcw = (props) => <Icon {...props}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></Icon>;
+        const RotateCw = (props) => <Icon {...props}><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></Icon>;
+        const Play = (props) => <Icon {...props}><polygon points="5 3 19 12 5 21 5 3"/></Icon>;
+        const Trash2 = (props) => <Icon {...props}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></Icon>;
+        const RefreshCw = (props) => <Icon {...props}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></Icon>;
+        const Flame = (props) => <Icon {...props}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.1.2-2.2.5-3.3a9 9 0 0 0 12 8Z"/></Icon>;
+        const Volume2 = (props) => <Icon {...props}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></Icon>;
+        const VolumeX = (props) => <Icon {...props}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" x2="17" y1="9" y2="15"/><line x1="17" x2="23" y1="9" y2="15"/></Icon>;
+        const Zap = (props) => <Icon {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Icon>;
+        const List = (props) => <Icon {...props}><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></Icon>;
+        const Lock = (props) => <Icon {...props}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></Icon>;
+        const Check = (props) => <Icon {...props}><path d="M20 6 9 17l-5-5"/></Icon>;
+        const Gauge = (props) => <Icon {...props}><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></Icon>;
+        const Snail = (props) => <Icon {...props}><path d="M2 13a6 6 0 1 0 12 0 4 4 0 1 0-8 0 2 2 0 0 0 4 0"/><path d="M10 13h2c0-3 2.5-5 4.5-3 .5.5.5 1.5 0 2"/><path d="M12 15a8 8 0 1 0 8-8"/><path d="M16 15h.01"/></Icon>;
+        const Rabbit = (props) => <Icon {...props}><path d="M13 16a3 3 0 0 1 2.24 5"/><path d="M18 12h.01"/><path d="M6 12h.01"/><path d="M22 13.5c0 3.1-1.6 4.5-3.1 4.5h-8c-1.3 0-2.2-.6-3.1-1.4l-4-4c-.6-.6-.8-1.5-.5-2.2l.6-1.5c.3-.7 1-1.1 1.8-1.1H8c.5 0 1-.4 1-1V5a2 2 0 0 1 4 0v2c0 1.1.9 2 2 2h2c1.7 0 3 1.3 3 3v1.5Z"/></Icon>;
 
-      <main className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
-        {/* LEVÁ ČÁST: Hrací plocha */}
-        <div className="flex flex-col items-center order-1 lg:order-none">
-          <div className="bg-slate-800 p-3 rounded-3xl shadow-2xl border-4 border-slate-700 relative">
+
+        // --- HLAVNÍ KÓD HRY ---
+        const GRID_SIZE = 6;
+        const DIRECTIONS = [
+            { label: 'Sever', dx: 0, dy: -1, rotate: 0 },
+            { label: 'Východ', dx: 1, dy: 0, rotate: 90 },
+            { label: 'Jih', dx: 0, dy: 1, rotate: 180 },
+            { label: 'Západ', dx: -1, dy: 0, rotate: 270 }
+        ];
+
+        const playSound = (type) => {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                
+                const ctx = new AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                const now = ctx.currentTime;
+                
+                if (type === 'step') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } else if (type === 'turn') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(300, now);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } else if (type === 'fire') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(800, now);
+                    osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'win') {
+                    osc.type = 'square';
+                    [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                        const osc2 = ctx.createOscillator();
+                        const gain2 = ctx.createGain();
+                        osc2.connect(gain2);
+                        gain2.connect(ctx.destination);
+                        osc2.frequency.value = freq;
+                        gain2.gain.setValueAtTime(0.05, now + i*0.1);
+                        gain2.gain.exponentialRampToValueAtTime(0.001, now + i*0.1 + 0.3);
+                        osc2.start(now + i*0.1);
+                        osc2.stop(now + i*0.1 + 0.3);
+                    });
+                } else if (type === 'lose') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.linearRampToValueAtTime(50, now + 0.5);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                } else if (type === 'click') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, now);
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                }
+            } catch (e) {
+                // Silent fail
+            }
+        };
+
+        function TurtleGame() {
+            const [turtle, setTurtle] = useState({ x: 0, y: 0, dir: 1 });
+            const [walls, setWalls] = useState([]); 
+            const [iceWalls, setIceWalls] = useState([]); 
             
-            <div 
-              className="grid bg-slate-900 border-2 border-slate-600 relative overflow-hidden rounded-xl"
-              style={{ 
-                  gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
-                  gridTemplateRows: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
-                  width: 'min(80vw, 400px)',
-                  height: 'min(80vw, 400px)' 
-              }}
-            >
-              {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, idx) => {
-                const x = idx % GRID_SIZE;
-                const y = Math.floor(idx / GRID_SIZE);
-                const isDiamond = diamond.x === x && diamond.y === y;
-                const isWall = walls.some(w => w.x === x && w.y === y);
-                const isIce = iceWalls.some(w => w.x === x && w.y === y);
+            const [startTurtle, setStartTurtle] = useState({ x: 0, y: 0, dir: 1 });
+            const [initialWalls, setInitialWalls] = useState([]);
+            const [initialIceWalls, setInitialIceWalls] = useState([]);
 
-                return (
-                  <div key={idx} className="bg-slate-800/30 border border-slate-700/30 w-full h-full flex items-center justify-center relative overflow-hidden">
-                    {isDiamond && (
-                      <div className="text-cyan-400 animate-pulse text-4xl drop-shadow-[0_0_15px_rgba(34,211,238,0.6)] z-0">
-                        💎
-                      </div>
-                    )}
-                    {isWall && (
-                      <div className="w-[85%] h-[85%] bg-stone-700 border-b-4 border-r-4 border-stone-900 rounded-lg shadow-lg relative">
-                        <div className="absolute top-1 left-1 opacity-20"><Lock size={12}/></div>
-                      </div>
-                    )}
-                    {isIce && (
-                      <div className="w-[85%] h-[85%] bg-cyan-500/40 border-2 border-cyan-300/60 rounded-lg shadow-[inset_0_0_10px_rgba(34,211,238,0.3)] backdrop-blur-sm flex items-center justify-center">
-                         <div className="w-full h-[1px] bg-white/30 rotate-45 transform scale-150"></div>
-                         <div className="w-full h-[1px] bg-white/30 -rotate-45 transform scale-150"></div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              <div 
-                className="absolute w-[16.66%] h-[16.66%] flex items-center justify-center transition-all ease-in-out z-20 pointer-events-none"
-                style={{ 
-                    left: `${turtle.x * (100/GRID_SIZE)}%`, 
-                    top: `${turtle.y * (100/GRID_SIZE)}%`,
-                    transform: `rotate(${DIRECTIONS[turtle.dir].rotate}deg)`,
-                    transitionDuration: `${speed}ms` 
-                }}
-              >
-                 <div className="w-[80%] h-[80%] relative">
-                    <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-xl filter brightness-110">
-                        <path d="M15 25 L5 15 M85 25 L95 15 M15 75 L5 85 M85 75 L95 85" 
-                              stroke="#16a34a" strokeWidth="10" strokeLinecap="round" />
-                        <circle cx="50" cy="15" r="16" fill="#16a34a" />
-                        <ellipse cx="50" cy="55" rx="34" ry="40" fill="#22c55e" stroke="#15803d" strokeWidth="4" />
-                        <path d="M50 30 L65 45 L50 60 L35 45 Z" fill="#4ade80" opacity="0.5" />
-                        <path d="M50 60 L65 75 L50 90 L35 75 Z" fill="#4ade80" opacity="0.5" />
-                    </svg>
-                 </div>
-              </div>
-
-              {projectile && (
-                <div 
-                    className="absolute w-[16.66%] h-[16.66%] flex items-center justify-center z-30 transition-all duration-300 ease-linear pointer-events-none"
-                    style={{ 
-                        left: `${(projectile.targetX) * (100/GRID_SIZE)}%`, 
-                        top: `${(projectile.targetY) * (100/GRID_SIZE)}%`,
-                    }}
-                >   
-                   <div className="text-4xl animate-bounce drop-shadow-[0_0_15px_orange]">🔥</div>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div className={`mt-6 px-8 py-4 rounded-full font-bold text-center w-full max-w-md shadow-xl transition-all duration-300 border-2 text-xl tracking-wide
-            ${gameStatus === 'won' ? 'bg-emerald-500 text-white border-emerald-400 scale-105' : 
-              gameStatus === 'lost' ? 'bg-red-500 text-white border-red-400 shake' : 
-              'bg-slate-800 text-slate-300 border-slate-600'}`}>
-            {message}
-          </div>
-        </div>
-
-        {/* PRAVÁ ČÁST: Ovládání */}
-        <div className="flex flex-col gap-4 h-full">
-          
-          <div className="bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-700">
-            <div className="flex justify-center gap-4 flex-wrap">
-              <ActionCard 
-                icon={ArrowUp} 
-                onClick={() => addCommand('FORWARD')} 
-                colorClass="border-blue-500/50 text-blue-400 hover:bg-blue-500/20 hover:border-blue-400" 
-              />
-              <ActionCard 
-                icon={RotateCcw} 
-                onClick={() => addCommand('LEFT')} 
-                colorClass="border-purple-500/50 text-purple-400 hover:bg-purple-500/20 hover:border-purple-400" 
-              />
-              <ActionCard 
-                icon={RotateCw} 
-                onClick={() => addCommand('RIGHT')} 
-                colorClass="border-purple-500/50 text-purple-400 hover:bg-purple-500/20 hover:border-purple-400" 
-              />
-              <div className="w-[2px] bg-slate-700 mx-2 rounded-full"></div>
-              
-              <ActionCard 
-                icon={Flame} 
-                onClick={() => addCommand('MELT')} 
-                colorClass="border-orange-500/50 text-orange-500 hover:bg-orange-500/20 hover:border-orange-400" 
-              />
-            </div>
+            const [diamond, setDiamond] = useState({ x: 5, y: 5 });
             
-            <div className="flex justify-center gap-8 mt-6">
-                 <div className="flex items-center gap-2 opacity-60 bg-slate-900 px-3 py-1 rounded-full">
-                    <div className="w-3 h-3 bg-stone-500 rounded-sm"></div>
-                    <span className="text-red-400 font-bold">X</span>
-                 </div>
-                 <div className="flex items-center gap-2 opacity-80 bg-slate-900 px-3 py-1 rounded-full">
-                    <div className="w-3 h-3 bg-cyan-400 rounded-sm"></div>
-                    <span className="text-slate-500">+</span>
-                    <Flame size={14} className="text-orange-500" />
-                    <span className="text-emerald-400"><Check size={14}/></span>
-                 </div>
-            </div>
-          </div>
+            const [program, setProgram] = useState([]);
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [currentStep, setCurrentStep] = useState(-1);
+            const [gameStatus, setGameStatus] = useState('idle');
+            const [message, setMessage] = useState("Dostaň želvičku k diamantu!");
+            
+            const [speed, setSpeed] = useState(400); 
+            const [soundEnabled, setSoundEnabled] = useState(true);
 
-          <div 
-            className="bg-slate-800 p-4 rounded-3xl shadow-xl border border-slate-700 flex-1 flex flex-col min-h-[250px]"
-          >
-            <div className="flex justify-between items-center mb-4 px-2">
-              <div className="flex items-center gap-3">
-                <div className="bg-slate-700 p-2 rounded-lg text-slate-400">
-                    <List size={20} />
-                </div>
-                <span className="bg-slate-900 text-slate-400 px-3 py-1 rounded-full text-sm font-bold border border-slate-700">
-                    {program.length}
-                </span>
-              </div>
-              <button 
-                onClick={clearProgram}
-                disabled={isPlaying || program.length === 0}
-                className="text-slate-500 hover:text-red-400 hover:bg-slate-700 p-2 rounded-xl transition-all disabled:opacity-30"
-              >
-                <Trash2 size={24} />
-              </button>
-            </div>
+            const [projectile, setProjectile] = useState(null);
 
-            {/* Drop Container - Zde posloucháme drop na konci seznamu */}
-            <div 
-                className="flex-1 bg-slate-900/50 rounded-2xl p-4 border border-slate-700/50 overflow-y-auto content-start shadow-inner"
-                onDragOver={handleDragOverEnd}
-                onDrop={handleDrop}
-            >
-              <div className="flex flex-wrap gap-2">
-                {program.length === 0 ? (
-                  <div className="w-full h-32 flex flex-col items-center justify-center text-slate-600 opacity-40">
-                    <div className="text-5xl mb-3 grayscale">🧩</div>
-                  </div>
-                ) : (
-                  program.map((cmd, index) => {
-                    const isBeingDragged = draggedItemIndex === index;
+            // Drag & Drop State
+            const [draggedItemIndex, setDraggedItemIndex] = useState(null);
+            const [dropTargetIndex, setDropTargetIndex] = useState(null);
+
+            const safePlaySound = (type) => {
+                if (soundEnabled) playSound(type);
+            };
+
+            const initGame = () => {
+                setProgram([]);
+                setCurrentStep(-1);
+                setIsPlaying(false);
+                setGameStatus('idle');
+                setProjectile(null);
+                setMessage("Dostaň želvičku k diamantu!");
+
+                let newTurtle = { x: 0, y: 0, dir: 1 };
+                let newDiamond = { x: GRID_SIZE - 1, y: GRID_SIZE - 1 };
+                
+                let newWalls = [];
+                let newIceWalls = [];
+                
+                const generateObstacles = (count, array, otherArray) => {
+                    for (let i = 0; i < count; i++) {
+                        let attempts = 0;
+                        while (attempts < 20) {
+                            let wx = Math.floor(Math.random() * GRID_SIZE);
+                            let wy = Math.floor(Math.random() * GRID_SIZE);
+                            
+                            const isTaken = 
+                                (wx === newTurtle.x && wy === newTurtle.y) || 
+                                (wx === newDiamond.x && wy === newDiamond.y) ||
+                                newWalls.some(w => w.x === wx && w.y === wy) ||
+                                newIceWalls.some(w => w.x === wx && w.y === wy);
+
+                            if (!isTaken) {
+                                array.push({ x: wx, y: wy });
+                                break;
+                            }
+                            attempts++;
+                        }
+                    }
+                };
+
+                generateObstacles(6, newWalls, newIceWalls);
+                generateObstacles(5, newIceWalls, newWalls);
+
+                setTurtle(newTurtle);
+                setWalls(newWalls);
+                setIceWalls(newIceWalls);
+                setDiamond(newDiamond);
+
+                setStartTurtle({ ...newTurtle });
+                setInitialWalls([...newWalls]);
+                setInitialIceWalls([...newIceWalls]);
+            };
+
+            useEffect(() => {
+                initGame();
+            }, []);
+
+            const addCommand = (type) => {
+                if (gameStatus !== 'idle' && gameStatus !== 'lost' && gameStatus !== 'won') return;
+                safePlaySound('click');
+                if (gameStatus === 'lost' || gameStatus === 'won') {
+                    setGameStatus('idle');
+                    setTurtle(startTurtle);
+                    setWalls(initialWalls);
+                    setIceWalls(initialIceWalls);
+                }
+                setProgram([...program, { id: Date.now() + Math.random(), type }]);
+            };
+
+            const removeCommand = (index) => {
+                if (isPlaying) return;
+                safePlaySound('click');
+                const newProgram = [...program];
+                newProgram.splice(index, 1);
+                setProgram(newProgram);
+                setGameStatus('idle');
+            };
+
+            const clearProgram = () => {
+                if (isPlaying) return;
+                safePlaySound('click');
+                setProgram([]);
+                setGameStatus('idle');
+                setTurtle(startTurtle);
+                setWalls(initialWalls);
+                setIceWalls(initialIceWalls);
+            };
+
+            // --- Drag & Drop Logika ---
+            
+            const handleDragStart = (e, index) => {
+                setDraggedItemIndex(index);
+                e.dataTransfer.effectAllowed = "move";
+                // Pro Firefox
+                e.dataTransfer.setData("text/plain", index);
+            };
+
+            const handleDragOver = (e, index) => {
+                e.preventDefault(); 
+                e.dataTransfer.dropEffect = "move";
+                
+                if (draggedItemIndex === null) return;
+                if (index !== dropTargetIndex) {
+                    setDropTargetIndex(index);
+                }
+            };
+
+            const handleDragOverEnd = (e) => {
+                e.preventDefault();
+                if (draggedItemIndex === null) return;
+                
+                const endIndex = program.length;
+                if (dropTargetIndex !== endIndex) {
+                    setDropTargetIndex(endIndex);
+                }
+            }
+
+            const handleDrop = (e) => {
+                e.preventDefault();
+                
+                if (draggedItemIndex === null || dropTargetIndex === null) return;
+                
+                const newProgram = [...program];
+                const itemToMove = newProgram[draggedItemIndex];
+                
+                // 1. Odstraníme
+                newProgram.splice(draggedItemIndex, 1);
+                
+                // 2. Vypočítáme novou pozici
+                let insertionIndex = dropTargetIndex;
+                if (draggedItemIndex < dropTargetIndex) {
+                    insertionIndex -= 1;
+                }
+                
+                // 3. Vložíme
+                newProgram.splice(insertionIndex, 0, itemToMove);
+                
+                setProgram(newProgram);
+                setDraggedItemIndex(null);
+                setDropTargetIndex(null);
+                safePlaySound('click');
+            };
+
+            const handleDragEnd = () => {
+                setDraggedItemIndex(null);
+                setDropTargetIndex(null);
+            };
+
+            const runProgram = async () => {
+                if (program.length === 0) return;
+                
+                setIsPlaying(true);
+                setGameStatus('running');
+                setCurrentStep(-1);
+                setMessage("Pozor, start!");
+                safePlaySound('click');
+
+                setTurtle(startTurtle);
+                setWalls(initialWalls);
+                setIceWalls(initialIceWalls);
+                setProjectile(null);
+
+                await new Promise(r => setTimeout(r, 500));
+                setMessage("Jedu!");
+
+                let currentTurtle = { ...startTurtle };
+                let currentWalls = [...initialWalls];
+                let currentIceWalls = [...initialIceWalls];
+
+                for (let i = 0; i < program.length; i++) {
+                    setCurrentStep(i);
+                    const cmd = program[i];
                     
-                    return (
-                    <React.Fragment key={cmd.id}>
-                        {/* VIZUÁLNÍ DROP TARGET - INDIKÁTOR VLOŽENÍ */}
-                        {dropTargetIndex === index && draggedItemIndex !== null && !isBeingDragged && (
-                            <div className="w-14 h-14 rounded-xl border-2 border-dashed border-emerald-500/50 bg-emerald-500/10 flex-shrink-0 transition-all animate-pulse" />
-                        )}
+                    await new Promise(r => setTimeout(r, speed));
 
-                        <div
-                          draggable={!isPlaying}
-                          onDragStart={(e) => handleDragStart(e, index)}
-                          onDragEnd={handleDragEnd}
-                          onDragOver={(e) => handleDragOver(e, index)}
-                          onDrop={handleDrop}
-                          className={`relative group transition-all duration-200
-                              ${isBeingDragged ? 'opacity-20 scale-95' : 'opacity-100'}
-                          `}
-                        >
+                    const move = DIRECTIONS[currentTurtle.dir];
+                    
+                    if (cmd.type === 'FORWARD') {
+                        const nextX = currentTurtle.x + move.dx;
+                        const nextY = currentTurtle.y + move.dy;
+
+                        const hitWall = currentWalls.some(w => w.x === nextX && w.y === nextY);
+                        const hitIce = currentIceWalls.some(w => w.x === nextX && w.y === nextY);
+                        const outOfBounds = nextX < 0 || nextX >= GRID_SIZE || nextY < 0 || nextY >= GRID_SIZE;
+
+                        if (hitWall || hitIce || outOfBounds) {
+                            setGameStatus('lost');
+                            safePlaySound('lose');
+                            if (hitWall) setMessage("Au! Kámen!");
+                            else if (hitIce) setMessage("Brrr! Led!");
+                            else setMessage("Au! Okraj!");
+                            setIsPlaying(false);
+                            return; 
+                        }
+
+                        currentTurtle.x = nextX;
+                        currentTurtle.y = nextY;
+                        safePlaySound('step');
+                    } 
+                    else if (cmd.type === 'LEFT') {
+                        currentTurtle.dir = (currentTurtle.dir + 3) % 4;
+                        safePlaySound('turn');
+                    } 
+                    else if (cmd.type === 'RIGHT') {
+                        currentTurtle.dir = (currentTurtle.dir + 1) % 4;
+                        safePlaySound('turn');
+                    }
+                    else if (cmd.type === 'MELT') {
+                        const targetX = currentTurtle.x + move.dx;
+                        const targetY = currentTurtle.y + move.dy;
+
+                        safePlaySound('fire');
+                        setProjectile({
+                            x: currentTurtle.x,
+                            y: currentTurtle.y,
+                            targetX: currentTurtle.x + move.dx * 0.8, 
+                            targetY: currentTurtle.y + move.dy * 0.8,
+                            type: 'fire',
+                            rotation: DIRECTIONS[currentTurtle.dir].rotate
+                        });
+
+                        await new Promise(r => setTimeout(r, 300));
+                        setProjectile(null);
+                        
+                        const iceIndex = currentIceWalls.findIndex(w => w.x === targetX && w.y === targetY);
+                        
+                        if (iceIndex !== -1) {
+                            currentIceWalls.splice(iceIndex, 1);
+                            setIceWalls([...currentIceWalls]);
+                            setMessage("Psss...");
+                        } else {
+                            setMessage("Nic.");
+                        }
+                    }
+
+                    setTurtle({ ...currentTurtle });
+
+                    if (currentTurtle.x === diamond.x && currentTurtle.y === diamond.y) {
+                        setGameStatus('won');
+                        safePlaySound('win');
+                        setMessage("Hurá! Diamant!");
+                        setIsPlaying(false);
+                        return;
+                    }
+                }
+
+                if (gameStatus !== 'won') {
+                    setIsPlaying(false);
+                    setGameStatus('lost');
+                    setMessage("Konec programu...");
+                }
+            };
+
+            const ActionCard = ({ icon: Icon, onClick, colorClass }) => (
+                <button
+                    onClick={onClick}
+                    disabled={isPlaying}
+                    className={`w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-2xl shadow-lg border-2 border-slate-700 transition-all transform hover:-translate-y-1 active:translate-y-1 active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${colorClass} bg-slate-800`}
+                >
+                    <Icon size={32} strokeWidth={3} />
+                </button>
+            );
+
+            return (
+                <div className="min-h-screen bg-slate-900 text-slate-200 p-2 sm:p-4 font-sans flex flex-col items-center select-none">
+                    
+                    {/* Hlavička */}
+                    <header className="w-full max-w-4xl flex flex-wrap justify-between items-center mb-6 bg-slate-800 p-3 rounded-2xl shadow-xl border border-slate-700 gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-emerald-600 text-white p-2 rounded-xl shadow-lg shadow-emerald-900/50">
+                                <span className="text-2xl">🐢</span>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-1 bg-slate-900 p-1.5 rounded-xl border border-slate-700">
+                                <Gauge size={16} className="text-slate-500 mr-2 ml-1" />
+                                <button 
+                                    onClick={() => setSpeed(800)} 
+                                    className={`p-2 rounded-lg transition-all ${speed === 800 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    <Snail size={20} />
+                                </button>
+                                <button 
+                                    onClick={() => setSpeed(400)} 
+                                    className={`p-2 rounded-lg transition-all ${speed === 400 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    <Rabbit size={20} />
+                                </button>
+                                <button 
+                                    onClick={() => setSpeed(150)} 
+                                    className={`p-2 rounded-lg transition-all ${speed === 150 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    <Zap size={20} />
+                                </button>
+                            </div>
+
                             <button 
-                              onClick={() => removeCommand(index)}
-                              disabled={isPlaying}
-                              className={`relative w-14 h-14 flex items-center justify-center rounded-xl border-2 shadow-sm transition-all
-                                ${isPlaying ? 'cursor-default' : 'cursor-grab active:cursor-grabbing hover:scale-105 hover:z-10'}
-                                ${index === currentStep 
-                                  ? 'bg-yellow-500 border-yellow-300 scale-110 z-20 shadow-xl shadow-yellow-500/30' 
-                                  : 'bg-slate-800 border-slate-600 hover:border-slate-400'
-                                }
-                              `}
+                                onClick={() => setSoundEnabled(!soundEnabled)}
+                                className={`p-3 rounded-xl border-2 transition-colors ${soundEnabled ? 'bg-slate-700 border-slate-600 text-emerald-400' : 'bg-slate-900 border-slate-800 text-slate-600'}`}
                             >
-                              {cmd.type === 'FORWARD' && <ArrowUp size={28} className={index === currentStep ? "text-white" : "text-blue-400"} />}
-                              {cmd.type === 'LEFT' && <RotateCcw size={28} className={index === currentStep ? "text-white" : "text-purple-400"} />}
-                              {cmd.type === 'RIGHT' && <RotateCw size={28} className={index === currentStep ? "text-white" : "text-purple-400"} />}
-                              {cmd.type === 'MELT' && <Flame size={28} className={index === currentStep ? "text-white" : "text-orange-500"} />}
-                              
-                              <span className="absolute top-1 left-1.5 text-[10px] font-bold text-slate-500/50">
-                                {index + 1}
-                              </span>
+                                {soundEnabled ? <Volume2 size={24} /> : <VolumeX size={24} />}
+                            </button>
+
+                            <button 
+                                onClick={initGame} 
+                                disabled={isPlaying}
+                                className="p-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl transition-all disabled:opacity-50 border-2 border-slate-600 hover:border-slate-500 shadow-lg active:scale-95"
+                            >
+                                <RefreshCw size={24} />
                             </button>
                         </div>
-                    </React.Fragment>
-                  )})
-                )}
-                 {/* Drop target na konci seznamu */}
-                 {program.length > 0 && dropTargetIndex === program.length && draggedItemIndex !== null && (
-                      <div className="w-14 h-14 rounded-xl border-2 border-dashed border-slate-600 bg-slate-800/50 flex-shrink-0" />
-                 )}
-              </div>
-            </div>
+                    </header>
 
-            <div className="mt-4">
-              <button
-                onClick={runProgram}
-                disabled={isPlaying || program.length === 0}
-                className={`w-full py-5 rounded-2xl font-bold text-xl flex items-center justify-center gap-3 shadow-xl transition-all transform active:scale-95
-                  ${isPlaying 
-                    ? 'bg-slate-700 text-slate-500 cursor-wait shadow-none' 
-                    : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/40 hover:shadow-emerald-900/60'
-                  }
-                `}
-              >
-                {isPlaying ? (
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-                ) : (
-                  <>
-                    <Play size={28} fill="currentColor" /> SPUSTIT
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
+                    <main className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        
+                        {/* Hrací plocha */}
+                        <div className="flex flex-col items-center order-1 lg:order-none">
+                            <div className="bg-slate-800 p-3 rounded-3xl shadow-2xl border-4 border-slate-700 relative">
+                                
+                                <div 
+                                    className="grid bg-slate-900 border-2 border-slate-600 relative overflow-hidden rounded-xl"
+                                    style={{ 
+                                        gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
+                                        gridTemplateRows: `repeat(${GRID_SIZE}, minmax(0, 1fr))`,
+                                        width: 'min(80vw, 400px)',
+                                        height: 'min(80vw, 400px)' 
+                                    }}
+                                >
+                                    {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, idx) => {
+                                        const x = idx % GRID_SIZE;
+                                        const y = Math.floor(idx / GRID_SIZE);
+                                        const isDiamond = diamond.x === x && diamond.y === y;
+                                        const isWall = walls.some(w => w.x === x && w.y === y);
+                                        const isIce = iceWalls.some(w => w.x === x && w.y === y);
 
-        </div>
-      </main>
-    </div>
-  );
-}
+                                        return (
+                                            <div key={idx} className="bg-slate-800/30 border border-slate-700/30 w-full h-full flex items-center justify-center relative overflow-hidden">
+                                                {isDiamond && (
+                                                    <div className="text-cyan-400 animate-pulse text-4xl drop-shadow-[0_0_15px_rgba(34,211,238,0.6)] z-0">
+                                                        💎
+                                                    </div>
+                                                )}
+                                                {isWall && (
+                                                    <div className="w-[85%] h-[85%] bg-stone-700 border-b-4 border-r-4 border-stone-900 rounded-lg shadow-lg relative">
+                                                        <div className="absolute top-1 left-1 opacity-20"><Lock size={12}/></div>
+                                                    </div>
+                                                )}
+                                                {isIce && (
+                                                    <div className="w-[85%] h-[85%] bg-cyan-500/40 border-2 border-cyan-300/60 rounded-lg shadow-[inset_0_0_10px_rgba(34,211,238,0.3)] backdrop-blur-sm flex items-center justify-center">
+                                                        <div className="w-full h-[1px] bg-white/30 rotate-45 transform scale-150"></div>
+                                                        <div className="w-full h-[1px] bg-white/30 -rotate-45 transform scale-150"></div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+
+                                    {/* Želva */}
+                                    <div 
+                                        className="absolute w-[16.66%] h-[16.66%] flex items-center justify-center transition-all ease-in-out z-20 pointer-events-none"
+                                        style={{ 
+                                            left: `${turtle.x * (100/GRID_SIZE)}%`, 
+                                            top: `${turtle.y * (100/GRID_SIZE)}%`,
+                                            transform: `rotate(${DIRECTIONS[turtle.dir].rotate}deg)`,
+                                            transitionDuration: `${speed}ms` 
+                                        }}
+                                    >
+                                        <div className="w-[80%] h-[80%] relative">
+                                            <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-xl filter brightness-110">
+                                                <path d="M15 25 L5 15 M85 25 L95 15 M15 75 L5 85 M85 75 L95 85" 
+                                                    stroke="#16a34a" strokeWidth="10" strokeLinecap="round" />
+                                                <circle cx="50" cy="15" r="16" fill="#16a34a" />
+                                                <ellipse cx="50" cy="55" rx="34" ry="40" fill="#22c55e" stroke="#15803d" strokeWidth="4" />
+                                                <path d="M50 30 L65 45 L50 60 L35 45 Z" fill="#4ade80" opacity="0.5" />
+                                                <path d="M50 60 L65 75 L50 90 L35 75 Z" fill="#4ade80" opacity="0.5" />
+                                            </svg>
+                                        </div>
+                                    </div>
+
+                                    {projectile && (
+                                        <div 
+                                            className="absolute w-[16.66%] h-[16.66%] flex items-center justify-center z-30 transition-all duration-300 ease-linear pointer-events-none"
+                                            style={{ 
+                                                left: `${(projectile.targetX) * (100/GRID_SIZE)}%`, 
+                                                top: `${(projectile.targetY) * (100/GRID_SIZE)}%`,
+                                            }}
+                                        >   
+                                            <div className="text-4xl animate-bounce drop-shadow-[0_0_15px_orange]">🔥</div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            
+                            <div className={`mt-6 px-8 py-4 rounded-full font-bold text-center w-full max-w-md shadow-xl transition-all duration-300 border-2 text-xl tracking-wide
+                                ${gameStatus === 'won' ? 'bg-emerald-500 text-white border-emerald-400 scale-105' : 
+                                gameStatus === 'lost' ? 'bg-red-500 text-white border-red-400 shake' : 
+                                'bg-slate-800 text-slate-300 border-slate-600'}`}>
+                                {message}
+                            </div>
+                        </div>
+
+                        {/* Ovládání */}
+                        <div className="flex flex-col gap-4 h-full">
+                            
+                            <div className="bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-700">
+                                <div className="flex justify-center gap-4 flex-wrap">
+                                    <ActionCard 
+                                        icon={ArrowUp} 
+                                        onClick={() => addCommand('FORWARD')} 
+                                        colorClass="border-blue-500/50 text-blue-400 hover:bg-blue-500/20 hover:border-blue-400" 
+                                    />
+                                    <ActionCard 
+                                        icon={RotateCcw} 
+                                        onClick={() => addCommand('LEFT')} 
+                                        colorClass="border-purple-500/50 text-purple-400 hover:bg-purple-500/20 hover:border-purple-400" 
+                                    />
+                                    <ActionCard 
+                                        icon={RotateCw} 
+                                        onClick={() => addCommand('RIGHT')} 
+                                        colorClass="border-purple-500/50 text-purple-400 hover:bg-purple-500/20 hover:border-purple-400" 
+                                    />
+                                    <div className="w-[2px] bg-slate-700 mx-2 rounded-full"></div>
+                                    
+                                    <ActionCard 
+                                        icon={Flame} 
+                                        onClick={() => addCommand('MELT')} 
+                                        colorClass="border-orange-500/50 text-orange-500 hover:bg-orange-500/20 hover:border-orange-400" 
+                                    />
+                                </div>
+                                
+                                <div className="flex justify-center gap-8 mt-6">
+                                    <div className="flex items-center gap-2 opacity-60 bg-slate-900 px-3 py-1 rounded-full">
+                                        <div className="w-3 h-3 bg-stone-500 rounded-sm"></div>
+                                        <span className="text-red-400 font-bold">X</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 opacity-80 bg-slate-900 px-3 py-1 rounded-full">
+                                        <div className="w-3 h-3 bg-cyan-400 rounded-sm"></div>
+                                        <span className="text-slate-500">+</span>
+                                        <Flame size={14} className="text-orange-500" />
+                                        <span className="text-emerald-400"><Check size={14}/></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div 
+                                className="bg-slate-800 p-4 rounded-3xl shadow-xl border border-slate-700 flex-1 flex flex-col min-h-[250px]"
+                            >
+                                <div className="flex justify-between items-center mb-4 px-2">
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-slate-700 p-2 rounded-lg text-slate-400">
+                                            <List size={20} />
+                                        </div>
+                                        <span className="bg-slate-900 text-slate-400 px-3 py-1 rounded-full text-sm font-bold border border-slate-700">
+                                            {program.length}
+                                        </span>
+                                    </div>
+                                    <button 
+                                        onClick={clearProgram}
+                                        disabled={isPlaying || program.length === 0}
+                                        className="text-slate-500 hover:text-red-400 hover:bg-slate-700 p-2 rounded-xl transition-all disabled:opacity-30"
+                                    >
+                                        <Trash2 size={24} />
+                                    </button>
+                                </div>
+
+                                <div 
+                                    className="flex-1 bg-slate-900/50 rounded-2xl p-4 border border-slate-700/50 overflow-y-auto content-start shadow-inner"
+                                    onDragOver={handleDragOverEnd}
+                                    onDrop={handleDrop}
+                                >
+                                    <div className="flex flex-wrap gap-2">
+                                        {program.length === 0 ? (
+                                            <div className="w-full h-32 flex flex-col items-center justify-center text-slate-600 opacity-40">
+                                                <div className="text-5xl mb-3 grayscale">🧩</div>
+                                            </div>
+                                        ) : (
+                                            program.map((cmd, index) => {
+                                                const isBeingDragged = draggedItemIndex === index;
+                                                
+                                                return (
+                                                <Fragment key={cmd.id}>
+                                                    {dropTargetIndex === index && draggedItemIndex !== null && !isBeingDragged && (
+                                                        <div className="w-14 h-14 rounded-xl border-2 border-dashed border-emerald-500/50 bg-emerald-500/10 flex-shrink-0 transition-all animate-pulse" />
+                                                    )}
+
+                                                    <div
+                                                        draggable={!isPlaying}
+                                                        onDragStart={(e) => handleDragStart(e, index)}
+                                                        onDragEnd={handleDragEnd}
+                                                        onDragOver={(e) => handleDragOver(e, index)}
+                                                        onDrop={handleDrop}
+                                                        className={`relative group transition-all duration-200
+                                                            ${isBeingDragged ? 'opacity-20 scale-95' : 'opacity-100'}
+                                                        `}
+                                                    >
+                                                        <button 
+                                                            onClick={() => removeCommand(index)}
+                                                            disabled={isPlaying}
+                                                            className={`relative w-14 h-14 flex items-center justify-center rounded-xl border-2 shadow-sm transition-all
+                                                                ${isPlaying ? 'cursor-default' : 'cursor-grab active:cursor-grabbing hover:scale-105 hover:z-10'}
+                                                                ${index === currentStep 
+                                                                    ? 'bg-yellow-500 border-yellow-300 scale-110 z-20 shadow-xl shadow-yellow-500/30' 
+                                                                    : 'bg-slate-800 border-slate-600 hover:border-slate-400'
+                                                                }
+                                                            `}
+                                                        >
+                                                            {cmd.type === 'FORWARD' && <ArrowUp size={28} className={index === currentStep ? "text-white" : "text-blue-400"} />}
+                                                            {cmd.type === 'LEFT' && <RotateCcw size={28} className={index === currentStep ? "text-white" : "text-purple-400"} />}
+                                                            {cmd.type === 'RIGHT' && <RotateCw size={28} className={index === currentStep ? "text-white" : "text-purple-400"} />}
+                                                            {cmd.type === 'MELT' && <Flame size={28} className={index === currentStep ? "text-white" : "text-orange-500"} />}
+                                                            
+                                                            <span className="absolute top-1 left-1.5 text-[10px] font-bold text-slate-500/50">
+                                                                {index + 1}
+                                                            </span>
+                                                        </button>
+                                                    </div>
+                                                </Fragment>
+                                                )
+                                            })
+                                        )}
+                                        {program.length > 0 && dropTargetIndex === program.length && draggedItemIndex !== null && (
+                                            <div className="w-14 h-14 rounded-xl border-2 border-dashed border-slate-600 bg-slate-800/50 flex-shrink-0" />
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="mt-4">
+                                    <button
+                                        onClick={runProgram}
+                                        disabled={isPlaying || program.length === 0}
+                                        className={`w-full py-5 rounded-2xl font-bold text-xl flex items-center justify-center gap-3 shadow-xl transition-all transform active:scale-95
+                                            ${isPlaying 
+                                                ? 'bg-slate-700 text-slate-500 cursor-wait shadow-none' 
+                                                : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/40 hover:shadow-emerald-900/60'
+                                            }
+                                        `}
+                                    >
+                                        {isPlaying ? (
+                                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                                        ) : (
+                                            <>
+                                                <Play size={28} fill="currentColor" /> SPUSTIT
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<TurtleGame />);
+    </script>
+</body>
+</html>
