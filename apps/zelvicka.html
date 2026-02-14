@@ -1,24 +1,26 @@
 <!-- 
 SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
-1. Vytvoření základní hry: mřížka, želva, diamant, karty (vpřed, vlevo, vpravo, vystřel).
-2. Reset želvy na start při opakovaném spuštění, pohled na želvu shora.
-3. Přidání žabičky (dočasně), ledových zdí a karty "rozmrazit", grafické karty bez textu.
-4. Návrat k želvě, plynulé animace pohybu, odstranění nepotřebných akcí, kliknutí na kartu ji smaže.
-5. Oprava mřížky (stabilní čtverce), celkové tmavé téma.
-6. Přidání zvuků (syntezátor), přesouvání karet (Drag & Drop), výběr rychlosti želvy.
-7. Vizuální uhýbání karet při přesunu, ikony (šnek, zajíc, blesk) pro rychlost, minimum textu.
-8. Oprava problikávání Drag & Drop, srozumitelnější ikony pro otáčení (zahnuté šipky).
-9. Přidání linkovaného pozadí (sešit) pod program, vkládací čára pro Drag & Drop.
-10. Oprava grafiky šipek (spojité čáry), stabilizace rozvržení.
-11. Vylepšení ledu (gradienty), cihlové zdi (červené), ohňostroj při výhře, mizení zvýraznění při editaci.
-12. Efekt kapek vody po rozpuštění ledu.
-13. Zvětšení ohňostroje, ztenčení a lepší zarovnání linek v programu.
-14. Optimalizace UI pro mobilní telefony a implementace Pointer Events pro spolehlivý Drag & Drop.
-15. Vizuální navigace pomocí jablíček: Želva drží vlevo červené a vpravo žluté jablko. Šipky mají odpovídající barvy.
-16. Přidáno ovládání klávesnicí (šipky, mezerník, enter).
-17. Editace levelu klikáním (Prázdno->Zed->Led), cheat "LLL" pro vyplnění ledem, auto-scroll programu při běhu i editaci.
-18. Možnost přerušit běžící program (Stop) a "sticky" hrací plocha.
-19. Změna na "App-like" layout: fixní výška obrazovky (100dvh), zákaz scrollování celé stránky, scrollování pouze uvnitř panelu programu.
+1. Vytvoření základní hry: mřížka, želva, diamant, karty.
+2. Reset, pohled shora.
+3. Ledové zdi, rozmrazování.
+4. Plynulé animace.
+5. Oprava mřížky, tmavé téma.
+6. Zvuky, Drag & Drop, rychlost.
+7. Vizuální uhýbání, ikony rychlosti.
+8. Pointer Events pro mobilní Drag & Drop.
+9. Linkovaný papír pod programem.
+10. Oprava grafiky šipek.
+11. Vylepšení grafiky (led, zdi, ohňostroj).
+12. Kapičky vody.
+13. Větší ohňostroj, lepší linky.
+14. Optimalizace pro mobily (100dvh layout).
+15. Jablíčka pro orientaci.
+16. Klávesové zkratky.
+17. Editace levelu, cheaty, auto-scroll.
+18. Stop tlačítko, sticky board.
+19. App-like layout (no scroll).
+20. Přidána Beruška (volitelná, pohyblivý nepřítel).
+21. Vylepšený obrázek Berušky, možnost spálit Berušku ohněm na popel.
 -->
 <!DOCTYPE html>
 <html lang="cs">
@@ -60,7 +62,6 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
             overscroll-behavior: none;
             touch-action: manipulation;
             background-color: #0f172a;
-            /* Zamezení scrollování stránky */
             overflow: hidden; 
             height: 100dvh;
             width: 100vw;
@@ -103,20 +104,11 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className} {...props} style={{pointerEvents: 'none'}}>{children}</svg>
         );
 
-        // Pomocná ikona jablíčka
-        const AppleIcon = ({ cx, cy, color }) => (
-            <g>
-               <circle cx={cx} cy={cy} r="4" fill={color} stroke="none" />
-               <path d={`M${cx} ${cy-3} Q${cx+2} ${cy-5} ${cx+3} ${cy-6}`} stroke="#3f6212" strokeWidth="1" fill="none" />
-            </g>
-        );
-
         // Levá - Červená barva
         const TurnLeftIcon = (props) => (
             <Icon {...props}>
                 <path d="M17 21 V 13 A 6 6 0 0 0 11 7 H 4" stroke="#ef4444" />
                 <path d="M 8 3 L 4 7 L 8 11" stroke="#ef4444" />
-                {/* Malé jablíčko u šipky pro nápovědu */}
                 <circle cx="18" cy="18" r="3" fill="#ef4444" stroke="none" opacity="0.8"/>
             </Icon>
         );
@@ -160,6 +152,43 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
             </Icon>
         );
         const Rabbit = (props) => <Icon {...props} strokeWidth="2"><path d="M13 16a3 3 0 0 1 2.24 5"/><path d="M18 12h.01"/><path d="M6 12h.01"/><path d="M22 13.5c0 3.1-1.6 4.5-3.1 4.5h-8c-1.3 0-2.2-.6-3.1-1.4l-4-4c-.6-.6-.8-1.5-.5-2.2l.6-1.5c.3-.7 1-1.1 1.8-1.1H8c.5 0 1-.4 1-1V5a2 2 0 0 1 4 0v2c0 1.1.9 2 2 2h2c1.7 0 3 1.3 3 3v1.5Z"/></Icon>;
+        
+        // Vylepšená ikona Berušky (SVG)
+        const LadybugIcon = (props) => (
+            <Icon {...props} viewBox="0 0 100 100" strokeWidth="0">
+                {/* Nožičky */}
+                <path d="M25 25 L15 15 M75 25 L85 15 M25 50 L10 50 M75 50 L90 50 M25 75 L15 85 M75 75 L85 85" stroke="#334155" strokeWidth="6" strokeLinecap="round" />
+                {/* Tělo - červené krovky */}
+                <ellipse cx="50" cy="55" rx="32" ry="38" fill="#ef4444" />
+                {/* Předěl krovek */}
+                <path d="M50 20 V 93" stroke="#7f1d1d" strokeWidth="2" />
+                {/* Tečky */}
+                <circle cx="35" cy="45" r="5" fill="#7f1d1d" />
+                <circle cx="65" cy="45" r="5" fill="#7f1d1d" />
+                <circle cx="30" cy="70" r="4" fill="#7f1d1d" />
+                <circle cx="70" cy="70" r="4" fill="#7f1d1d" />
+                <circle cx="50" cy="60" r="3" fill="#7f1d1d" />
+                {/* Hlava */}
+                <path d="M30 25 Q50 -5 70 25" fill="#1e293b" />
+                {/* Tykadla */}
+                <path d="M35 10 L25 2 M65 10 L75 2" stroke="#1e293b" strokeWidth="3" strokeLinecap="round" />
+                {/* Oči */}
+                <circle cx="40" cy="18" r="3" fill="white" />
+                <circle cx="60" cy="18" r="3" fill="white" />
+            </Icon>
+        );
+
+        // Hromádka popela
+        const AshPile = () => (
+            <div className="absolute w-[80%] h-[80%] flex items-center justify-center opacity-80 pointer-events-none">
+                <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-sm">
+                    <path d="M20 80 Q50 40 80 80 Q90 90 50 95 Q10 90 20 80" fill="#57534e" />
+                    <circle cx="35" cy="75" r="6" fill="#44403c" />
+                    <circle cx="65" cy="78" r="5" fill="#44403c" />
+                    <circle cx="50" cy="65" r="4" fill="#78716c" />
+                </svg>
+            </div>
+        );
 
         // --- OHŇOSTROJ ---
         const Fireworks = () => {
@@ -212,6 +241,12 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
             const [walls, setWalls] = useState([]); 
             const [iceWalls, setIceWalls] = useState([]); 
             const [waterDrops, setWaterDrops] = useState([]); 
+            
+            // Ladybug state
+            const [ladybugEnabled, setLadybugEnabled] = useState(false);
+            const [ladybug, setLadybug] = useState({ x: -1, y: -1, path: [], idx: 0 });
+            const [ashPiles, setAshPiles] = useState([]); // Hromádky popela
+
             const [startTurtle, setStartTurtle] = useState({ x: 0, y: 0, dir: 1 });
             const [initialWalls, setInitialWalls] = useState([]);
             const [initialIceWalls, setInitialIceWalls] = useState([]);
@@ -230,52 +265,70 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
             const [dropIdx, setDropIdx] = useState(null);
             const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
             
-            // Abort controller mechanism for stopping
             const abortRef = useRef(false);
-            
-            // Cheat code state
             const [keyBuffer, setKeyBuffer] = useState([]);
-
             const containerRef = useRef(null);
 
             const safePlaySound = (type) => soundEnabled && playSound(type);
 
             const initGame = () => {
-                abortRef.current = false; // Reset abort
-                setProgram([]); setCurrentStep(-1); setIsPlaying(false); setGameStatus('idle'); setProjectile(null); setWaterDrops([]);
+                abortRef.current = false; 
+                setProgram([]); setCurrentStep(-1); setIsPlaying(false); setGameStatus('idle'); setProjectile(null); setWaterDrops([]); setAshPiles([]);
                 setMessage("Dostaň želvičku k diamantu!");
+                
                 let newTurtle = { x: 0, y: 0, dir: 1 };
                 let newDiamond = { x: GRID_SIZE - 1, y: GRID_SIZE - 1 };
                 let newWalls = []; let newIceWalls = [];
+                
+                // 1. Setup Ladybug logic first to reserve space
+                let lb = { x: -1, y: -1, path: [], idx: 0 };
+                let bx, by;
+                for(let attempt=0; attempt<50; attempt++) {
+                    bx = Math.floor(Math.random() * (GRID_SIZE - 1));
+                    by = Math.floor(Math.random() * (GRID_SIZE - 1));
+                    if ((bx <= 1 && by <= 1) || (bx >= GRID_SIZE-2 && by >= GRID_SIZE-2)) continue;
+                    break;
+                }
+                const lbPath = [
+                    {x: bx, y: by}, {x: bx+1, y: by}, {x: bx+1, y: by+1}, {x: bx, y: by+1}
+                ];
+                lb = { x: bx, y: by, path: lbPath, idx: 0 };
+                setLadybug(lb);
+
+                // 2. Generate Obstacles
                 const generateObstacles = (count, array) => {
                     for (let i = 0; i < count; i++) {
                         let attempts = 0;
                         while (attempts < 20) {
                             let wx = Math.floor(Math.random() * GRID_SIZE); let wy = Math.floor(Math.random() * GRID_SIZE);
-                            const isTaken = (wx === newTurtle.x && wy === newTurtle.y) || (wx === newDiamond.x && wy === newDiamond.y) || newWalls.some(w => w.x === wx && w.y === wy) || newIceWalls.some(w => w.x === wx && w.y === wy);
+                            const isTaken = 
+                                (wx === newTurtle.x && wy === newTurtle.y) || 
+                                (wx === newDiamond.x && wy === newDiamond.y) || 
+                                newWalls.some(w => w.x === wx && w.y === wy) || 
+                                newIceWalls.some(w => w.x === wx && w.y === wy) ||
+                                lb.path.some(p => p.x === wx && p.y === wy);
+                                
                             if (!isTaken) { array.push({ x: wx, y: wy }); break; }
                             attempts++;
                         }
                     }
                 };
                 generateObstacles(6, newWalls); generateObstacles(5, newIceWalls);
+                
                 setTurtle(newTurtle); setWalls(newWalls); setIceWalls(newIceWalls); setDiamond(newDiamond);
                 setStartTurtle({ ...newTurtle }); setInitialWalls([...newWalls]); setInitialIceWalls([...newIceWalls]);
             };
 
             useEffect(() => { initGame(); }, []);
 
-            // Auto-scroll effect - při přidání karty nebo při běhu
             useEffect(() => {
                 if (containerRef.current) {
                     if (isPlaying && currentStep !== -1) {
-                        // Scroll k aktivní kartě
                         const activeElement = containerRef.current.querySelector(`[data-index="${currentStep}"]`);
                         if (activeElement) {
                             activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                         }
                     } else if (!isPlaying && program.length > 0) {
-                        // Scroll na konec při přidání
                         containerRef.current.scrollTop = containerRef.current.scrollHeight;
                     }
                 }
@@ -284,7 +337,7 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
             const addCommand = (type) => {
                 if (isPlaying) return;
                 safePlaySound('click'); setCurrentStep(-1);
-                if (gameStatus !== 'idle') { setGameStatus('idle'); setTurtle(startTurtle); setWalls(initialWalls); setIceWalls(initialIceWalls); setWaterDrops([]); }
+                if (gameStatus !== 'idle') { setGameStatus('idle'); setTurtle(startTurtle); setWalls(initialWalls); setIceWalls(initialIceWalls); setWaterDrops([]); setAshPiles([]); setLadybug(prev => ({...prev, x: prev.path[0].x, y: prev.path[0].y, idx: 0})); }
                 setProgram(prev => [...prev, { id: Date.now() + Math.random(), type }]);
             };
 
@@ -297,298 +350,207 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
 
             const clearProgram = () => {
                 if (isPlaying) return;
-                safePlaySound('click'); setCurrentStep(-1); setProgram([]); setGameStatus('idle'); setTurtle(startTurtle); setWalls(initialWalls); setIceWalls(initialIceWalls); setWaterDrops([]);
+                safePlaySound('click'); setCurrentStep(-1); setProgram([]); setGameStatus('idle'); 
+                setTurtle(startTurtle); setWalls(initialWalls); setIceWalls(initialIceWalls); setWaterDrops([]); setAshPiles([]);
+                setLadybug(prev => ({...prev, x: prev.path[0].x, y: prev.path[0].y, idx: 0}));
             };
 
-            // Funkce pro zastavení běžícího programu
-            const stopProgram = () => {
-                if (isPlaying) {
-                    abortRef.current = true;
-                }
+            const stopProgram = () => { if (isPlaying) abortRef.current = true; };
+
+            const toggleLadybug = () => {
+                if (isPlaying) return;
+                setLadybugEnabled(!ladybugEnabled);
+                setTimeout(initGame, 0); 
             };
 
             const runProgram = async () => {
                 if (program.length === 0) return;
-                
-                // Pokud už běží, funguje jako STOP
-                if (isPlaying) {
-                    stopProgram();
-                    return;
-                }
+                if (isPlaying) { stopProgram(); return; }
 
-                setIsPlaying(true); 
-                abortRef.current = false; // Reset abort flag
-                setGameStatus('running'); 
-                setCurrentStep(-1); 
-                setMessage("Pozor, start!"); 
-                safePlaySound('click');
+                setIsPlaying(true); abortRef.current = false; 
+                setGameStatus('running'); setCurrentStep(-1); setMessage("Pozor, start!"); safePlaySound('click');
                 
-                setTurtle(startTurtle); 
-                setWalls(initialWalls); 
-                setIceWalls(initialIceWalls); 
-                setProjectile(null); 
-                setWaterDrops([]);
+                setTurtle(startTurtle); setWalls(initialWalls); setIceWalls(initialIceWalls); setProjectile(null); setWaterDrops([]); setAshPiles([]);
                 
-                // Kontrola přerušení během čekání
+                // Reset ladybug
+                let curL = { ...ladybug, x: ladybug.path[0].x, y: ladybug.path[0].y, idx: 0 };
+                setLadybug(curL);
+                
+                let isLadybugDead = false;
+
                 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
                 await wait(500); 
                 
-                if (abortRef.current) {
-                    setIsPlaying(false);
-                    setGameStatus('idle');
-                    setMessage("Přerušeno.");
-                    return;
-                }
-
+                if (abortRef.current) { setIsPlaying(false); setGameStatus('idle'); setMessage("Přerušeno."); return; }
                 setMessage("Jedu!");
 
-                let curT = { ...startTurtle }; let curW = [...initialWalls]; let curI = [...initialIceWalls]; let curDrops = [];
+                let curT = { ...startTurtle }; let curW = [...initialWalls]; let curI = [...initialIceWalls]; let curDrops = []; let curAsh = [];
 
                 for (let i = 0; i < program.length; i++) {
-                    if (abortRef.current) {
-                        break; // Okamžité přerušení smyčky
-                    }
-
-                    setCurrentStep(i); 
-                    const cmd = program[i]; 
-                    
+                    if (abortRef.current) break;
+                    setCurrentStep(i); const cmd = program[i]; 
                     await wait(speed);
-                    
-                    if (abortRef.current) {
-                        break; // Kontrola znovu po čekání
-                    }
+                    if (abortRef.current) break;
 
+                    // 1. Move Turtle
                     const move = DIRECTIONS[curT.dir];
+                    let nextTX = curT.x; let nextTY = curT.y; 
+
                     if (cmd.type === 'FORWARD') {
-                        const nextX = curT.x + move.dx; const nextY = curT.y + move.dy;
-                        const hitWall = curW.some(w => w.x === nextX && w.y === nextY);
-                        const hitIce = curI.some(w => w.x === nextX && w.y === nextY);
-                        const out = nextX < 0 || nextX >= GRID_SIZE || nextY < 0 || nextY >= GRID_SIZE;
+                        nextTX += move.dx; nextTY += move.dy;
+                        const hitWall = curW.some(w => w.x === nextTX && w.y === nextTY);
+                        const hitIce = curI.some(w => w.x === nextTX && w.y === nextTY);
+                        const out = nextTX < 0 || nextTX >= GRID_SIZE || nextTY < 0 || nextTY >= GRID_SIZE;
                         if (hitWall || hitIce || out) {
                             setGameStatus('lost'); safePlaySound('lose');
                             setMessage(hitWall ? "Au! Cihla!" : hitIce ? "Brrr! Led!" : "Au! Okraj!");
                             setIsPlaying(false); return; 
                         }
-                        curT.x = nextX; curT.y = nextY; safePlaySound('step');
+                        curT.x = nextTX; curT.y = nextTY; safePlaySound('step');
                     } 
                     else if (cmd.type === 'LEFT') { curT.dir = (curT.dir + 3) % 4; safePlaySound('turn'); } 
                     else if (cmd.type === 'RIGHT') { curT.dir = (curT.dir + 1) % 4; safePlaySound('turn'); }
                     else if (cmd.type === 'MELT') {
                         const tx = curT.x + move.dx; const ty = curT.y + move.dy;
                         safePlaySound('fire'); setProjectile({ x: curT.x, y: curT.y, targetX: curT.x + move.dx * 0.8, targetY: curT.y + move.dy * 0.8, type: 'fire', rotation: DIRECTIONS[curT.dir].rotate });
-                        await wait(300);
-                        if (abortRef.current) break; // Check during projectile animation
+                        await wait(300); if (abortRef.current) break; setProjectile(null);
                         
-                        setProjectile(null);
                         const idx = curI.findIndex(w => w.x === tx && w.y === ty);
-                        if (idx !== -1) { curI.splice(idx, 1); setIceWalls([...curI]); curDrops.push({ x: tx, y: ty }); setWaterDrops([...curDrops]); setMessage("Psss..."); }
+                        
+                        // Check collision with ice
+                        if (idx !== -1) { 
+                            curI.splice(idx, 1); setIceWalls([...curI]); 
+                            curDrops.push({ x: tx, y: ty }); setWaterDrops([...curDrops]); 
+                            setMessage("Psss..."); 
+                        }
+                        // Check collision with Ladybug
+                        else if (ladybugEnabled && !isLadybugDead && curL.x === tx && curL.y === ty) {
+                            isLadybugDead = true;
+                            curAsh.push({ x: tx, y: ty });
+                            setAshPiles([...curAsh]);
+                            setMessage("Promiň beruško!");
+                        }
                         else setMessage("Nic.");
                     }
+                    
+                    // 2. Move Ladybug (if enabled and alive)
+                    if (ladybugEnabled && !isLadybugDead) {
+                        const nextLIdx = (curL.idx + 1) % curL.path.length;
+                        const nextLPos = curL.path[nextLIdx];
+                        curL = { ...curL, x: nextLPos.x, y: nextLPos.y, idx: nextLIdx };
+                        setLadybug(curL);
+                        
+                        // Check collision: Turtle on Ladybug
+                        if (curT.x === curL.x && curT.y === curL.y) {
+                            setGameStatus('lost'); safePlaySound('lose'); setMessage("Au! Srážka s beruškou!");
+                            setIsPlaying(false); return;
+                        }
+                    }
+
                     setTurtle({ ...curT });
                     if (curT.x === diamond.x && curT.y === diamond.y) { setGameStatus('won'); safePlaySound('win'); setMessage("Hurá! Diamant!"); setIsPlaying(false); return; }
                 }
                 
-                // Konec programu nebo přerušení
                 setIsPlaying(false);
-                if (abortRef.current) {
-                    setGameStatus('idle');
-                    setMessage("Přerušeno.");
-                } else if (gameStatus !== 'won') {
-                    setGameStatus('lost'); 
-                    setMessage("Konec programu..."); 
-                }
+                if (abortRef.current) { setGameStatus('idle'); setMessage("Přerušeno."); } 
+                else if (gameStatus !== 'won') { setGameStatus('lost'); setMessage("Konec programu..."); }
             };
 
-            // --- LEVEL EDIT & CHEATS ---
             const handleGridClick = (x, y) => {
                 if (isPlaying) return;
-                
-                // Ochrana proti přepisování startu a cíle
-                if ((x === startTurtle.x && y === startTurtle.y) || (x === diamond.x && y === diamond.y)) {
-                    safePlaySound('lose'); // Negative sound
-                    return;
-                }
+                if ((x === startTurtle.x && y === startTurtle.y) || (x === diamond.x && y === diamond.y)) { safePlaySound('lose'); return; }
+                if (ladybugEnabled && x === ladybug.path[0].x && y === ladybug.path[0].y) { safePlaySound('lose'); return; }
 
                 safePlaySound('click');
-                
                 const isWall = walls.some(w => w.x === x && w.y === y);
                 const isIce = iceWalls.some(w => w.x === x && w.y === y);
+                let newWalls = [...walls]; let newIceWalls = [...iceWalls];
 
-                let newWalls = [...walls];
-                let newIceWalls = [...iceWalls];
+                if (!isWall && !isIce) { newWalls.push({ x, y }); } 
+                else if (isWall) { newWalls = newWalls.filter(w => !(w.x === x && w.y === y)); newIceWalls.push({ x, y }); } 
+                else if (isIce) { newIceWalls = newIceWalls.filter(w => !(w.x === x && w.y === y)); }
 
-                // Cyklus: Empty -> Wall -> Ice -> Empty
-                if (!isWall && !isIce) {
-                    // Empty -> Wall
-                    newWalls.push({ x, y });
-                } else if (isWall) {
-                    // Wall -> Ice
-                    newWalls = newWalls.filter(w => !(w.x === x && w.y === y));
-                    newIceWalls.push({ x, y });
-                } else if (isIce) {
-                    // Ice -> Empty
-                    newIceWalls = newIceWalls.filter(w => !(w.x === x && w.y === y));
-                }
-
-                setWalls(newWalls);
-                setIceWalls(newIceWalls);
-                setInitialWalls(newWalls);
-                setInitialIceWalls(newIceWalls);
+                setWalls(newWalls); setIceWalls(newIceWalls); setInitialWalls(newWalls); setInitialIceWalls(newIceWalls);
             };
 
-            // --- KEYBOARD CONTROLS & CHEATS ---
             useEffect(() => {
                 const handleKeyDown = (e) => {
-                    // Cheats logic
-                    const newBuffer = [...keyBuffer, e.key.toLowerCase()].slice(-3); // Keep last 3 chars
-                    setKeyBuffer(newBuffer);
-                    
-                    // Check for "lll" cheat
+                    const newBuffer = [...keyBuffer, e.key.toLowerCase()].slice(-3); setKeyBuffer(newBuffer);
                     if (newBuffer.join('') === 'lll' && !isPlaying) {
-                        safePlaySound('win'); // Confirmation sound
-                        // Fill all empty spots with ice
+                        safePlaySound('win'); 
                         const newIce = [];
                         for(let y=0; y<GRID_SIZE; y++) {
                             for(let x=0; x<GRID_SIZE; x++) {
-                                // Skip start and end
-                                if ((x === startTurtle.x && y === startTurtle.y) || (x === diamond.x && y === diamond.y)) continue;
+                                if ((x === startTurtle.x && y === startTurtle.y) || (x === diamond.x && y === diamond.y) || (ladybugEnabled && ladybug.path.some(p=>p.x===x && p.y===y))) continue;
                                 newIce.push({x, y});
                             }
                         }
-                        setIceWalls(newIce);
-                        setInitialIceWalls(newIce);
-                        setWalls([]);
-                        setInitialWalls([]);
-                        setMessage("Doba ledová!");
-                        return; // Stop processing other keys
+                        setIceWalls(newIce); setInitialIceWalls(newIce); setWalls([]); setInitialWalls([]); setMessage("Doba ledová!"); return;
                     }
-
-                    if (isPlaying) return;
-                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
+                    if (isPlaying || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
                     switch(e.key) {
                         case 'ArrowUp': e.preventDefault(); addCommand('FORWARD'); break;
                         case 'ArrowLeft': e.preventDefault(); addCommand('LEFT'); break;
                         case 'ArrowRight': e.preventDefault(); addCommand('RIGHT'); break;
                         case ' ': e.preventDefault(); addCommand('MELT'); break;
                         case 'Enter': e.preventDefault(); runProgram(); break;
-                        case 'Backspace':
-                            e.preventDefault();
-                            setProgram(prev => {
-                                if (prev.length === 0) return prev;
-                                safePlaySound('click'); setCurrentStep(-1);
-                                if (gameStatus !== 'idle') { setGameStatus('idle'); setTurtle(startTurtle); setWalls(initialWalls); setIceWalls(initialIceWalls); setWaterDrops([]); }
-                                return prev.slice(0, -1);
-                            });
-                            break;
+                        case 'Backspace': e.preventDefault();
+                            setProgram(prev => { if (prev.length === 0) return prev; safePlaySound('click'); setCurrentStep(-1); if (gameStatus !== 'idle') { setGameStatus('idle'); setTurtle(startTurtle); setWalls(initialWalls); setIceWalls(initialIceWalls); setWaterDrops([]); setAshPiles([]); setLadybug(prev => ({...prev, x: prev.path[0].x, y: prev.path[0].y, idx: 0})); } return prev.slice(0, -1); }); break;
                     }
                 };
+                window.addEventListener('keydown', handleKeyDown); return () => window.removeEventListener('keydown', handleKeyDown);
+            }, [isPlaying, gameStatus, startTurtle, initialWalls, initialIceWalls, program, keyBuffer, ladybug, ladybugEnabled]);
 
-                window.addEventListener('keydown', handleKeyDown);
-                return () => window.removeEventListener('keydown', handleKeyDown);
-            }, [isPlaying, gameStatus, startTurtle, initialWalls, initialIceWalls, program, keyBuffer]);
-
-            // --- POINTER EVENTS DRAG & DROP ---
-            const onPointerDown = (e, index) => {
-                if (isPlaying) return;
-                setDraggedIdx(index);
-                setDragPos({ x: e.clientX, y: e.clientY });
-                window.addEventListener('pointermove', onPointerMove);
-                window.addEventListener('pointerup', onPointerUp);
-            };
-
-            const onPointerMove = (e) => {
-                setDragPos({ x: e.clientX, y: e.clientY });
-                const element = document.elementFromPoint(e.clientX, e.clientY);
-                const item = element?.closest('[data-index]');
-                if (item) {
-                    const idx = parseInt(item.getAttribute('data-index'));
-                    setDropIdx(idx);
-                } else {
-                    setDropIdx(null);
-                }
-            };
-
-            const onPointerUp = (e) => {
-                window.removeEventListener('pointermove', onPointerMove);
-                window.removeEventListener('pointerup', onPointerUp);
-                
-                setDraggedIdx((currentDragged) => {
-                    setDropIdx((currentDrop) => {
-                        if (currentDragged !== null && currentDrop !== null && currentDragged !== currentDrop) {
-                            setProgram((prev) => {
-                                const list = [...prev];
-                                const [removed] = list.splice(currentDragged, 1);
-                                list.splice(currentDrop, 0, removed);
-                                return list;
-                            });
-                            safePlaySound('click');
-                        }
-                        return null;
-                    });
-                    return null;
-                });
-                setCurrentStep(-1);
-            };
+            const onPointerDown = (e, index) => { if (isPlaying) return; setDraggedIdx(index); setDragPos({ x: e.clientX, y: e.clientY }); window.addEventListener('pointermove', onPointerMove); window.addEventListener('pointerup', onPointerUp); };
+            const onPointerMove = (e) => { setDragPos({ x: e.clientX, y: e.clientY }); const element = document.elementFromPoint(e.clientX, e.clientY); const item = element?.closest('[data-index]'); if (item) { setDropIdx(parseInt(item.getAttribute('data-index'))); } else { setDropIdx(null); } };
+            const onPointerUp = (e) => { window.removeEventListener('pointermove', onPointerMove); window.removeEventListener('pointerup', onPointerUp); setDraggedIdx((currentDragged) => { setDropIdx((currentDrop) => { if (currentDragged !== null && currentDrop !== null && currentDragged !== currentDrop) { setProgram((prev) => { const list = [...prev]; const [removed] = list.splice(currentDragged, 1); list.splice(currentDrop, 0, removed); return list; }); safePlaySound('click'); } return null; }); return null; }); setCurrentStep(-1); };
 
             return (
                 <div className="h-[100dvh] w-full bg-slate-950 text-slate-200 flex flex-col overflow-hidden select-none">
-                    {/* Header */}
                     <header className="flex-none w-full max-w-6xl mx-auto flex justify-between items-center p-2 bg-slate-800 border-b border-slate-700 shadow-md z-20">
-                        <div className="bg-emerald-600 text-white p-1.5 rounded-xl shadow-lg"><span className="text-xl">🐢</span></div>
-                        <div className="flex items-center gap-3">
+                        <div className="bg-emerald-600 text-white p-1.5 rounded-xl shadow-lg"><span className="text-xl md:text-2xl">🐢</span></div>
+                        <div className="flex items-center gap-2 md:gap-6">
                             <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-700">
-                                <button onClick={() => setSpeed(800)} className={`p-1.5 rounded-lg transition-all ${speed === 800 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}><Snail size={18} /></button>
-                                <button onClick={() => setSpeed(400)} className={`p-1.5 rounded-lg transition-all ${speed === 400 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}><Rabbit size={18} /></button>
-                                <button onClick={() => setSpeed(150)} className={`p-1.5 rounded-lg transition-all ${speed === 150 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}><Zap size={18} /></button>
+                                <button onClick={() => setSpeed(800)} className={`p-1.5 md:p-2 rounded-lg transition-all ${speed === 800 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}><Snail size={18} /></button>
+                                <button onClick={() => setSpeed(400)} className={`p-1.5 md:p-2 rounded-lg transition-all ${speed === 400 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}><Rabbit size={18} /></button>
+                                <button onClick={() => setSpeed(150)} className={`p-1.5 md:p-2 rounded-lg transition-all ${speed === 150 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}><Zap size={18} /></button>
                             </div>
+                            <button onClick={toggleLadybug} className={`p-2 rounded-xl border-2 transition-colors ${ladybugEnabled ? 'bg-red-500 border-red-400 text-white' : 'bg-slate-900 border-slate-800 text-slate-600'}`} title={ladybugEnabled ? "Vypnout berušku" : "Zapnout berušku"}><LadybugIcon size={20} /></button>
                             <button onClick={() => setSoundEnabled(!soundEnabled)} className={`p-2 rounded-xl border-2 transition-colors ${soundEnabled ? 'bg-slate-700 border-slate-600 text-emerald-400' : 'bg-slate-900 border-slate-800 text-slate-600'}`}>{soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
-                            <button onClick={initGame} disabled={isPlaying} className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl border-2 border-slate-600 shadow-lg active:scale-95"><RefreshCw size={20} /></button>
+                            <button onClick={initGame} disabled={isPlaying} className="p-2 md:p-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl border-2 border-slate-600 shadow-lg active:scale-95"><RefreshCw size={20} /></button>
                         </div>
                     </header>
 
-                    {/* Main Content - Flex for mobile column, grid for desktop */}
                     <main className="flex-1 w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-2 p-2 overflow-hidden">
-                        
-                        {/* Board Section - Scrollable only if huge on mobile */}
                         <div className="flex flex-col items-center justify-center lg:justify-start overflow-y-auto lg:overflow-visible no-scrollbar">
-                            <div className="bg-slate-800 p-2 rounded-3xl shadow-2xl border-4 border-slate-700 relative shrink-0">
-                                {/* Dynamic size: responsive to viewport width AND height to fit on phones */}
-                                <div className="grid bg-slate-900 border-2 border-slate-600 relative overflow-hidden rounded-xl" 
-                                     style={{ 
-                                         gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`, 
-                                         gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`, 
-                                         width: 'min(90vw, 45vh)', 
-                                         height: 'min(90vw, 45vh)' 
-                                     }}>
+                            <div className="bg-slate-800 p-2 md:p-3 rounded-3xl shadow-2xl border-4 border-slate-700 relative shrink-0">
+                                <div className="grid bg-slate-900 border-2 border-slate-600 relative overflow-hidden rounded-xl" style={{ gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`, gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`, width: 'min(90vw, 360px)', height: 'min(90vw, 360px)' }}>
                                     {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, idx) => {
                                         const x = idx % GRID_SIZE; const y = Math.floor(idx / GRID_SIZE);
-                                        const isD = diamond.x === x && diamond.y === y; const isW = walls.some(w => w.x === x && w.y === y); const isI = iceWalls.some(w => w.x === x && w.y === y); const isH = waterDrops.some(w => w.x === x && w.y === y);
+                                        const isD = diamond.x === x && diamond.y === y; const isW = walls.some(w => w.x === x && w.y === y); const isI = iceWalls.some(w => w.x === x && w.y === y); const isH = waterDrops.some(w => w.x === x && w.y === y); const isA = ashPiles.some(w => w.x === x && w.y === y);
+                                        const isLB = ladybugEnabled && ladybug.x === x && ladybug.y === y && !isA; // Don't show ladybug if ash is there
+                                        
                                         return (
-                                            <div key={idx} 
-                                                 onClick={() => handleGridClick(x, y)}
-                                                 className="bg-slate-800/30 border border-slate-700/30 w-full h-full flex items-center justify-center relative cursor-pointer hover:bg-slate-700/50 transition-colors">
+                                            <div key={idx} onClick={() => handleGridClick(x, y)} className="bg-slate-800/30 border border-slate-700/30 w-full h-full flex items-center justify-center relative cursor-pointer hover:bg-slate-700/50 transition-colors">
                                                 {isH && <div className="absolute inset-0 flex items-center justify-center opacity-60 pointer-events-none"><svg viewBox="0 0 100 100" className="w-2/3 h-2/3"><circle cx="30" cy="40" r="4" fill="#60a5fa" /><circle cx="65" cy="70" r="5" fill="#3b82f6" /><circle cx="75" cy="35" r="3" fill="#93c5fd" /></svg></div>}
+                                                {isA && <AshPile />}
                                                 {isD && <div className="text-cyan-400 animate-pulse text-3xl md:text-4xl drop-shadow-[0_0_15px_rgba(34,211,238,0.6)] pointer-events-none">💎</div>}
                                                 {isW && <div className="w-[90%] h-[90%] relative pointer-events-none"><svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md"><rect x="5" y="5" width="90" height="90" rx="6" fill="#a34a3b" stroke="#7c2d22" strokeWidth="4" /><path d="M5 35 H95 M5 65 H95 M35 5 V35 M65 5 V35 M50 35 V65 M20 65 V95 M80 65 V95" stroke="#7c2d22" strokeWidth="3" /><rect x="10" y="10" width="15" height="5" fill="#c25f4e" opacity="0.4" /></svg></div>}
                                                 {isI && <div className="w-[90%] h-[90%] relative pointer-events-none"><svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md opacity-95"><defs><linearGradient id="iceGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#ecfeff" stopOpacity="1" /><stop offset="40%" stopColor="#67e8f9" stopOpacity="0.8" /><stop offset="100%" stopColor="#0ea5e9" stopOpacity="0.9" /></linearGradient></defs><rect x="5" y="5" width="90" height="90" rx="15" fill="url(#iceGrad)" stroke="#bae6fd" strokeWidth="3" /><path d="M20 20 L40 45 L15 60" stroke="white" strokeWidth="3" fill="none" opacity="0.5" strokeLinecap="round" /><path d="M80 15 L60 40 L85 65" stroke="white" strokeWidth="2" fill="none" opacity="0.4" strokeLinecap="round" /><path d="M15 15 L35 15" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.8" /><path d="M15 15 L15 35" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.8" /><circle cx="50" cy="50" r="3" fill="white" opacity="0.5" /></svg></div>}
+                                                {isLB && <div className="absolute w-[80%] h-[80%] flex items-center justify-center transition-all duration-500 pointer-events-none"><LadybugIcon size={40} className="drop-shadow-lg" /></div>}
                                                 {isD && gameStatus === 'won' && <Fireworks />}
                                             </div>
                                         );
                                     })}
-                                    {/* Turtle */}
                                     <div className={`absolute w-[16.66%] h-[16.66%] flex items-center justify-center transition-all ease-in-out z-20 pointer-events-none ${gameStatus === 'won' ? 'animate-bounce' : ''}`} style={{ left: `${turtle.x * (100/GRID_SIZE)}%`, top: `${turtle.y * (100/GRID_SIZE)}%`, transform: `rotate(${DIRECTIONS[turtle.dir].rotate}deg)`, transitionDuration: `${speed}ms` }}>
                                         <div className="w-[80%] h-[80%] relative">
                                             <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-xl filter brightness-110">
                                                 <path d="M15 25 L5 15 M85 25 L95 15 M15 75 L5 85 M85 75 L95 85" stroke="#16a34a" strokeWidth="10" strokeLinecap="round" />
                                                 <circle cx="50" cy="15" r="16" fill="#16a34a" />
                                                 <ellipse cx="50" cy="55" rx="34" ry="40" fill="#22c55e" stroke="#15803d" strokeWidth="4" />
-                                                <path d="M50 30 L65 45 L50 60 L35 45 Z" fill="#4ade80" opacity="0.5" />
-                                                <path d="M50 60 L65 75 L50 90 L35 75 Z" fill="#4ade80" opacity="0.5" />
-                                                <circle cx="10" cy="20" r="8" fill="#ef4444" stroke="#7f1d1d" strokeWidth="1" />
-                                                <path d="M10 12 Q12 8 14 6" stroke="#3f6212" strokeWidth="2" fill="none" />
-                                                <circle cx="90" cy="20" r="8" fill="#fbbf24" stroke="#b45309" strokeWidth="1" />
-                                                <path d="M90 12 Q92 8 94 6" stroke="#3f6212" strokeWidth="2" fill="none" />
+                                                <path d="M50 30 L65 45 L50 60 L35 45 Z" fill="#4ade80" opacity="0.5" /><path d="M50 60 L65 75 L50 90 L35 75 Z" fill="#4ade80" opacity="0.5" />
+                                                <circle cx="10" cy="20" r="8" fill="#ef4444" stroke="#7f1d1d" strokeWidth="1" /><path d="M10 12 Q12 8 14 6" stroke="#3f6212" strokeWidth="2" fill="none" />
+                                                <circle cx="90" cy="20" r="8" fill="#fbbf24" stroke="#b45309" strokeWidth="1" /><path d="M90 12 Q92 8 94 6" stroke="#3f6212" strokeWidth="2" fill="none" />
                                             </svg>
                                         </div>
                                     </div>
@@ -598,9 +560,7 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
                             <div className={`mt-2 px-6 py-2 rounded-full font-bold text-center w-full max-w-[360px] shadow-xl transition-all duration-300 border-2 text-sm md:text-lg ${gameStatus === 'won' ? 'bg-emerald-500 text-white border-emerald-400 scale-105' : gameStatus === 'lost' ? 'bg-red-500 text-white border-red-400 shake' : 'bg-slate-800 text-slate-300 border-slate-600'}`}>{message}</div>
                         </div>
 
-                        {/* Controls Section - Fills remaining height */}
                         <div className="flex flex-col gap-2 h-full min-h-0">
-                            {/* Card Picker - Compact on mobile */}
                             <div className="bg-slate-800 p-2 md:p-4 rounded-2xl md:rounded-3xl shadow-xl border border-slate-700 shrink-0">
                                 <div className="grid grid-cols-4 gap-2 justify-center">
                                     <button onClick={() => addCommand('FORWARD')} disabled={isPlaying} className="h-12 md:h-16 flex items-center justify-center rounded-xl md:rounded-2xl shadow-lg border-2 border-blue-500/50 text-blue-400 bg-slate-900 active:scale-95 active:bg-blue-500/10 transition-all"><ForwardIcon size={24} className="md:w-8 md:h-8" /></button>
@@ -610,14 +570,11 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
                                 </div>
                             </div>
 
-                            {/* Program List - Flex grow to fill space, scrollable inside */}
                             <div className="bg-slate-800 p-2 md:p-4 rounded-2xl md:rounded-3xl shadow-xl border border-slate-700 flex-1 flex flex-col min-h-0">
                                 <div className="flex justify-between items-center mb-2 px-1 shrink-0">
                                     <div className="flex items-center gap-2"><div className="bg-slate-700 p-1 rounded-lg text-slate-400"><List size={16} /></div><span className="bg-slate-900 text-slate-400 px-2.5 py-0.5 rounded-full text-xs font-bold border border-slate-700">{program.length}</span></div>
                                     <button onClick={clearProgram} disabled={isPlaying || program.length === 0} className="text-slate-500 hover:text-red-400 p-1.5 rounded-xl transition-all disabled:opacity-30"><Trash2 size={20} /></button>
                                 </div>
-                                
-                                {/* Scrollable Area */}
                                 <div ref={containerRef} className="flex-1 bg-slate-900/50 rounded-xl md:rounded-2xl p-2 border border-slate-700/50 overflow-y-auto content-start shadow-inner notebook-lines no-scrollbar">
                                     <div className="flex flex-wrap gap-2">
                                         {program.length === 0 ? (
@@ -633,10 +590,7 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
                                                 if (cmd.type === 'MELT') borderClass = 'border-orange-500/50';
 
                                                 return (
-                                                    <div key={cmd.id} data-index={index} 
-                                                        onPointerDown={(e) => onPointerDown(e, index)}
-                                                        className={`relative transition-all duration-100 ${isDragging ? 'opacity-20' : 'opacity-100'} ${isDrop && draggedIdx !== null && !isDragging ? 'pl-4' : ''}`}
-                                                    >
+                                                    <div key={cmd.id} data-index={index} onPointerDown={(e) => onPointerDown(e, index)} className={`relative transition-all duration-100 ${isDragging ? 'opacity-20' : 'opacity-100'} ${isDrop && draggedIdx !== null && !isDragging ? 'pl-4' : ''}`}>
                                                         {isDrop && draggedIdx !== null && !isDragging && <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>}
                                                         <button onClick={() => removeCommand(index)} disabled={isPlaying} className={`relative w-14 h-14 md:w-16 md:h-16 flex items-center justify-center rounded-xl border-2 shadow-sm transition-all overflow-visible ${isPlaying ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${index === currentStep ? 'bg-yellow-500 border-yellow-300 scale-105 z-20 shadow-xl' : `bg-slate-800 ${borderClass}`}`}>
                                                             <div className={`absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full border flex items-center justify-center text-[9px] font-bold z-10 transition-colors ${index === currentStep ? 'bg-red-500 border-red-600 text-white' : 'bg-slate-800/80 border-slate-600 text-slate-400'}`}>{index + 1}</div>
@@ -653,25 +607,13 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
                                     </div>
                                 </div>
                                 <div className="mt-2 shrink-0">
-                                    <button onClick={runProgram} disabled={program.length === 0} 
-                                        className={`w-full py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-xl transition-all transform active:scale-95 ${
-                                            isPlaying 
-                                            ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-900/40' 
-                                            : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/40'
-                                        }`}
-                                    >
-                                        {isPlaying ? (
-                                            <><Square size={20} fill="currentColor" /> ZASTAVIT</>
-                                        ) : (
-                                            <><Play size={24} fill="currentColor" /> SPUSTIT</>
-                                        )}
+                                    <button onClick={runProgram} disabled={program.length === 0} className={`w-full py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-xl transition-all transform active:scale-95 ${isPlaying ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-900/40' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/40'}`}>
+                                        {isPlaying ? <><Square size={20} fill="currentColor" /> ZASTAVIT</> : <><Play size={24} fill="currentColor" /> SPUSTIT</>}
                                     </button>
                                 </div>
                             </div>
                         </div>
                     </main>
-
-                    {/* Ghost card for dragging visual */}
                     {draggedIdx !== null && (
                         <div className="dragging-ghost" style={{ left: dragPos.x - 28, top: dragPos.y - 28 }}>
                             <div className="w-14 h-14 bg-slate-800 rounded-xl border-2 border-emerald-400 flex items-center justify-center text-emerald-400">
