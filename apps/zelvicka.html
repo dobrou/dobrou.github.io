@@ -13,7 +13,12 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
 11. Vylepšení ledu (gradienty), cihlové zdi (červené), ohňostroj při výhře, mizení zvýraznění při editaci.
 12. Efekt kapek vody po rozpuštění ledu.
 13. Zvětšení ohňostroje, ztenčení a lepší zarovnání linek v programu.
-14. Optimalizace UI pro mobilní telefony a implementace Pointer Events pro spolehlivý Drag & Drop na dotykových displejích.
+14. Optimalizace UI pro mobilní telefony a implementace Pointer Events pro spolehlivý Drag & Drop.
+15. Vizuální navigace pomocí jablíček: Želva drží vlevo červené a vpravo žluté jablko. Šipky mají odpovídající barvy.
+16. Přidáno ovládání klávesnicí (šipky, mezerník, enter).
+17. Editace levelu klikáním (Prázdno->Zed->Led), cheat "LLL" pro vyplnění ledem, auto-scroll programu při běhu i editaci.
+18. Možnost přerušit běžící program (Stop) a "sticky" hrací plocha.
+19. Změna na "App-like" layout: fixní výška obrazovky (100dvh), zákaz scrollování celé stránky, scrollování pouze uvnitř panelu programu.
 -->
 <!DOCTYPE html>
 <html lang="cs">
@@ -55,17 +60,20 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
             overscroll-behavior: none;
             touch-action: manipulation;
             background-color: #0f172a;
+            /* Zamezení scrollování stránky */
+            overflow: hidden; 
+            height: 100dvh;
+            width: 100vw;
         }
 
         /* Vzor linkovaného papíru */
         .notebook-lines {
             background-image: linear-gradient(transparent calc(100% - 1px), rgba(51, 65, 85, 0.3) calc(100% - 1px));
             background-size: 100% 4.75rem; 
-            background-position: 0 4.25rem; 
+            background-position: 0 0.5rem; 
             background-attachment: local;
         }
 
-        /* Skrytí scrollbaru pro čistší UI */
         .no-scrollbar::-webkit-scrollbar {
             display: none;
         }
@@ -74,19 +82,18 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
             scrollbar-width: none;
         }
 
-        /* Styl pro taženou kartu (ghost) */
         .dragging-ghost {
             position: fixed;
             pointer-events: none;
             z-index: 1000;
-            opacity: 0.8;
+            opacity: 0.9;
             transform: scale(1.1);
             box-shadow: 0 10px 20px rgba(0,0,0,0.5);
         }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-200">
-    <div id="root"></div>
+    <div id="root" class="h-full w-full"></div>
 
     <script type="text/babel">
         const { useState, useEffect, Fragment, useRef } = React;
@@ -96,17 +103,30 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className} {...props} style={{pointerEvents: 'none'}}>{children}</svg>
         );
 
+        // Pomocná ikona jablíčka
+        const AppleIcon = ({ cx, cy, color }) => (
+            <g>
+               <circle cx={cx} cy={cy} r="4" fill={color} stroke="none" />
+               <path d={`M${cx} ${cy-3} Q${cx+2} ${cy-5} ${cx+3} ${cy-6}`} stroke="#3f6212" strokeWidth="1" fill="none" />
+            </g>
+        );
+
+        // Levá - Červená barva
         const TurnLeftIcon = (props) => (
             <Icon {...props}>
-                <path d="M17 21 V 13 A 6 6 0 0 0 11 7 H 4" />
-                <path d="M 8 3 L 4 7 L 8 11" />
+                <path d="M17 21 V 13 A 6 6 0 0 0 11 7 H 4" stroke="#ef4444" />
+                <path d="M 8 3 L 4 7 L 8 11" stroke="#ef4444" />
+                {/* Malé jablíčko u šipky pro nápovědu */}
+                <circle cx="18" cy="18" r="3" fill="#ef4444" stroke="none" opacity="0.8"/>
             </Icon>
         );
 
+        // Pravá - Žlutá barva
         const TurnRightIcon = (props) => (
             <Icon {...props}>
-                <path d="M7 21 V 13 A 6 6 0 0 1 13 7 H 20" />
-                <path d="M 16 3 L 20 7 L 16 11" />
+                <path d="M7 21 V 13 A 6 6 0 0 1 13 7 H 20" stroke="#fbbf24" />
+                <path d="M 16 3 L 20 7 L 16 11" stroke="#fbbf24" />
+                <circle cx="6" cy="18" r="3" fill="#fbbf24" stroke="none" opacity="0.8"/>
             </Icon>
         );
 
@@ -118,6 +138,7 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
         );
 
         const Play = (props) => <Icon {...props} strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></Icon>;
+        const Square = (props) => <Icon {...props} strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" fill="currentColor" /></Icon>;
         const Trash2 = (props) => <Icon {...props} strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></Icon>;
         const RefreshCw = (props) => <Icon {...props} strokeWidth="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></Icon>;
         const Flame = (props) => <Icon {...props}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.1.2-2.2.5-3.3a9 9 0 0 0 12 8Z"/></Icon>;
@@ -208,11 +229,19 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
             const [draggedIdx, setDraggedIdx] = useState(null);
             const [dropIdx, setDropIdx] = useState(null);
             const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
+            
+            // Abort controller mechanism for stopping
+            const abortRef = useRef(false);
+            
+            // Cheat code state
+            const [keyBuffer, setKeyBuffer] = useState([]);
+
             const containerRef = useRef(null);
 
             const safePlaySound = (type) => soundEnabled && playSound(type);
 
             const initGame = () => {
+                abortRef.current = false; // Reset abort
                 setProgram([]); setCurrentStep(-1); setIsPlaying(false); setGameStatus('idle'); setProjectile(null); setWaterDrops([]);
                 setMessage("Dostaň želvičku k diamantu!");
                 let newTurtle = { x: 0, y: 0, dir: 1 };
@@ -236,11 +265,27 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
 
             useEffect(() => { initGame(); }, []);
 
+            // Auto-scroll effect - při přidání karty nebo při běhu
+            useEffect(() => {
+                if (containerRef.current) {
+                    if (isPlaying && currentStep !== -1) {
+                        // Scroll k aktivní kartě
+                        const activeElement = containerRef.current.querySelector(`[data-index="${currentStep}"]`);
+                        if (activeElement) {
+                            activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                    } else if (!isPlaying && program.length > 0) {
+                        // Scroll na konec při přidání
+                        containerRef.current.scrollTop = containerRef.current.scrollHeight;
+                    }
+                }
+            }, [program.length, currentStep, isPlaying]);
+
             const addCommand = (type) => {
                 if (isPlaying) return;
                 safePlaySound('click'); setCurrentStep(-1);
                 if (gameStatus !== 'idle') { setGameStatus('idle'); setTurtle(startTurtle); setWalls(initialWalls); setIceWalls(initialIceWalls); setWaterDrops([]); }
-                setProgram([...program, { id: Date.now() + Math.random(), type }]);
+                setProgram(prev => [...prev, { id: Date.now() + Math.random(), type }]);
             };
 
             const removeCommand = (index) => {
@@ -255,19 +300,205 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
                 safePlaySound('click'); setCurrentStep(-1); setProgram([]); setGameStatus('idle'); setTurtle(startTurtle); setWalls(initialWalls); setIceWalls(initialIceWalls); setWaterDrops([]);
             };
 
-            // --- POINTER EVENTS DRAG & DROP (MOBILNÍ OPTIMALIZACE) ---
+            // Funkce pro zastavení běžícího programu
+            const stopProgram = () => {
+                if (isPlaying) {
+                    abortRef.current = true;
+                }
+            };
+
+            const runProgram = async () => {
+                if (program.length === 0) return;
+                
+                // Pokud už běží, funguje jako STOP
+                if (isPlaying) {
+                    stopProgram();
+                    return;
+                }
+
+                setIsPlaying(true); 
+                abortRef.current = false; // Reset abort flag
+                setGameStatus('running'); 
+                setCurrentStep(-1); 
+                setMessage("Pozor, start!"); 
+                safePlaySound('click');
+                
+                setTurtle(startTurtle); 
+                setWalls(initialWalls); 
+                setIceWalls(initialIceWalls); 
+                setProjectile(null); 
+                setWaterDrops([]);
+                
+                // Kontrola přerušení během čekání
+                const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+                await wait(500); 
+                
+                if (abortRef.current) {
+                    setIsPlaying(false);
+                    setGameStatus('idle');
+                    setMessage("Přerušeno.");
+                    return;
+                }
+
+                setMessage("Jedu!");
+
+                let curT = { ...startTurtle }; let curW = [...initialWalls]; let curI = [...initialIceWalls]; let curDrops = [];
+
+                for (let i = 0; i < program.length; i++) {
+                    if (abortRef.current) {
+                        break; // Okamžité přerušení smyčky
+                    }
+
+                    setCurrentStep(i); 
+                    const cmd = program[i]; 
+                    
+                    await wait(speed);
+                    
+                    if (abortRef.current) {
+                        break; // Kontrola znovu po čekání
+                    }
+
+                    const move = DIRECTIONS[curT.dir];
+                    if (cmd.type === 'FORWARD') {
+                        const nextX = curT.x + move.dx; const nextY = curT.y + move.dy;
+                        const hitWall = curW.some(w => w.x === nextX && w.y === nextY);
+                        const hitIce = curI.some(w => w.x === nextX && w.y === nextY);
+                        const out = nextX < 0 || nextX >= GRID_SIZE || nextY < 0 || nextY >= GRID_SIZE;
+                        if (hitWall || hitIce || out) {
+                            setGameStatus('lost'); safePlaySound('lose');
+                            setMessage(hitWall ? "Au! Cihla!" : hitIce ? "Brrr! Led!" : "Au! Okraj!");
+                            setIsPlaying(false); return; 
+                        }
+                        curT.x = nextX; curT.y = nextY; safePlaySound('step');
+                    } 
+                    else if (cmd.type === 'LEFT') { curT.dir = (curT.dir + 3) % 4; safePlaySound('turn'); } 
+                    else if (cmd.type === 'RIGHT') { curT.dir = (curT.dir + 1) % 4; safePlaySound('turn'); }
+                    else if (cmd.type === 'MELT') {
+                        const tx = curT.x + move.dx; const ty = curT.y + move.dy;
+                        safePlaySound('fire'); setProjectile({ x: curT.x, y: curT.y, targetX: curT.x + move.dx * 0.8, targetY: curT.y + move.dy * 0.8, type: 'fire', rotation: DIRECTIONS[curT.dir].rotate });
+                        await wait(300);
+                        if (abortRef.current) break; // Check during projectile animation
+                        
+                        setProjectile(null);
+                        const idx = curI.findIndex(w => w.x === tx && w.y === ty);
+                        if (idx !== -1) { curI.splice(idx, 1); setIceWalls([...curI]); curDrops.push({ x: tx, y: ty }); setWaterDrops([...curDrops]); setMessage("Psss..."); }
+                        else setMessage("Nic.");
+                    }
+                    setTurtle({ ...curT });
+                    if (curT.x === diamond.x && curT.y === diamond.y) { setGameStatus('won'); safePlaySound('win'); setMessage("Hurá! Diamant!"); setIsPlaying(false); return; }
+                }
+                
+                // Konec programu nebo přerušení
+                setIsPlaying(false);
+                if (abortRef.current) {
+                    setGameStatus('idle');
+                    setMessage("Přerušeno.");
+                } else if (gameStatus !== 'won') {
+                    setGameStatus('lost'); 
+                    setMessage("Konec programu..."); 
+                }
+            };
+
+            // --- LEVEL EDIT & CHEATS ---
+            const handleGridClick = (x, y) => {
+                if (isPlaying) return;
+                
+                // Ochrana proti přepisování startu a cíle
+                if ((x === startTurtle.x && y === startTurtle.y) || (x === diamond.x && y === diamond.y)) {
+                    safePlaySound('lose'); // Negative sound
+                    return;
+                }
+
+                safePlaySound('click');
+                
+                const isWall = walls.some(w => w.x === x && w.y === y);
+                const isIce = iceWalls.some(w => w.x === x && w.y === y);
+
+                let newWalls = [...walls];
+                let newIceWalls = [...iceWalls];
+
+                // Cyklus: Empty -> Wall -> Ice -> Empty
+                if (!isWall && !isIce) {
+                    // Empty -> Wall
+                    newWalls.push({ x, y });
+                } else if (isWall) {
+                    // Wall -> Ice
+                    newWalls = newWalls.filter(w => !(w.x === x && w.y === y));
+                    newIceWalls.push({ x, y });
+                } else if (isIce) {
+                    // Ice -> Empty
+                    newIceWalls = newIceWalls.filter(w => !(w.x === x && w.y === y));
+                }
+
+                setWalls(newWalls);
+                setIceWalls(newIceWalls);
+                setInitialWalls(newWalls);
+                setInitialIceWalls(newIceWalls);
+            };
+
+            // --- KEYBOARD CONTROLS & CHEATS ---
+            useEffect(() => {
+                const handleKeyDown = (e) => {
+                    // Cheats logic
+                    const newBuffer = [...keyBuffer, e.key.toLowerCase()].slice(-3); // Keep last 3 chars
+                    setKeyBuffer(newBuffer);
+                    
+                    // Check for "lll" cheat
+                    if (newBuffer.join('') === 'lll' && !isPlaying) {
+                        safePlaySound('win'); // Confirmation sound
+                        // Fill all empty spots with ice
+                        const newIce = [];
+                        for(let y=0; y<GRID_SIZE; y++) {
+                            for(let x=0; x<GRID_SIZE; x++) {
+                                // Skip start and end
+                                if ((x === startTurtle.x && y === startTurtle.y) || (x === diamond.x && y === diamond.y)) continue;
+                                newIce.push({x, y});
+                            }
+                        }
+                        setIceWalls(newIce);
+                        setInitialIceWalls(newIce);
+                        setWalls([]);
+                        setInitialWalls([]);
+                        setMessage("Doba ledová!");
+                        return; // Stop processing other keys
+                    }
+
+                    if (isPlaying) return;
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+                    switch(e.key) {
+                        case 'ArrowUp': e.preventDefault(); addCommand('FORWARD'); break;
+                        case 'ArrowLeft': e.preventDefault(); addCommand('LEFT'); break;
+                        case 'ArrowRight': e.preventDefault(); addCommand('RIGHT'); break;
+                        case ' ': e.preventDefault(); addCommand('MELT'); break;
+                        case 'Enter': e.preventDefault(); runProgram(); break;
+                        case 'Backspace':
+                            e.preventDefault();
+                            setProgram(prev => {
+                                if (prev.length === 0) return prev;
+                                safePlaySound('click'); setCurrentStep(-1);
+                                if (gameStatus !== 'idle') { setGameStatus('idle'); setTurtle(startTurtle); setWalls(initialWalls); setIceWalls(initialIceWalls); setWaterDrops([]); }
+                                return prev.slice(0, -1);
+                            });
+                            break;
+                    }
+                };
+
+                window.addEventListener('keydown', handleKeyDown);
+                return () => window.removeEventListener('keydown', handleKeyDown);
+            }, [isPlaying, gameStatus, startTurtle, initialWalls, initialIceWalls, program, keyBuffer]);
+
+            // --- POINTER EVENTS DRAG & DROP ---
             const onPointerDown = (e, index) => {
                 if (isPlaying) return;
                 setDraggedIdx(index);
                 setDragPos({ x: e.clientX, y: e.clientY });
-                // Přidáme globální listenery pro pohyb a puštění
                 window.addEventListener('pointermove', onPointerMove);
                 window.addEventListener('pointerup', onPointerUp);
             };
 
             const onPointerMove = (e) => {
                 setDragPos({ x: e.clientX, y: e.clientY });
-                // Najdeme prvek pod prstem
                 const element = document.elementFromPoint(e.clientX, e.clientY);
                 const item = element?.closest('[data-index]');
                 if (item) {
@@ -300,128 +531,120 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
                 setCurrentStep(-1);
             };
 
-            const runProgram = async () => {
-                if (program.length === 0) return;
-                setIsPlaying(true); setGameStatus('running'); setCurrentStep(-1); setMessage("Pozor, start!"); safePlaySound('click');
-                setTurtle(startTurtle); setWalls(initialWalls); setIceWalls(initialIceWalls); setProjectile(null); setWaterDrops([]);
-                await new Promise(r => setTimeout(r, 500)); setMessage("Jedu!");
-
-                let curT = { ...startTurtle }; let curW = [...initialWalls]; let curI = [...initialIceWalls]; let curDrops = [];
-
-                for (let i = 0; i < program.length; i++) {
-                    setCurrentStep(i); const cmd = program[i]; await new Promise(r => setTimeout(r, speed));
-                    const move = DIRECTIONS[curT.dir];
-                    if (cmd.type === 'FORWARD') {
-                        const nextX = curT.x + move.dx; const nextY = curT.y + move.dy;
-                        const hitWall = curW.some(w => w.x === nextX && w.y === nextY);
-                        const hitIce = curI.some(w => w.x === nextX && w.y === nextY);
-                        const out = nextX < 0 || nextX >= GRID_SIZE || nextY < 0 || nextY >= GRID_SIZE;
-                        if (hitWall || hitIce || out) {
-                            setGameStatus('lost'); safePlaySound('lose');
-                            setMessage(hitWall ? "Au! Cihla!" : hitIce ? "Brrr! Led!" : "Au! Okraj!");
-                            setIsPlaying(false); return; 
-                        }
-                        curT.x = nextX; curT.y = nextY; safePlaySound('step');
-                    } 
-                    else if (cmd.type === 'LEFT') { curT.dir = (curT.dir + 3) % 4; safePlaySound('turn'); } 
-                    else if (cmd.type === 'RIGHT') { curT.dir = (curT.dir + 1) % 4; safePlaySound('turn'); }
-                    else if (cmd.type === 'MELT') {
-                        const tx = curT.x + move.dx; const ty = curT.y + move.dy;
-                        safePlaySound('fire'); setProjectile({ x: curT.x, y: curT.y, targetX: curT.x + move.dx * 0.8, targetY: curT.y + move.dy * 0.8, type: 'fire', rotation: DIRECTIONS[curT.dir].rotate });
-                        await new Promise(r => setTimeout(r, 300)); setProjectile(null);
-                        const idx = curI.findIndex(w => w.x === tx && w.y === ty);
-                        if (idx !== -1) { curI.splice(idx, 1); setIceWalls([...curI]); curDrops.push({ x: tx, y: ty }); setWaterDrops([...curDrops]); setMessage("Psss..."); }
-                        else setMessage("Nic.");
-                    }
-                    setTurtle({ ...curT });
-                    if (curT.x === diamond.x && curT.y === diamond.y) { setGameStatus('won'); safePlaySound('win'); setMessage("Hurá! Diamant!"); setIsPlaying(false); return; }
-                }
-                if (gameStatus !== 'won') { setIsPlaying(false); setGameStatus('lost'); setMessage("Konec programu..."); }
-            };
-
             return (
-                <div className="min-h-screen bg-slate-950 text-slate-200 p-2 md:p-4 font-sans flex flex-col items-center select-none overflow-x-hidden">
+                <div className="h-[100dvh] w-full bg-slate-950 text-slate-200 flex flex-col overflow-hidden select-none">
                     {/* Header */}
-                    <header className="w-full max-w-4xl flex justify-between items-center mb-4 md:mb-6 bg-slate-800 p-2 md:p-3 rounded-2xl shadow-xl border border-slate-700">
-                        <div className="bg-emerald-600 text-white p-1.5 md:p-2 rounded-xl shadow-lg"><span className="text-xl md:text-2xl">🐢</span></div>
-                        <div className="flex items-center gap-2 md:gap-6">
+                    <header className="flex-none w-full max-w-6xl mx-auto flex justify-between items-center p-2 bg-slate-800 border-b border-slate-700 shadow-md z-20">
+                        <div className="bg-emerald-600 text-white p-1.5 rounded-xl shadow-lg"><span className="text-xl">🐢</span></div>
+                        <div className="flex items-center gap-3">
                             <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-700">
-                                <button onClick={() => setSpeed(800)} className={`p-1.5 md:p-2 rounded-lg transition-all ${speed === 800 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}><Snail size={18} /></button>
-                                <button onClick={() => setSpeed(400)} className={`p-1.5 md:p-2 rounded-lg transition-all ${speed === 400 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}><Rabbit size={18} /></button>
-                                <button onClick={() => setSpeed(150)} className={`p-1.5 md:p-2 rounded-lg transition-all ${speed === 150 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}><Zap size={18} /></button>
+                                <button onClick={() => setSpeed(800)} className={`p-1.5 rounded-lg transition-all ${speed === 800 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}><Snail size={18} /></button>
+                                <button onClick={() => setSpeed(400)} className={`p-1.5 rounded-lg transition-all ${speed === 400 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}><Rabbit size={18} /></button>
+                                <button onClick={() => setSpeed(150)} className={`p-1.5 rounded-lg transition-all ${speed === 150 ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}><Zap size={18} /></button>
                             </div>
-                            <button onClick={() => setSoundEnabled(!soundEnabled)} className={`p-2 md:p-3 rounded-xl border-2 transition-colors ${soundEnabled ? 'bg-slate-700 border-slate-600 text-emerald-400' : 'bg-slate-900 border-slate-800 text-slate-600'}`}>{soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
-                            <button onClick={initGame} disabled={isPlaying} className="p-2 md:p-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl border-2 border-slate-600 shadow-lg active:scale-95"><RefreshCw size={20} /></button>
+                            <button onClick={() => setSoundEnabled(!soundEnabled)} className={`p-2 rounded-xl border-2 transition-colors ${soundEnabled ? 'bg-slate-700 border-slate-600 text-emerald-400' : 'bg-slate-900 border-slate-800 text-slate-600'}`}>{soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
+                            <button onClick={initGame} disabled={isPlaying} className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl border-2 border-slate-600 shadow-lg active:scale-95"><RefreshCw size={20} /></button>
                         </div>
                     </header>
 
-                    <main className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
-                        {/* Board Section */}
-                        <div className="flex flex-col items-center">
-                            <div className="bg-slate-800 p-2 md:p-3 rounded-3xl shadow-2xl border-4 border-slate-700 relative">
-                                <div className="grid bg-slate-900 border-2 border-slate-600 relative overflow-hidden rounded-xl" style={{ gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`, gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`, width: 'min(90vw, 360px)', height: 'min(90vw, 360px)' }}>
+                    {/* Main Content - Flex for mobile column, grid for desktop */}
+                    <main className="flex-1 w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-2 p-2 overflow-hidden">
+                        
+                        {/* Board Section - Scrollable only if huge on mobile */}
+                        <div className="flex flex-col items-center justify-center lg:justify-start overflow-y-auto lg:overflow-visible no-scrollbar">
+                            <div className="bg-slate-800 p-2 rounded-3xl shadow-2xl border-4 border-slate-700 relative shrink-0">
+                                {/* Dynamic size: responsive to viewport width AND height to fit on phones */}
+                                <div className="grid bg-slate-900 border-2 border-slate-600 relative overflow-hidden rounded-xl" 
+                                     style={{ 
+                                         gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`, 
+                                         gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`, 
+                                         width: 'min(90vw, 45vh)', 
+                                         height: 'min(90vw, 45vh)' 
+                                     }}>
                                     {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, idx) => {
                                         const x = idx % GRID_SIZE; const y = Math.floor(idx / GRID_SIZE);
                                         const isD = diamond.x === x && diamond.y === y; const isW = walls.some(w => w.x === x && w.y === y); const isI = iceWalls.some(w => w.x === x && w.y === y); const isH = waterDrops.some(w => w.x === x && w.y === y);
                                         return (
-                                            <div key={idx} className="bg-slate-800/30 border border-slate-700/30 w-full h-full flex items-center justify-center relative">
-                                                {isH && <div className="absolute inset-0 flex items-center justify-center opacity-60"><svg viewBox="0 0 100 100" className="w-2/3 h-2/3"><circle cx="30" cy="40" r="4" fill="#60a5fa" /><circle cx="65" cy="70" r="5" fill="#3b82f6" /><circle cx="75" cy="35" r="3" fill="#93c5fd" /></svg></div>}
-                                                {isD && <div className="text-cyan-400 animate-pulse text-3xl md:text-4xl drop-shadow-[0_0_15px_rgba(34,211,238,0.6)]">💎</div>}
-                                                {isW && <div className="w-[90%] h-[90%] relative"><svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md"><rect x="5" y="5" width="90" height="90" rx="6" fill="#a34a3b" stroke="#7c2d22" strokeWidth="4" /><path d="M5 35 H95 M5 65 H95 M35 5 V35 M65 5 V35 M50 35 V65 M20 65 V95 M80 65 V95" stroke="#7c2d22" strokeWidth="3" /></svg></div>}
-                                                {isI && <div className="w-[90%] h-[90%] relative"><svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md"><defs><linearGradient id="ig" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#ecfeff" /><stop offset="40%" stopColor="#67e8f9" stopOpacity="0.8" /><stop offset="100%" stopColor="#0ea5e9" /></linearGradient></defs><rect x="5" y="5" width="90" height="90" rx="15" fill="url(#ig)" stroke="#bae6fd" strokeWidth="3" /><path d="M20 20 L40 45 L15 60" stroke="white" strokeWidth="3" fill="none" opacity="0.5" /><circle cx="50" cy="50" r="3" fill="white" opacity="0.5" /></svg></div>}
+                                            <div key={idx} 
+                                                 onClick={() => handleGridClick(x, y)}
+                                                 className="bg-slate-800/30 border border-slate-700/30 w-full h-full flex items-center justify-center relative cursor-pointer hover:bg-slate-700/50 transition-colors">
+                                                {isH && <div className="absolute inset-0 flex items-center justify-center opacity-60 pointer-events-none"><svg viewBox="0 0 100 100" className="w-2/3 h-2/3"><circle cx="30" cy="40" r="4" fill="#60a5fa" /><circle cx="65" cy="70" r="5" fill="#3b82f6" /><circle cx="75" cy="35" r="3" fill="#93c5fd" /></svg></div>}
+                                                {isD && <div className="text-cyan-400 animate-pulse text-3xl md:text-4xl drop-shadow-[0_0_15px_rgba(34,211,238,0.6)] pointer-events-none">💎</div>}
+                                                {isW && <div className="w-[90%] h-[90%] relative pointer-events-none"><svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md"><rect x="5" y="5" width="90" height="90" rx="6" fill="#a34a3b" stroke="#7c2d22" strokeWidth="4" /><path d="M5 35 H95 M5 65 H95 M35 5 V35 M65 5 V35 M50 35 V65 M20 65 V95 M80 65 V95" stroke="#7c2d22" strokeWidth="3" /><rect x="10" y="10" width="15" height="5" fill="#c25f4e" opacity="0.4" /></svg></div>}
+                                                {isI && <div className="w-[90%] h-[90%] relative pointer-events-none"><svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md opacity-95"><defs><linearGradient id="iceGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#ecfeff" stopOpacity="1" /><stop offset="40%" stopColor="#67e8f9" stopOpacity="0.8" /><stop offset="100%" stopColor="#0ea5e9" stopOpacity="0.9" /></linearGradient></defs><rect x="5" y="5" width="90" height="90" rx="15" fill="url(#iceGrad)" stroke="#bae6fd" strokeWidth="3" /><path d="M20 20 L40 45 L15 60" stroke="white" strokeWidth="3" fill="none" opacity="0.5" strokeLinecap="round" /><path d="M80 15 L60 40 L85 65" stroke="white" strokeWidth="2" fill="none" opacity="0.4" strokeLinecap="round" /><path d="M15 15 L35 15" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.8" /><path d="M15 15 L15 35" stroke="white" strokeWidth="4" strokeLinecap="round" opacity="0.8" /><circle cx="50" cy="50" r="3" fill="white" opacity="0.5" /></svg></div>}
                                                 {isD && gameStatus === 'won' && <Fireworks />}
                                             </div>
                                         );
                                     })}
                                     {/* Turtle */}
                                     <div className={`absolute w-[16.66%] h-[16.66%] flex items-center justify-center transition-all ease-in-out z-20 pointer-events-none ${gameStatus === 'won' ? 'animate-bounce' : ''}`} style={{ left: `${turtle.x * (100/GRID_SIZE)}%`, top: `${turtle.y * (100/GRID_SIZE)}%`, transform: `rotate(${DIRECTIONS[turtle.dir].rotate}deg)`, transitionDuration: `${speed}ms` }}>
-                                        <div className="w-[80%] h-[80%] relative"><svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-xl filter brightness-110"><path d="M15 25 L5 15 M85 25 L95 15 M15 75 L5 85 M85 75 L95 85" stroke="#16a34a" strokeWidth="10" strokeLinecap="round" /><circle cx="50" cy="15" r="16" fill="#16a34a" /><ellipse cx="50" cy="55" rx="34" ry="40" fill="#22c55e" stroke="#15803d" strokeWidth="4" /><path d="M50 30 L65 45 L50 60 L35 45 Z" fill="#4ade80" opacity="0.5" /><path d="M50 60 L65 75 L50 90 L35 75 Z" fill="#4ade80" opacity="0.5" /></svg></div>
+                                        <div className="w-[80%] h-[80%] relative">
+                                            <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-xl filter brightness-110">
+                                                <path d="M15 25 L5 15 M85 25 L95 15 M15 75 L5 85 M85 75 L95 85" stroke="#16a34a" strokeWidth="10" strokeLinecap="round" />
+                                                <circle cx="50" cy="15" r="16" fill="#16a34a" />
+                                                <ellipse cx="50" cy="55" rx="34" ry="40" fill="#22c55e" stroke="#15803d" strokeWidth="4" />
+                                                <path d="M50 30 L65 45 L50 60 L35 45 Z" fill="#4ade80" opacity="0.5" />
+                                                <path d="M50 60 L65 75 L50 90 L35 75 Z" fill="#4ade80" opacity="0.5" />
+                                                <circle cx="10" cy="20" r="8" fill="#ef4444" stroke="#7f1d1d" strokeWidth="1" />
+                                                <path d="M10 12 Q12 8 14 6" stroke="#3f6212" strokeWidth="2" fill="none" />
+                                                <circle cx="90" cy="20" r="8" fill="#fbbf24" stroke="#b45309" strokeWidth="1" />
+                                                <path d="M90 12 Q92 8 94 6" stroke="#3f6212" strokeWidth="2" fill="none" />
+                                            </svg>
+                                        </div>
                                     </div>
                                     {projectile && <div className="absolute w-[16.66%] h-[16.66%] flex items-center justify-center z-30 transition-all duration-300 ease-linear pointer-events-none" style={{ left: `${(projectile.targetX) * (100/GRID_SIZE)}%`, top: `${(projectile.targetY) * (100/GRID_SIZE)}%` }}><div className="text-4xl animate-bounce drop-shadow-[0_0_15px_orange]">🔥</div></div>}
                                 </div>
                             </div>
-                            <div className={`mt-4 px-6 py-3 rounded-full font-bold text-center w-full max-w-[360px] shadow-xl transition-all duration-300 border-2 text-lg ${gameStatus === 'won' ? 'bg-emerald-500 text-white border-emerald-400 scale-105' : gameStatus === 'lost' ? 'bg-red-500 text-white border-red-400 shake' : 'bg-slate-800 text-slate-300 border-slate-600'}`}>{message}</div>
+                            <div className={`mt-2 px-6 py-2 rounded-full font-bold text-center w-full max-w-[360px] shadow-xl transition-all duration-300 border-2 text-sm md:text-lg ${gameStatus === 'won' ? 'bg-emerald-500 text-white border-emerald-400 scale-105' : gameStatus === 'lost' ? 'bg-red-500 text-white border-red-400 shake' : 'bg-slate-800 text-slate-300 border-slate-600'}`}>{message}</div>
                         </div>
 
-                        {/* Controls Section */}
-                        <div className="flex flex-col gap-4">
-                            {/* Card Picker */}
-                            <div className="bg-slate-800 p-3 md:p-6 rounded-3xl shadow-xl border border-slate-700">
-                                <div className="grid grid-cols-4 gap-2 md:gap-4 justify-center">
-                                    <button onClick={() => addCommand('FORWARD')} disabled={isPlaying} className="h-14 md:h-16 flex items-center justify-center rounded-2xl shadow-lg border-2 border-blue-500/50 text-blue-400 bg-slate-900 active:scale-95 active:bg-blue-500/10 transition-all"><ForwardIcon size={28} /></button>
-                                    <button onClick={() => addCommand('LEFT')} disabled={isPlaying} className="h-14 md:h-16 flex items-center justify-center rounded-2xl shadow-lg border-2 border-purple-500/50 text-purple-400 bg-slate-900 active:scale-95 active:bg-purple-500/10 transition-all"><TurnLeftIcon size={28} /></button>
-                                    <button onClick={() => addCommand('RIGHT')} disabled={isPlaying} className="h-14 md:h-16 flex items-center justify-center rounded-2xl shadow-lg border-2 border-purple-500/50 text-purple-400 bg-slate-900 active:scale-95 active:bg-purple-500/10 transition-all"><TurnRightIcon size={28} /></button>
-                                    <button onClick={() => addCommand('MELT')} disabled={isPlaying} className="h-14 md:h-16 flex items-center justify-center rounded-2xl shadow-lg border-2 border-orange-500/50 text-orange-500 bg-slate-900 active:scale-95 active:bg-orange-500/10 transition-all"><Flame size={28} /></button>
+                        {/* Controls Section - Fills remaining height */}
+                        <div className="flex flex-col gap-2 h-full min-h-0">
+                            {/* Card Picker - Compact on mobile */}
+                            <div className="bg-slate-800 p-2 md:p-4 rounded-2xl md:rounded-3xl shadow-xl border border-slate-700 shrink-0">
+                                <div className="grid grid-cols-4 gap-2 justify-center">
+                                    <button onClick={() => addCommand('FORWARD')} disabled={isPlaying} className="h-12 md:h-16 flex items-center justify-center rounded-xl md:rounded-2xl shadow-lg border-2 border-blue-500/50 text-blue-400 bg-slate-900 active:scale-95 active:bg-blue-500/10 transition-all"><ForwardIcon size={24} className="md:w-8 md:h-8" /></button>
+                                    <button onClick={() => addCommand('LEFT')} disabled={isPlaying} className="h-12 md:h-16 flex items-center justify-center rounded-xl md:rounded-2xl shadow-lg border-2 border-red-500 text-red-400 bg-slate-900 active:scale-95 active:bg-red-500/10 transition-all ring-1 ring-red-500/30"><TurnLeftIcon size={24} className="md:w-8 md:h-8" /></button>
+                                    <button onClick={() => addCommand('RIGHT')} disabled={isPlaying} className="h-12 md:h-16 flex items-center justify-center rounded-xl md:rounded-2xl shadow-lg border-2 border-yellow-500 text-yellow-400 bg-slate-900 active:scale-95 active:bg-yellow-500/10 transition-all ring-1 ring-yellow-500/30"><TurnRightIcon size={24} className="md:w-8 md:h-8" /></button>
+                                    <button onClick={() => addCommand('MELT')} disabled={isPlaying} className="h-12 md:h-16 flex items-center justify-center rounded-xl md:rounded-2xl shadow-lg border-2 border-orange-500/50 text-orange-500 bg-slate-900 active:scale-95 active:bg-orange-500/10 transition-all"><Flame size={24} className="md:w-8 md:h-8" /></button>
                                 </div>
                             </div>
 
-                            {/* Program List */}
-                            <div className="bg-slate-800 p-3 md:p-4 rounded-3xl shadow-xl border border-slate-700 flex-1 flex flex-col min-h-[220px]">
-                                <div className="flex justify-between items-center mb-3 px-2">
-                                    <div className="flex items-center gap-2"><div className="bg-slate-700 p-1.5 rounded-lg text-slate-400"><List size={18} /></div><span className="bg-slate-900 text-slate-400 px-2.5 py-0.5 rounded-full text-xs font-bold border border-slate-700">{program.length}</span></div>
-                                    <button onClick={clearProgram} disabled={isPlaying || program.length === 0} className="text-slate-500 hover:text-red-400 p-1.5 rounded-xl transition-all disabled:opacity-30"><Trash2 size={22} /></button>
+                            {/* Program List - Flex grow to fill space, scrollable inside */}
+                            <div className="bg-slate-800 p-2 md:p-4 rounded-2xl md:rounded-3xl shadow-xl border border-slate-700 flex-1 flex flex-col min-h-0">
+                                <div className="flex justify-between items-center mb-2 px-1 shrink-0">
+                                    <div className="flex items-center gap-2"><div className="bg-slate-700 p-1 rounded-lg text-slate-400"><List size={16} /></div><span className="bg-slate-900 text-slate-400 px-2.5 py-0.5 rounded-full text-xs font-bold border border-slate-700">{program.length}</span></div>
+                                    <button onClick={clearProgram} disabled={isPlaying || program.length === 0} className="text-slate-500 hover:text-red-400 p-1.5 rounded-xl transition-all disabled:opacity-30"><Trash2 size={20} /></button>
                                 </div>
-                                <div ref={containerRef} className="flex-1 bg-slate-900/50 rounded-2xl p-3 border border-slate-700/50 overflow-y-auto content-start shadow-inner min-h-[140px] notebook-lines no-scrollbar">
-                                    <div className="flex flex-wrap gap-2 md:gap-3">
+                                
+                                {/* Scrollable Area */}
+                                <div ref={containerRef} className="flex-1 bg-slate-900/50 rounded-xl md:rounded-2xl p-2 border border-slate-700/50 overflow-y-auto content-start shadow-inner notebook-lines no-scrollbar">
+                                    <div className="flex flex-wrap gap-2">
                                         {program.length === 0 ? (
-                                            <div className="w-full h-24 flex flex-col items-center justify-center text-slate-600 opacity-40 grayscale"><span className="text-4xl">🧩</span></div>
+                                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-600 opacity-40 grayscale min-h-[100px]"><span className="text-4xl">🧩</span></div>
                                         ) : (
                                             program.map((cmd, index) => {
                                                 const isDragging = draggedIdx === index;
                                                 const isDrop = dropIdx === index;
+                                                let borderClass = 'border-slate-600';
+                                                if (cmd.type === 'LEFT') borderClass = 'border-red-500/50';
+                                                if (cmd.type === 'RIGHT') borderClass = 'border-yellow-500/50';
+                                                if (cmd.type === 'FORWARD') borderClass = 'border-blue-500/50';
+                                                if (cmd.type === 'MELT') borderClass = 'border-orange-500/50';
+
                                                 return (
                                                     <div key={cmd.id} data-index={index} 
                                                         onPointerDown={(e) => onPointerDown(e, index)}
                                                         className={`relative transition-all duration-100 ${isDragging ? 'opacity-20' : 'opacity-100'} ${isDrop && draggedIdx !== null && !isDragging ? 'pl-4' : ''}`}
                                                     >
                                                         {isDrop && draggedIdx !== null && !isDragging && <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>}
-                                                        <button onClick={() => removeCommand(index)} disabled={isPlaying} className={`relative w-14 h-14 md:w-16 md:h-16 flex items-center justify-center rounded-xl border-2 shadow-sm transition-all overflow-visible ${isPlaying ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${index === currentStep ? 'bg-yellow-500 border-yellow-300 scale-105 z-20 shadow-xl' : 'bg-slate-800 border-slate-600'}`}>
+                                                        <button onClick={() => removeCommand(index)} disabled={isPlaying} className={`relative w-14 h-14 md:w-16 md:h-16 flex items-center justify-center rounded-xl border-2 shadow-sm transition-all overflow-visible ${isPlaying ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} ${index === currentStep ? 'bg-yellow-500 border-yellow-300 scale-105 z-20 shadow-xl' : `bg-slate-800 ${borderClass}`}`}>
                                                             <div className={`absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full border flex items-center justify-center text-[9px] font-bold z-10 transition-colors ${index === currentStep ? 'bg-red-500 border-red-600 text-white' : 'bg-slate-800/80 border-slate-600 text-slate-400'}`}>{index + 1}</div>
                                                             {index < program.length - 1 && <div className="absolute -right-2 top-1/2 transform -translate-y-1/2 translate-x-1/2 text-slate-700/50 z-0"><ArrowRightSmall size={14} /></div>}
-                                                            {cmd.type === 'FORWARD' && <ForwardIcon size={28} className={index === currentStep ? "text-white" : "text-blue-400"} />}
-                                                            {cmd.type === 'LEFT' && <TurnLeftIcon size={28} className={index === currentStep ? "text-white" : "text-purple-400"} />}
-                                                            {cmd.type === 'RIGHT' && <TurnRightIcon size={28} className={index === currentStep ? "text-white" : "text-purple-400"} />}
-                                                            {cmd.type === 'MELT' && <Flame size={28} className={index === currentStep ? "text-white" : "text-orange-500"} />}
+                                                            {cmd.type === 'FORWARD' && <ForwardIcon size={24} className={index === currentStep ? "text-white" : "text-blue-400"} />}
+                                                            {cmd.type === 'LEFT' && <TurnLeftIcon size={24} className={index === currentStep ? "text-white" : "text-red-400"} />}
+                                                            {cmd.type === 'RIGHT' && <TurnRightIcon size={24} className={index === currentStep ? "text-white" : "text-yellow-400"} />}
+                                                            {cmd.type === 'MELT' && <Flame size={24} className={index === currentStep ? "text-white" : "text-orange-500"} />}
                                                         </button>
                                                     </div>
                                                 );
@@ -429,9 +652,19 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
                                         )}
                                     </div>
                                 </div>
-                                <div className="mt-3 md:mt-4">
-                                    <button onClick={runProgram} disabled={isPlaying || program.length === 0} className={`w-full py-4 md:py-5 rounded-2xl font-bold text-lg md:text-xl flex items-center justify-center gap-3 shadow-xl transition-all transform active:scale-95 ${isPlaying ? 'bg-slate-700 text-slate-500 cursor-wait' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/40'}`}>
-                                        {isPlaying ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : <><Play size={24} fill="currentColor" /> SPUSTIT</>}
+                                <div className="mt-2 shrink-0">
+                                    <button onClick={runProgram} disabled={program.length === 0} 
+                                        className={`w-full py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-xl transition-all transform active:scale-95 ${
+                                            isPlaying 
+                                            ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-900/40' 
+                                            : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/40'
+                                        }`}
+                                    >
+                                        {isPlaying ? (
+                                            <><Square size={20} fill="currentColor" /> ZASTAVIT</>
+                                        ) : (
+                                            <><Play size={24} fill="currentColor" /> SPUSTIT</>
+                                        )}
                                     </button>
                                 </div>
                             </div>
