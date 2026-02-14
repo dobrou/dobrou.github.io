@@ -21,6 +21,7 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
 19. App-like layout (no scroll).
 20. Přidána Beruška (volitelná, pohyblivý nepřítel).
 21. Vylepšený obrázek Berušky, možnost spálit Berušku ohněm na popel.
+22. Zvětšení hrací plochy: mřížka nyní lépe vyplňuje prostor (až 600px nebo 60vh).
 -->
 <!DOCTYPE html>
 <html lang="cs">
@@ -524,7 +525,7 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
                     <main className="flex-1 w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-2 p-2 overflow-hidden">
                         <div className="flex flex-col items-center justify-center lg:justify-start overflow-y-auto lg:overflow-visible no-scrollbar">
                             <div className="bg-slate-800 p-2 md:p-3 rounded-3xl shadow-2xl border-4 border-slate-700 relative shrink-0">
-                                <div className="grid bg-slate-900 border-2 border-slate-600 relative overflow-hidden rounded-xl" style={{ gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`, gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`, width: 'min(90vw, 360px)', height: 'min(90vw, 360px)' }}>
+                                <div className="grid bg-slate-900 border-2 border-slate-600 relative overflow-hidden rounded-xl" style={{ gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`, gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`, width: 'min(90vw, 60vh, 600px)', height: 'min(90vw, 60vh, 600px)' }}>
                                     {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, idx) => {
                                         const x = idx % GRID_SIZE; const y = Math.floor(idx / GRID_SIZE);
                                         const isD = diamond.x === x && diamond.y === y; const isW = walls.some(w => w.x === x && w.y === y); const isI = iceWalls.some(w => w.x === x && w.y === y); const isH = waterDrops.some(w => w.x === x && w.y === y); const isA = ashPiles.some(w => w.x === x && w.y === y);
