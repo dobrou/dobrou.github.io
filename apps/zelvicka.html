@@ -1,20 +1,20 @@
 <!-- 
 SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
-1. Vytvoření základní hry: mřížka, želva, diamant, karty.
-2. Reset, pohled shora.
-3. Ledové zdi, rozmrazování.
-4. Plynulé animace.
-5. Oprava mřížky, tmavé téma.
-6. Zvuky, Drag & Drop, rychlost.
-7. Vizuální uhýbání, ikony rychlosti.
-8. Pointer Events pro mobilní Drag & Drop.
-9. Linkovaný papír pod programem.
-10. Oprava grafiky šipek.
+1. Vytvoření základní hry: mřížka, želva, diamant, karty (vpřed, vlevo, vpravo, vystřel).
+2. Reset želvy na start při opakovaném spuštění, pohled na želvu shora.
+3. Přidání žabičky (dočasně), ledových zdí a karty "rozmrazit", grafické karty bez textu.
+4. Návrat k želvě, plynulé animace pohybu, odstranění nepotřebných akcí, kliknutí na kartu ji smaže.
+5. Oprava mřížky (stabilní čtverce), celkové tmavé téma.
+6. Přidání zvuků (syntezátor), přesouvání karet (Drag & Drop), výběr rychlosti želvy.
+7. Vizuální uhýbání karet při přesunu, ikony (šnek, zajíc, blesk) pro rychlost, minimum textu.
+8. Oprava problikávání Drag & Drop, srozumitelnější ikony pro otáčení (zahnuté šipky).
+9. Přidání linkovaného pozadí (sešit) pod program, vkládací čára pro Drag & Drop.
+10. Oprava grafiky šipek (spojité čáry), stabilizace rozvržení.
 11. Vylepšení grafiky (led, zdi, ohňostroj).
-12. Kapičky vody.
-13. Větší ohňostroj, lepší linky.
-14. Optimalizace pro mobily (100dvh layout).
-15. Jablíčka pro orientaci.
+12. Efekt kapek vody po rozpuštění ledu.
+13. Zvětšení ohňostroje, ztenčení a lepší zarovnání linek v programu.
+14. Optimalizace UI pro mobilní telefony a implementace Pointer Events pro spolehlivý Drag & Drop.
+15. Vizuální navigace pomocí jablíček: Želva drží vlevo červené a vpravo žluté jablko. Šipky mají odpovídající barvy.
 16. Klávesové zkratky.
 17. Editace levelu, cheaty, auto-scroll.
 18. Stop tlačítko, sticky board.
@@ -22,6 +22,7 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
 20. Přidána Beruška (volitelná, pohyblivý nepřítel).
 21. Vylepšený obrázek Berušky, možnost spálit Berušku ohněm na popel.
 22. Zvětšení hrací plochy: mřížka nyní lépe vyplňuje prostor (až 600px nebo 60vh).
+23. Oprava layoutu na velkých obrazovkách: hrací plocha nyní respektuje šířku sloupce (100%) a nepřekrývá ovládací prvky.
 -->
 <!DOCTYPE html>
 <html lang="cs">
@@ -157,23 +158,16 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
         // Vylepšená ikona Berušky (SVG)
         const LadybugIcon = (props) => (
             <Icon {...props} viewBox="0 0 100 100" strokeWidth="0">
-                {/* Nožičky */}
                 <path d="M25 25 L15 15 M75 25 L85 15 M25 50 L10 50 M75 50 L90 50 M25 75 L15 85 M75 75 L85 85" stroke="#334155" strokeWidth="6" strokeLinecap="round" />
-                {/* Tělo - červené krovky */}
                 <ellipse cx="50" cy="55" rx="32" ry="38" fill="#ef4444" />
-                {/* Předěl krovek */}
                 <path d="M50 20 V 93" stroke="#7f1d1d" strokeWidth="2" />
-                {/* Tečky */}
                 <circle cx="35" cy="45" r="5" fill="#7f1d1d" />
                 <circle cx="65" cy="45" r="5" fill="#7f1d1d" />
                 <circle cx="30" cy="70" r="4" fill="#7f1d1d" />
                 <circle cx="70" cy="70" r="4" fill="#7f1d1d" />
                 <circle cx="50" cy="60" r="3" fill="#7f1d1d" />
-                {/* Hlava */}
                 <path d="M30 25 Q50 -5 70 25" fill="#1e293b" />
-                {/* Tykadla */}
                 <path d="M35 10 L25 2 M65 10 L75 2" stroke="#1e293b" strokeWidth="3" strokeLinecap="round" />
-                {/* Oči */}
                 <circle cx="40" cy="18" r="3" fill="white" />
                 <circle cx="60" cy="18" r="3" fill="white" />
             </Icon>
@@ -242,12 +236,9 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
             const [walls, setWalls] = useState([]); 
             const [iceWalls, setIceWalls] = useState([]); 
             const [waterDrops, setWaterDrops] = useState([]); 
-            
-            // Ladybug state
             const [ladybugEnabled, setLadybugEnabled] = useState(false);
             const [ladybug, setLadybug] = useState({ x: -1, y: -1, path: [], idx: 0 });
-            const [ashPiles, setAshPiles] = useState([]); // Hromádky popela
-
+            const [ashPiles, setAshPiles] = useState([]); 
             const [startTurtle, setStartTurtle] = useState({ x: 0, y: 0, dir: 1 });
             const [initialWalls, setInitialWalls] = useState([]);
             const [initialIceWalls, setInitialIceWalls] = useState([]);
@@ -260,12 +251,9 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
             const [speed, setSpeed] = useState(400); 
             const [soundEnabled, setSoundEnabled] = useState(true);
             const [projectile, setProjectile] = useState(null);
-
-            // Pointer-based Drag & Drop state
             const [draggedIdx, setDraggedIdx] = useState(null);
             const [dropIdx, setDropIdx] = useState(null);
             const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
-            
             const abortRef = useRef(false);
             const [keyBuffer, setKeyBuffer] = useState([]);
             const containerRef = useRef(null);
@@ -281,7 +269,6 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
                 let newDiamond = { x: GRID_SIZE - 1, y: GRID_SIZE - 1 };
                 let newWalls = []; let newIceWalls = [];
                 
-                // 1. Setup Ladybug logic first to reserve space
                 let lb = { x: -1, y: -1, path: [], idx: 0 };
                 let bx, by;
                 for(let attempt=0; attempt<50; attempt++) {
@@ -290,32 +277,22 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
                     if ((bx <= 1 && by <= 1) || (bx >= GRID_SIZE-2 && by >= GRID_SIZE-2)) continue;
                     break;
                 }
-                const lbPath = [
-                    {x: bx, y: by}, {x: bx+1, y: by}, {x: bx+1, y: by+1}, {x: bx, y: by+1}
-                ];
+                const lbPath = [{x: bx, y: by}, {x: bx+1, y: by}, {x: bx+1, y: by+1}, {x: bx, y: by+1}];
                 lb = { x: bx, y: by, path: lbPath, idx: 0 };
                 setLadybug(lb);
 
-                // 2. Generate Obstacles
                 const generateObstacles = (count, array) => {
                     for (let i = 0; i < count; i++) {
                         let attempts = 0;
                         while (attempts < 20) {
                             let wx = Math.floor(Math.random() * GRID_SIZE); let wy = Math.floor(Math.random() * GRID_SIZE);
-                            const isTaken = 
-                                (wx === newTurtle.x && wy === newTurtle.y) || 
-                                (wx === newDiamond.x && wy === newDiamond.y) || 
-                                newWalls.some(w => w.x === wx && w.y === wy) || 
-                                newIceWalls.some(w => w.x === wx && w.y === wy) ||
-                                lb.path.some(p => p.x === wx && p.y === wy);
-                                
+                            const isTaken = (wx === newTurtle.x && wy === newTurtle.y) || (wx === newDiamond.x && wy === newDiamond.y) || newWalls.some(w => w.x === wx && w.y === wy) || newIceWalls.some(w => w.x === wx && w.y === wy) || lb.path.some(p => p.x === wx && p.y === wy);
                             if (!isTaken) { array.push({ x: wx, y: wy }); break; }
                             attempts++;
                         }
                     }
                 };
                 generateObstacles(6, newWalls); generateObstacles(5, newIceWalls);
-                
                 setTurtle(newTurtle); setWalls(newWalls); setIceWalls(newIceWalls); setDiamond(newDiamond);
                 setStartTurtle({ ...newTurtle }); setInitialWalls([...newWalls]); setInitialIceWalls([...newIceWalls]);
             };
@@ -326,9 +303,7 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
                 if (containerRef.current) {
                     if (isPlaying && currentStep !== -1) {
                         const activeElement = containerRef.current.querySelector(`[data-index="${currentStep}"]`);
-                        if (activeElement) {
-                            activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                        }
+                        if (activeElement) { activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
                     } else if (!isPlaying && program.length > 0) {
                         containerRef.current.scrollTop = containerRef.current.scrollHeight;
                     }
@@ -358,55 +333,32 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
 
             const stopProgram = () => { if (isPlaying) abortRef.current = true; };
 
-            const toggleLadybug = () => {
-                if (isPlaying) return;
-                setLadybugEnabled(!ladybugEnabled);
-                setTimeout(initGame, 0); 
-            };
+            const toggleLadybug = () => { if (isPlaying) return; setLadybugEnabled(!ladybugEnabled); setTimeout(initGame, 0); };
 
             const runProgram = async () => {
                 if (program.length === 0) return;
                 if (isPlaying) { stopProgram(); return; }
-
-                setIsPlaying(true); abortRef.current = false; 
-                setGameStatus('running'); setCurrentStep(-1); setMessage("Pozor, start!"); safePlaySound('click');
-                
+                setIsPlaying(true); abortRef.current = false; setGameStatus('running'); setCurrentStep(-1); setMessage("Pozor, start!"); safePlaySound('click');
                 setTurtle(startTurtle); setWalls(initialWalls); setIceWalls(initialIceWalls); setProjectile(null); setWaterDrops([]); setAshPiles([]);
-                
-                // Reset ladybug
-                let curL = { ...ladybug, x: ladybug.path[0].x, y: ladybug.path[0].y, idx: 0 };
-                setLadybug(curL);
-                
+                let curL = { ...ladybug, x: ladybug.path[0].x, y: ladybug.path[0].y, idx: 0 }; setLadybug(curL);
                 let isLadybugDead = false;
-
                 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
                 await wait(500); 
-                
                 if (abortRef.current) { setIsPlaying(false); setGameStatus('idle'); setMessage("Přerušeno."); return; }
                 setMessage("Jedu!");
-
                 let curT = { ...startTurtle }; let curW = [...initialWalls]; let curI = [...initialIceWalls]; let curDrops = []; let curAsh = [];
-
                 for (let i = 0; i < program.length; i++) {
                     if (abortRef.current) break;
-                    setCurrentStep(i); const cmd = program[i]; 
-                    await wait(speed);
+                    setCurrentStep(i); const cmd = program[i]; await wait(speed);
                     if (abortRef.current) break;
-
-                    // 1. Move Turtle
                     const move = DIRECTIONS[curT.dir];
                     let nextTX = curT.x; let nextTY = curT.y; 
-
                     if (cmd.type === 'FORWARD') {
                         nextTX += move.dx; nextTY += move.dy;
                         const hitWall = curW.some(w => w.x === nextTX && w.y === nextTY);
                         const hitIce = curI.some(w => w.x === nextTX && w.y === nextTY);
                         const out = nextTX < 0 || nextTX >= GRID_SIZE || nextTY < 0 || nextTY >= GRID_SIZE;
-                        if (hitWall || hitIce || out) {
-                            setGameStatus('lost'); safePlaySound('lose');
-                            setMessage(hitWall ? "Au! Cihla!" : hitIce ? "Brrr! Led!" : "Au! Okraj!");
-                            setIsPlaying(false); return; 
-                        }
+                        if (hitWall || hitIce || out) { setGameStatus('lost'); safePlaySound('lose'); setMessage(hitWall ? "Au! Cihla!" : hitIce ? "Brrr! Led!" : "Au! Okraj!"); setIsPlaying(false); return; }
                         curT.x = nextTX; curT.y = nextTY; safePlaySound('step');
                     } 
                     else if (cmd.type === 'LEFT') { curT.dir = (curT.dir + 3) % 4; safePlaySound('turn'); } 
@@ -415,43 +367,19 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
                         const tx = curT.x + move.dx; const ty = curT.y + move.dy;
                         safePlaySound('fire'); setProjectile({ x: curT.x, y: curT.y, targetX: curT.x + move.dx * 0.8, targetY: curT.y + move.dy * 0.8, type: 'fire', rotation: DIRECTIONS[curT.dir].rotate });
                         await wait(300); if (abortRef.current) break; setProjectile(null);
-                        
                         const idx = curI.findIndex(w => w.x === tx && w.y === ty);
-                        
-                        // Check collision with ice
-                        if (idx !== -1) { 
-                            curI.splice(idx, 1); setIceWalls([...curI]); 
-                            curDrops.push({ x: tx, y: ty }); setWaterDrops([...curDrops]); 
-                            setMessage("Psss..."); 
-                        }
-                        // Check collision with Ladybug
-                        else if (ladybugEnabled && !isLadybugDead && curL.x === tx && curL.y === ty) {
-                            isLadybugDead = true;
-                            curAsh.push({ x: tx, y: ty });
-                            setAshPiles([...curAsh]);
-                            setMessage("Promiň beruško!");
-                        }
+                        if (idx !== -1) { curI.splice(idx, 1); setIceWalls([...curI]); curDrops.push({ x: tx, y: ty }); setWaterDrops([...curDrops]); setMessage("Psss..."); }
+                        else if (ladybugEnabled && !isLadybugDead && curL.x === tx && curL.y === ty) { isLadybugDead = true; curAsh.push({ x: tx, y: ty }); setAshPiles([...curAsh]); setMessage("Promiň beruško!"); }
                         else setMessage("Nic.");
                     }
-                    
-                    // 2. Move Ladybug (if enabled and alive)
                     if (ladybugEnabled && !isLadybugDead) {
-                        const nextLIdx = (curL.idx + 1) % curL.path.length;
-                        const nextLPos = curL.path[nextLIdx];
-                        curL = { ...curL, x: nextLPos.x, y: nextLPos.y, idx: nextLIdx };
-                        setLadybug(curL);
-                        
-                        // Check collision: Turtle on Ladybug
-                        if (curT.x === curL.x && curT.y === curL.y) {
-                            setGameStatus('lost'); safePlaySound('lose'); setMessage("Au! Srážka s beruškou!");
-                            setIsPlaying(false); return;
-                        }
+                        const nextLIdx = (curL.idx + 1) % curL.path.length; const nextLPos = curL.path[nextLIdx];
+                        curL = { ...curL, x: nextLPos.x, y: nextLPos.y, idx: nextLIdx }; setLadybug(curL);
+                        if (curT.x === curL.x && curT.y === curL.y) { setGameStatus('lost'); safePlaySound('lose'); setMessage("Au! Srážka s beruškou!"); setIsPlaying(false); return; }
                     }
-
                     setTurtle({ ...curT });
                     if (curT.x === diamond.x && curT.y === diamond.y) { setGameStatus('won'); safePlaySound('win'); setMessage("Hurá! Diamant!"); setIsPlaying(false); return; }
                 }
-                
                 setIsPlaying(false);
                 if (abortRef.current) { setGameStatus('idle'); setMessage("Přerušeno."); } 
                 else if (gameStatus !== 'won') { setGameStatus('lost'); setMessage("Konec programu..."); }
@@ -461,16 +389,13 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
                 if (isPlaying) return;
                 if ((x === startTurtle.x && y === startTurtle.y) || (x === diamond.x && y === diamond.y)) { safePlaySound('lose'); return; }
                 if (ladybugEnabled && x === ladybug.path[0].x && y === ladybug.path[0].y) { safePlaySound('lose'); return; }
-
                 safePlaySound('click');
                 const isWall = walls.some(w => w.x === x && w.y === y);
                 const isIce = iceWalls.some(w => w.x === x && w.y === y);
                 let newWalls = [...walls]; let newIceWalls = [...iceWalls];
-
                 if (!isWall && !isIce) { newWalls.push({ x, y }); } 
                 else if (isWall) { newWalls = newWalls.filter(w => !(w.x === x && w.y === y)); newIceWalls.push({ x, y }); } 
                 else if (isIce) { newIceWalls = newIceWalls.filter(w => !(w.x === x && w.y === y)); }
-
                 setWalls(newWalls); setIceWalls(newIceWalls); setInitialWalls(newWalls); setInitialIceWalls(newIceWalls);
             };
 
@@ -524,12 +449,19 @@ SEZNAM PROMPTŮ POUŽITÝCH K VÝVOJI:
 
                     <main className="flex-1 w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-2 p-2 overflow-hidden">
                         <div className="flex flex-col items-center justify-center lg:justify-start overflow-y-auto lg:overflow-visible no-scrollbar">
-                            <div className="bg-slate-800 p-2 md:p-3 rounded-3xl shadow-2xl border-4 border-slate-700 relative shrink-0">
-                                <div className="grid bg-slate-900 border-2 border-slate-600 relative overflow-hidden rounded-xl" style={{ gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`, gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`, width: 'min(90vw, 60vh, 600px)', height: 'min(90vw, 60vh, 600px)' }}>
+                            <div className="bg-slate-800 p-2 md:p-3 rounded-3xl shadow-2xl border-4 border-slate-700 relative shrink-0 w-full max-w-[min(90vw,600px)] lg:max-w-full flex justify-center items-center z-10">
+                                <div className="grid bg-slate-900 border-2 border-slate-600 relative overflow-hidden rounded-xl" 
+                                     style={{ 
+                                         gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`, 
+                                         gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`, 
+                                         width: '100%',
+                                         maxWidth: 'min(60vh, 600px)',
+                                         aspectRatio: '1/1'
+                                     }}>
                                     {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, idx) => {
                                         const x = idx % GRID_SIZE; const y = Math.floor(idx / GRID_SIZE);
                                         const isD = diamond.x === x && diamond.y === y; const isW = walls.some(w => w.x === x && w.y === y); const isI = iceWalls.some(w => w.x === x && w.y === y); const isH = waterDrops.some(w => w.x === x && w.y === y); const isA = ashPiles.some(w => w.x === x && w.y === y);
-                                        const isLB = ladybugEnabled && ladybug.x === x && ladybug.y === y && !isA; // Don't show ladybug if ash is there
+                                        const isLB = ladybugEnabled && ladybug.x === x && ladybug.y === y && !isA; 
                                         
                                         return (
                                             <div key={idx} onClick={() => handleGridClick(x, y)} className="bg-slate-800/30 border border-slate-700/30 w-full h-full flex items-center justify-center relative cursor-pointer hover:bg-slate-700/50 transition-colors">
