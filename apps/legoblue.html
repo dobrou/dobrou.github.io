@@ -9,6 +9,7 @@ PROMPT HISTORY TO RECREATE THIS APP:
 3. Safely read and show all possible telemetry from device
 4. As comment on top of the file, keep always up to date list of prompt which can recreate the app from scratch
 5. Keep prompts comment shorter, only summarized user input. Keep also update app version at top of the top comment
+6. Fix empty telemetry logs (filter null bytes) and add dark theme support
 ========================================================================
 -->
 <html lang="en">
@@ -18,6 +19,9 @@ PROMPT HISTORY TO RECREATE THIS APP:
   <title>Circuit Control</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script>
+    tailwind.config = { darkMode: 'media' }
+  </script>
   <style>
     /* Custom CSS for vertical sliders */
     .slider-container {
@@ -101,9 +105,20 @@ PROMPT HISTORY TO RECREATE THIS APP:
       transform-origin: bottom;
       background-color: var(--thumb-color, #2563eb);
     }
+
+    @media (prefers-color-scheme: dark) {
+      .slider-container {
+        background-color: rgba(15, 23, 42, 0.8); /* slate-900 */
+        border-color: rgba(51, 65, 85, 0.5); /* slate-700 */
+        box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
+      }
+      .slider-center-line {
+        background-color: #475569; /* slate-600 */
+      }
+    }
   </style>
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-blue-200 flex flex-col">
+<body class="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 font-sans selection:bg-blue-200 flex flex-col transition-colors duration-300">
 
   <!-- Unsupported Browser Warning -->
   <div id="unsupported-warning" class="hidden fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center p-6">
@@ -119,12 +134,12 @@ PROMPT HISTORY TO RECREATE THIS APP:
   </div>
 
   <!-- Header -->
-  <header class="bg-white border-b border-slate-200 px-6 py-4 flex flex-wrap gap-4 items-center justify-between sticky top-0 z-50">
+  <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex flex-wrap gap-4 items-center justify-between sticky top-0 z-50 transition-colors duration-300">
     <div class="flex items-center space-x-3">
       <div class="bg-blue-600 p-2 rounded-xl shadow-sm">
         <i class="ph-bold ph-lightning text-2xl text-white block"></i>
       </div>
-      <h1 class="text-2xl font-black tracking-tight text-slate-800">
+      <h1 class="text-2xl font-black tracking-tight text-slate-800 dark:text-slate-100">
         Circuit<span class="text-blue-600">Control</span>
       </h1>
     </div>
@@ -138,11 +153,11 @@ PROMPT HISTORY TO RECREATE THIS APP:
 
       <!-- Connected State (Hidden by default) -->
       <div id="connected-state" class="hidden flex items-center space-x-3">
-        <span class="flex items-center text-sm font-bold text-slate-700 bg-slate-100 px-4 py-2 rounded-full border border-slate-200">
+        <span class="flex items-center text-sm font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-full border border-slate-200 dark:border-slate-700 transition-colors">
           <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
           <span id="device-name">Circuit Cube</span>
         </span>
-        <button id="btn-disconnect" class="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors" title="Disconnect">
+        <button id="btn-disconnect" class="p-2.5 text-slate-400 dark:text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors" title="Disconnect">
           <i class="ph-bold ph-power text-xl"></i>
         </button>
       </div>
@@ -152,11 +167,11 @@ PROMPT HISTORY TO RECREATE THIS APP:
   <main class="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8">
     
     <!-- Error Message -->
-    <div id="error-banner" class="hidden mb-8 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start text-red-700 shadow-sm">
+    <div id="error-banner" class="hidden mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-2xl flex items-start text-red-700 dark:text-red-400 shadow-sm transition-colors">
       <i class="ph-fill ph-warning-circle text-2xl mr-3 shrink-0 mt-0.5"></i>
       <div>
         <h4 class="font-bold">Connection Issue</h4>
-        <p id="error-message" class="text-sm mt-1 text-red-600">Failed to connect.</p>
+        <p id="error-message" class="text-sm mt-1 text-red-600 dark:text-red-300">Failed to connect.</p>
       </div>
     </div>
 
@@ -164,17 +179,17 @@ PROMPT HISTORY TO RECREATE THIS APP:
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
       
       <!-- Motor A Panel -->
-      <div class="flex flex-col items-center bg-white p-6 rounded-[2rem] shadow-xl border border-slate-100 relative overflow-hidden">
+      <div class="flex flex-col items-center bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 relative overflow-hidden transition-colors">
         <div class="absolute -right-8 -top-8 w-24 h-24 rounded-full opacity-10 pointer-events-none bg-[#2563eb]"></div>
-        <h3 class="font-black text-2xl tracking-tight mb-5 text-blue-600">Motor A</h3>
+        <h3 class="font-black text-2xl tracking-tight mb-5 text-blue-600 dark:text-blue-500">Motor A</h3>
         
         <div class="flex gap-2 mb-6 w-full">
-          <button id="snap-a" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 text-slate-500 hover:bg-slate-200" onclick="toggleSnap('a')">Snap: OFF</button>
-          <button id="invert-a" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 text-slate-500 hover:bg-slate-200" onclick="toggleInvert('a')">Normal</button>
+          <button id="snap-a" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleSnap('a')">Snap: OFF</button>
+          <button id="invert-a" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleInvert('a')">Normal</button>
         </div>
         
-        <div class="bg-slate-50 w-full py-4 rounded-2xl mb-8 flex justify-center items-center shadow-inner border border-slate-200">
-          <span id="display-a" class="font-mono text-4xl font-bold text-slate-800 w-20 text-center tracking-tighter">0</span>
+        <div class="bg-slate-50 dark:bg-slate-950 w-full py-4 rounded-2xl mb-8 flex justify-center items-center shadow-inner border border-slate-200 dark:border-slate-800 transition-colors">
+          <span id="display-a" class="font-mono text-4xl font-bold text-slate-800 dark:text-slate-100 w-20 text-center tracking-tighter">0</span>
         </div>
 
         <div class="slider-container">
@@ -190,17 +205,17 @@ PROMPT HISTORY TO RECREATE THIS APP:
       </div>
 
       <!-- Motor B Panel -->
-      <div class="flex flex-col items-center bg-white p-6 rounded-[2rem] shadow-xl border border-slate-100 relative overflow-hidden">
+      <div class="flex flex-col items-center bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 relative overflow-hidden transition-colors">
         <div class="absolute -right-8 -top-8 w-24 h-24 rounded-full opacity-10 pointer-events-none bg-[#059669]"></div>
-        <h3 class="font-black text-2xl tracking-tight mb-5 text-emerald-600">Motor B</h3>
+        <h3 class="font-black text-2xl tracking-tight mb-5 text-emerald-600 dark:text-emerald-500">Motor B</h3>
         
         <div class="flex gap-2 mb-6 w-full">
           <button id="snap-b" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-800 text-white shadow-md" onclick="toggleSnap('b')">Snap: ON</button>
-          <button id="invert-b" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 text-slate-500 hover:bg-slate-200" onclick="toggleInvert('b')">Normal</button>
+          <button id="invert-b" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleInvert('b')">Normal</button>
         </div>
         
-        <div class="bg-slate-50 w-full py-4 rounded-2xl mb-8 flex justify-center items-center shadow-inner border border-slate-200">
-          <span id="display-b" class="font-mono text-4xl font-bold text-slate-800 w-20 text-center tracking-tighter">0</span>
+        <div class="bg-slate-50 dark:bg-slate-950 w-full py-4 rounded-2xl mb-8 flex justify-center items-center shadow-inner border border-slate-200 dark:border-slate-800 transition-colors">
+          <span id="display-b" class="font-mono text-4xl font-bold text-slate-800 dark:text-slate-100 w-20 text-center tracking-tighter">0</span>
         </div>
 
         <div class="slider-container">
@@ -216,17 +231,17 @@ PROMPT HISTORY TO RECREATE THIS APP:
       </div>
 
       <!-- Motor C Panel -->
-      <div class="flex flex-col items-center bg-white p-6 rounded-[2rem] shadow-xl border border-slate-100 relative overflow-hidden">
+      <div class="flex flex-col items-center bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 relative overflow-hidden transition-colors">
         <div class="absolute -right-8 -top-8 w-24 h-24 rounded-full opacity-10 pointer-events-none bg-[#e11d48]"></div>
-        <h3 class="font-black text-2xl tracking-tight mb-5 text-rose-600">Motor C</h3>
+        <h3 class="font-black text-2xl tracking-tight mb-5 text-rose-600 dark:text-rose-500">Motor C</h3>
         
         <div class="flex gap-2 mb-6 w-full">
-          <button id="snap-c" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 text-slate-500 hover:bg-slate-200" onclick="toggleSnap('c')">Snap: OFF</button>
-          <button id="invert-c" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 text-slate-500 hover:bg-slate-200" onclick="toggleInvert('c')">Normal</button>
+          <button id="snap-c" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleSnap('c')">Snap: OFF</button>
+          <button id="invert-c" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleInvert('c')">Normal</button>
         </div>
         
-        <div class="bg-slate-50 w-full py-4 rounded-2xl mb-8 flex justify-center items-center shadow-inner border border-slate-200">
-          <span id="display-c" class="font-mono text-4xl font-bold text-slate-800 w-20 text-center tracking-tighter">0</span>
+        <div class="bg-slate-50 dark:bg-slate-950 w-full py-4 rounded-2xl mb-8 flex justify-center items-center shadow-inner border border-slate-200 dark:border-slate-800 transition-colors">
+          <span id="display-c" class="font-mono text-4xl font-bold text-slate-800 dark:text-slate-100 w-20 text-center tracking-tighter">0</span>
         </div>
 
         <div class="slider-container">
@@ -266,24 +281,38 @@ PROMPT HISTORY TO RECREATE THIS APP:
     </div>
 
     <!-- Instructions -->
-    <div class="mt-12 p-6 bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6">
-        <h3 class="font-bold text-slate-800 mb-3 text-sm uppercase tracking-wider">Keyboard Controls</h3>
+    <div class="mt-12 p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-6 transition-colors">
+      <div class="flex-1">
+        <h3 class="font-bold text-slate-800 dark:text-slate-100 mb-3 flex items-center text-lg">
+          <i class="ph-fill ph-info mr-2 text-blue-500 text-xl"></i>
+          How to use
+        </h3>
+        <ol class="list-decimal list-inside text-slate-600 dark:text-slate-400 space-y-2 text-sm">
+          <li>Turn on your Circuit Cubes Bluetooth Hub.</li>
+          <li>Click <strong>Connect Hub</strong> and select it from the pairing menu.</li>
+          <li>Drag the sliders to control speed (-255 to 255).</li>
+          <li><strong>Snap:</strong> When ON, the motor stops instantly when you let go of the slider (perfect for steering).</li>
+          <li><strong>Invert:</strong> Reverses motor direction in software if your build is wired backwards.</li>
+        </ol>
+      </div>
+      <div class="flex-1 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+        <h3 class="font-bold text-slate-800 dark:text-slate-200 mb-3 text-sm uppercase tracking-wider">Keyboard Controls</h3>
         <div class="space-y-4">
-          <div class="flex items-center text-sm text-slate-600">
+          <div class="flex items-center text-sm text-slate-600 dark:text-slate-400">
             <div class="flex gap-1 mr-3">
-              <kbd class="font-mono font-bold bg-white text-slate-800 px-2 py-1 rounded shadow-sm border border-slate-200">W</kbd>
-              <kbd class="font-mono font-bold bg-white text-slate-800 px-2 py-1 rounded shadow-sm border border-slate-200">S</kbd>
+              <kbd class="font-mono font-bold bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-2 py-1 rounded shadow-sm border border-slate-200 dark:border-slate-600">W</kbd>
+              <kbd class="font-mono font-bold bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-2 py-1 rounded shadow-sm border border-slate-200 dark:border-slate-600">S</kbd>
             </div>
             <span>Control Motor A (Drive)</span>
           </div>
-          <div class="flex items-center text-sm text-slate-600">
+          <div class="flex items-center text-sm text-slate-600 dark:text-slate-400">
             <div class="flex gap-1 mr-3">
-              <kbd class="font-mono font-bold bg-white text-slate-800 px-2 py-1 rounded shadow-sm border border-slate-200">A</kbd>
-              <kbd class="font-mono font-bold bg-white text-slate-800 px-2 py-1 rounded shadow-sm border border-slate-200">D</kbd>
+              <kbd class="font-mono font-bold bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-2 py-1 rounded shadow-sm border border-slate-200 dark:border-slate-600">A</kbd>
+              <kbd class="font-mono font-bold bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-2 py-1 rounded shadow-sm border border-slate-200 dark:border-slate-600">D</kbd>
             </div>
             <span>Control Motor B (Steer)</span>
           </div>
-          <p class="text-xs text-slate-400 mt-2 italic">* Arrow keys also supported.</p>
+          <p class="text-xs text-slate-400 dark:text-slate-500 mt-2 italic">* Arrow keys also supported.</p>
         </div>
       </div>
     </div>
@@ -393,11 +422,34 @@ PROMPT HISTORY TO RECREATE THIS APP:
 
     function handleTelemetry(event) {
       const value = event.target.value;
+      
+      // Check for entirely null/empty payloads to prevent blank lines
+      let isAllNulls = true;
+      for (let i = 0; i < value.byteLength; i++) {
+        if (value.getUint8(i) !== 0) {
+          isAllNulls = false;
+          break;
+        }
+      }
+      if (isAllNulls) return;
+
       const decoder = new TextDecoder('utf-8');
       const text = decoder.decode(value);
       
-      // Trim empty space/newlines to keep the terminal neat
-      const cleanText = text.trim();
+      // Remove null characters (often used for BLE padding) and trim whitespace
+      let cleanText = text.replace(/\0/g, '').trim();
+      
+      if (!cleanText && value.byteLength > 0) {
+         // If payload exists but wasn't printable, decode as hex string
+         const hex = Array.from(new Uint8Array(value.buffer))
+              .map(b => b.toString(16).padStart(2, '0'))
+              .join(' ');
+         cleanText = `[Hex] ${hex}`;
+      } else {
+         // Escape HTML to avoid invisible tags or HTML injection
+         cleanText = cleanText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
       if (cleanText) {
         logTelemetry("Device", cleanText);
       }
@@ -519,7 +571,7 @@ PROMPT HISTORY TO RECREATE THIS APP:
         btn.className = 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-800 text-white shadow-md';
       } else {
         btn.textContent = 'Snap: OFF';
-        btn.className = 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 text-slate-500 hover:bg-slate-200';
+        btn.className = 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700';
       }
     };
 
@@ -531,7 +583,7 @@ PROMPT HISTORY TO RECREATE THIS APP:
         btn.className = 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-amber-500 text-white shadow-md';
       } else {
         btn.textContent = 'Normal';
-        btn.className = 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 text-slate-500 hover:bg-slate-200';
+        btn.className = 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700';
       }
       setSpeed(channel, 0); // Safety stop when switching modes
     };
