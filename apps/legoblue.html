@@ -1,4 +1,25 @@
 <!DOCTYPE html>
+<!--
+========================================================================
+PROMPT TO RECREATE THIS APP FROM SCRATCH:
+Create a single-file HTML web app to connect and control Circuit Cubes Bluetooth Battery Hubs.
+Tech stack: Vanilla JS, Tailwind CSS (via CDN), Phosphor Icons (via CDN).
+
+Features required:
+1. Web Bluetooth API using Nordic UART Service (NUS). Service UUID: 6e400001-b5a3-f393-e0a9-e50e24dcca9e. RX: 6e400002..., TX: 6e400003...
+2. Three motor control panels (Motor A, B, C) featuring:
+   - Custom vertical range sliders (-255 to +255) with an active track fill.
+   - "Snap" toggle: When ON, releasing the slider snaps speed to 0.
+   - "Invert" toggle: Reverses the motor direction sent to the hub.
+   - A dedicated STOP button per motor.
+3. Keyboard controls: W/S (Motor A drive), A/D (Motor B steer). Support arrow keys too. Smart release logic (stop only if opposite key isn't held).
+4. Global Emergency Stop button to halt all motors instantly.
+5. A GATT Queueing system for sending commands (e.g., "+255a", "-128b") to prevent Bluetooth buffer overflow ("operation already in progress" errors). Filter redundant commands for the same channel.
+6. A "Device Telemetry" terminal interface: Subscribe to the TX characteristic, decode UTF-8 strings, and display them with HH:MM:SS.mmm timestamps. Keep the last 100 logs and auto-scroll. Include a "Clear Log" button.
+7. A prominent "Browser Not Supported" modal if navigator.bluetooth is unavailable.
+8. Modern, responsive UI with rounded corners, subtle shadows, and clear visual states (connecting spinner, connected device name).
+========================================================================
+-->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -239,22 +260,22 @@
       </button>
     </div>
     
-    <!-- Instructions -->
-    <div class="mt-16 p-6 bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6">
-      <div class="flex-1">
-        <h3 class="font-bold text-slate-800 mb-3 flex items-center text-lg">
-          <i class="ph-fill ph-info mr-2 text-blue-500 text-xl"></i>
-          How to use
+    <!-- Telemetry Panel -->
+    <div class="mt-12 bg-slate-900 rounded-3xl p-6 shadow-xl border border-slate-800">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-white flex items-center text-lg">
+          <i class="ph-bold ph-terminal-window mr-2 text-emerald-400 text-xl"></i>
+          Device Telemetry
         </h3>
-        <ol class="list-decimal list-inside text-slate-600 space-y-2 text-sm">
-          <li>Turn on your Circuit Cubes Bluetooth Hub.</li>
-          <li>Click <strong>Connect Hub</strong> and select it from the pairing menu.</li>
-          <li>Drag the sliders to control speed (-255 to 255).</li>
-          <li><strong>Snap:</strong> When ON, the motor stops instantly when you let go of the slider (perfect for steering).</li>
-          <li><strong>Invert:</strong> Reverses motor direction in software if your build is wired backwards.</li>
-        </ol>
+        <button onclick="clearTelemetry()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl font-bold transition-colors">Clear Log</button>
       </div>
-      <div class="flex-1 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+      <div id="telemetry-log" class="font-mono text-sm h-48 overflow-y-auto bg-black/50 p-4 rounded-2xl border border-slate-700/50 space-y-1.5 shadow-inner">
+        <div class="text-slate-500 italic">Waiting for connection...</div>
+      </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="mt-12 p-6 bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6">
         <h3 class="font-bold text-slate-800 mb-3 text-sm uppercase tracking-wider">Keyboard Controls</h3>
         <div class="space-y-4">
           <div class="flex items-center text-sm text-slate-600">
@@ -281,9 +302,11 @@
     // --- Configuration & State ---
     const NUS_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
     const NUS_RX_CHARACTERISTIC_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+    const NUS_TX_CHARACTERISTIC_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
 
     let bluetoothDevice = null;
     let rxCharacteristic = null;
+    let txCharacteristic = null;
     
     const state = {
       speeds: { a: 0, b: 0, c: 0 },
@@ -304,6 +327,7 @@
     const deviceNameDisplay = document.getElementById('device-name');
     const errorBanner = document.getElementById('error-banner');
     const errorMessage = document.getElementById('error-message');
+    const telemetryLog = document.getElementById('telemetry-log');
 
     // --- Initialization Check ---
     if (!navigator.bluetooth) {
@@ -326,6 +350,17 @@
         const service = await server.getPrimaryService(NUS_SERVICE_UUID);
         rxCharacteristic = await service.getCharacteristic(NUS_RX_CHARACTERISTIC_UUID);
         
+        // Setup Telemetry (TX)
+        try {
+          txCharacteristic = await service.getCharacteristic(NUS_TX_CHARACTERISTIC_UUID);
+          await txCharacteristic.startNotifications();
+          txCharacteristic.addEventListener('characteristicvaluechanged', handleTelemetry);
+          logTelemetry("System", "Connected. Listening for telemetry data...");
+        } catch (e) {
+          console.warn("Could not enable telemetry", e);
+          logTelemetry("System", "Warning: Telemetry characteristic not found or blocked.");
+        }
+
         // Update UI
         deviceNameDisplay.textContent = bluetoothDevice.name || 'Circuit Cube';
         btnConnect.classList.add('hidden');
@@ -351,15 +386,67 @@
     function onDisconnected() {
       bluetoothDevice = null;
       rxCharacteristic = null;
+      txCharacteristic = null;
       commandQueue = [];
       isWriting = false;
       stopAll();
+      logTelemetry("System", "Disconnected from device.");
 
       btnConnect.innerHTML = '<i class="ph-bold ph-bluetooth mr-2 text-xl"></i><span>Connect Hub</span>';
       btnConnect.classList.remove('hidden');
       connectedState.classList.add('hidden');
       connectedState.classList.remove('flex');
     }
+
+    // --- Telemetry Logic ---
+
+    function handleTelemetry(event) {
+      const value = event.target.value;
+      const decoder = new TextDecoder('utf-8');
+      const text = decoder.decode(value);
+      
+      // Trim empty space/newlines to keep the terminal neat
+      const cleanText = text.trim();
+      if (cleanText) {
+        logTelemetry("Device", cleanText);
+      }
+    }
+
+    function logTelemetry(source, message) {
+      if (!telemetryLog || !message) return;
+      
+      // Clear the "waiting" message on first log
+      if (telemetryLog.children[0] && telemetryLog.children[0].classList.contains('italic')) {
+        telemetryLog.innerHTML = '';
+      }
+
+      const entry = document.createElement('div');
+      const now = new Date();
+      // Format timestamp as HH:MM:SS.mmm
+      const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`;
+      
+      entry.innerHTML = `
+        <span class="text-slate-500 whitespace-nowrap">[${time}]</span> 
+        <span class="${source === 'System' ? 'text-blue-400' : 'text-emerald-400'} font-bold">${source}:</span> 
+        <span class="text-slate-200 break-words">${message}</span>
+      `;
+      
+      telemetryLog.appendChild(entry);
+
+      // Keep only last 100 entries to prevent memory leaks/browser lag
+      while (telemetryLog.children.length > 100) {
+        telemetryLog.removeChild(telemetryLog.firstChild);
+      }
+
+      // Auto-scroll to bottom
+      telemetryLog.scrollTop = telemetryLog.scrollHeight;
+    }
+
+    window.clearTelemetry = function() {
+      if (telemetryLog) {
+        telemetryLog.innerHTML = '<div class="text-slate-500 italic">Log cleared...</div>';
+      }
+    };
 
     // --- Control Logic ---
 
