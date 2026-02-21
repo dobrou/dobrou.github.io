@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
 ========================================================================
-App Version: 1.2.0
+App Version: 1.3.0
 
 PROMPT HISTORY TO RECREATE THIS APP:
 1. Create app, connect and control Circuit Cubes Bluetooth device
@@ -10,6 +10,7 @@ PROMPT HISTORY TO RECREATE THIS APP:
 4. As comment on top of the file, keep always up to date list of prompt which can recreate the app from scratch
 5. Keep prompts comment shorter, only summarized user input. Keep also update app version at top of the top comment
 6. Fix empty telemetry logs (filter null bytes) and add dark theme support
+7. Remove the telemetry part from app
 ========================================================================
 -->
 <html lang="en">
@@ -266,20 +267,6 @@ PROMPT HISTORY TO RECREATE THIS APP:
       </button>
     </div>
     
-    <!-- Telemetry Panel -->
-    <div class="mt-12 bg-slate-900 rounded-3xl p-6 shadow-xl border border-slate-800">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="font-bold text-white flex items-center text-lg">
-          <i class="ph-bold ph-terminal-window mr-2 text-emerald-400 text-xl"></i>
-          Device Telemetry
-        </h3>
-        <button onclick="clearTelemetry()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl font-bold transition-colors">Clear Log</button>
-      </div>
-      <div id="telemetry-log" class="font-mono text-sm h-48 overflow-y-auto bg-black/50 p-4 rounded-2xl border border-slate-700/50 space-y-1.5 shadow-inner">
-        <div class="text-slate-500 italic">Waiting for connection...</div>
-      </div>
-    </div>
-
     <!-- Instructions -->
     <div class="mt-12 p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-6 transition-colors">
       <div class="flex-1">
@@ -322,11 +309,9 @@ PROMPT HISTORY TO RECREATE THIS APP:
     // --- Configuration & State ---
     const NUS_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
     const NUS_RX_CHARACTERISTIC_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
-    const NUS_TX_CHARACTERISTIC_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
 
     let bluetoothDevice = null;
     let rxCharacteristic = null;
-    let txCharacteristic = null;
     
     const state = {
       speeds: { a: 0, b: 0, c: 0 },
@@ -347,7 +332,6 @@ PROMPT HISTORY TO RECREATE THIS APP:
     const deviceNameDisplay = document.getElementById('device-name');
     const errorBanner = document.getElementById('error-banner');
     const errorMessage = document.getElementById('error-message');
-    const telemetryLog = document.getElementById('telemetry-log');
 
     // --- Initialization Check ---
     if (!navigator.bluetooth) {
@@ -369,17 +353,6 @@ PROMPT HISTORY TO RECREATE THIS APP:
         const server = await bluetoothDevice.gatt.connect();
         const service = await server.getPrimaryService(NUS_SERVICE_UUID);
         rxCharacteristic = await service.getCharacteristic(NUS_RX_CHARACTERISTIC_UUID);
-        
-        // Setup Telemetry (TX)
-        try {
-          txCharacteristic = await service.getCharacteristic(NUS_TX_CHARACTERISTIC_UUID);
-          await txCharacteristic.startNotifications();
-          txCharacteristic.addEventListener('characteristicvaluechanged', handleTelemetry);
-          logTelemetry("System", "Connected. Listening for telemetry data...");
-        } catch (e) {
-          console.warn("Could not enable telemetry", e);
-          logTelemetry("System", "Warning: Telemetry characteristic not found or blocked.");
-        }
 
         // Update UI
         deviceNameDisplay.textContent = bluetoothDevice.name || 'Circuit Cube';
@@ -406,90 +379,15 @@ PROMPT HISTORY TO RECREATE THIS APP:
     function onDisconnected() {
       bluetoothDevice = null;
       rxCharacteristic = null;
-      txCharacteristic = null;
       commandQueue = [];
       isWriting = false;
       stopAll();
-      logTelemetry("System", "Disconnected from device.");
 
       btnConnect.innerHTML = '<i class="ph-bold ph-bluetooth mr-2 text-xl"></i><span>Connect Hub</span>';
       btnConnect.classList.remove('hidden');
       connectedState.classList.add('hidden');
       connectedState.classList.remove('flex');
     }
-
-    // --- Telemetry Logic ---
-
-    function handleTelemetry(event) {
-      const value = event.target.value;
-      
-      // Check for entirely null/empty payloads to prevent blank lines
-      let isAllNulls = true;
-      for (let i = 0; i < value.byteLength; i++) {
-        if (value.getUint8(i) !== 0) {
-          isAllNulls = false;
-          break;
-        }
-      }
-      if (isAllNulls) return;
-
-      const decoder = new TextDecoder('utf-8');
-      const text = decoder.decode(value);
-      
-      // Remove null characters (often used for BLE padding) and trim whitespace
-      let cleanText = text.replace(/\0/g, '').trim();
-      
-      if (!cleanText && value.byteLength > 0) {
-         // If payload exists but wasn't printable, decode as hex string
-         const hex = Array.from(new Uint8Array(value.buffer))
-              .map(b => b.toString(16).padStart(2, '0'))
-              .join(' ');
-         cleanText = `[Hex] ${hex}`;
-      } else {
-         // Escape HTML to avoid invisible tags or HTML injection
-         cleanText = cleanText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      }
-
-      if (cleanText) {
-        logTelemetry("Device", cleanText);
-      }
-    }
-
-    function logTelemetry(source, message) {
-      if (!telemetryLog || !message) return;
-      
-      // Clear the "waiting" message on first log
-      if (telemetryLog.children[0] && telemetryLog.children[0].classList.contains('italic')) {
-        telemetryLog.innerHTML = '';
-      }
-
-      const entry = document.createElement('div');
-      const now = new Date();
-      // Format timestamp as HH:MM:SS.mmm
-      const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`;
-      
-      entry.innerHTML = `
-        <span class="text-slate-500 whitespace-nowrap">[${time}]</span> 
-        <span class="${source === 'System' ? 'text-blue-400' : 'text-emerald-400'} font-bold">${source}:</span> 
-        <span class="text-slate-200 break-words">${message}</span>
-      `;
-      
-      telemetryLog.appendChild(entry);
-
-      // Keep only last 100 entries to prevent memory leaks/browser lag
-      while (telemetryLog.children.length > 100) {
-        telemetryLog.removeChild(telemetryLog.firstChild);
-      }
-
-      // Auto-scroll to bottom
-      telemetryLog.scrollTop = telemetryLog.scrollHeight;
-    }
-
-    window.clearTelemetry = function() {
-      if (telemetryLog) {
-        telemetryLog.innerHTML = '<div class="text-slate-500 italic">Log cleared...</div>';
-      }
-    };
 
     // --- Control Logic ---
 
