@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circuit Control</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <style>
+    /* Custom CSS for vertical sliders */
+    .slider-container {
+      position: relative;
+      height: 256px; /* h-64 equivalent */
+      width: 80px;   /* w-20 equivalent */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: rgba(241, 245, 249, 0.8);
+      border-radius: 40px;
+      box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+      border: 1px solid rgba(226, 232, 240, 0.5);
+      margin-bottom: 2rem;
+    }
+
+    .slider-center-line {
+      position: absolute;
+      width: 40px;
+      height: 4px;
+      background-color: #cbd5e1;
+      border-radius: 9999px;
+      z-index: 0;
+    }
+
+    .custom-slider {
+      -webkit-appearance: none;
+      background: transparent;
+      width: 256px; /* Matches container height */
+      height: 8px;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-90deg);
+      z-index: 10;
+      outline: none;
+    }
+
+    .custom-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--thumb-color, #2563eb);
+      cursor: grab;
+      border: 6px solid #ffffff;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15), inset 0 2px 4px rgba(255,255,255,0.3);
+      transition: transform 0.1s;
+    }
+
+    .custom-slider::-webkit-slider-thumb:active {
+      cursor: grabbing;
+      transform: scale(1.05);
+    }
+
+    .custom-slider::-moz-range-thumb {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--thumb-color, #2563eb);
+      cursor: grab;
+      border: 6px solid #ffffff;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15), inset 0 2px 4px rgba(255,255,255,0.3);
+      transition: transform 0.1s;
+    }
+
+    .custom-slider::-moz-range-thumb:active {
+      cursor: grabbing;
+      transform: scale(1.05);
+    }
+    
+    /* Active Track Indicator */
+    .slider-track-fill {
+      position: absolute;
+      width: 8px;
+      border-radius: 9999px;
+      z-index: 0;
+      opacity: 0.2;
+      bottom: 50%;
+      transform-origin: bottom;
+      background-color: var(--thumb-color, #2563eb);
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-blue-200 flex flex-col">
+
+  <!-- Unsupported Browser Warning -->
+  <div id="unsupported-warning" class="hidden fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center p-6">
+    <div class="bg-red-900/40 p-8 rounded-2xl border border-red-500/50 max-w-md text-center shadow-2xl">
+      <i class="ph ph-warning-circle text-6xl text-red-400 mb-6 block"></i>
+      <h2 class="text-2xl font-bold mb-3 text-white">Browser Not Supported</h2>
+      <p class="text-red-200 leading-relaxed">
+        Your browser doesn't support the Web Bluetooth API needed to connect to Circuit Cubes. 
+        <br><br>
+        Please use <strong>Chrome, Edge, or Opera</strong> on Desktop/Android. If you're on iOS, you need a specialized BLE browser like <strong>Bluefy</strong>.
+      </p>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 px-6 py-4 flex flex-wrap gap-4 items-center justify-between sticky top-0 z-50">
+    <div class="flex items-center space-x-3">
+      <div class="bg-blue-600 p-2 rounded-xl shadow-sm">
+        <i class="ph-bold ph-lightning text-2xl text-white block"></i>
+      </div>
+      <h1 class="text-2xl font-black tracking-tight text-slate-800">
+        Circuit<span class="text-blue-600">Control</span>
+      </h1>
+    </div>
+    
+    <div>
+      <!-- Connect Button -->
+      <button id="btn-connect" class="flex items-center px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-bold shadow-lg shadow-blue-600/20 transition-all transform active:scale-95">
+        <i class="ph-bold ph-bluetooth mr-2 text-xl"></i>
+        <span>Connect Hub</span>
+      </button>
+
+      <!-- Connected State (Hidden by default) -->
+      <div id="connected-state" class="hidden flex items-center space-x-3">
+        <span class="flex items-center text-sm font-bold text-slate-700 bg-slate-100 px-4 py-2 rounded-full border border-slate-200">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
+          <span id="device-name">Circuit Cube</span>
+        </span>
+        <button id="btn-disconnect" class="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors" title="Disconnect">
+          <i class="ph-bold ph-power text-xl"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8">
+    
+    <!-- Error Message -->
+    <div id="error-banner" class="hidden mb-8 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start text-red-700 shadow-sm">
+      <i class="ph-fill ph-warning-circle text-2xl mr-3 shrink-0 mt-0.5"></i>
+      <div>
+        <h4 class="font-bold">Connection Issue</h4>
+        <p id="error-message" class="text-sm mt-1 text-red-600">Failed to connect.</p>
+      </div>
+    </div>
+
+    <!-- Motors Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+      
+      <!-- Motor A Panel -->
+      <div class="flex flex-col items-center bg-white p-6 rounded-[2rem] shadow-xl border border-slate-100 relative overflow-hidden">
+        <div class="absolute -right-8 -top-8 w-24 h-24 rounded-full opacity-10 pointer-events-none bg-[#2563eb]"></div>
+        <h3 class="font-black text-2xl tracking-tight mb-5 text-blue-600">Motor A</h3>
+        
+        <div class="flex gap-2 mb-6 w-full">
+          <button id="snap-a" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 text-slate-500 hover:bg-slate-200" onclick="toggleSnap('a')">Snap: OFF</button>
+          <button id="invert-a" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 text-slate-500 hover:bg-slate-200" onclick="toggleInvert('a')">Normal</button>
+        </div>
+        
+        <div class="bg-slate-50 w-full py-4 rounded-2xl mb-8 flex justify-center items-center shadow-inner border border-slate-200">
+          <span id="display-a" class="font-mono text-4xl font-bold text-slate-800 w-20 text-center tracking-tighter">0</span>
+        </div>
+
+        <div class="slider-container">
+          <div class="slider-center-line"></div>
+          <div id="fill-a" class="slider-track-fill" style="--thumb-color: #2563eb; height: 0%;"></div>
+          <input type="range" id="slider-a" min="-255" max="255" value="0" style="--thumb-color: #2563eb;" class="custom-slider"
+                 oninput="handleSlider('a', this.value)" onpointerup="handleSliderRelease('a')">
+        </div>
+
+        <button onclick="setSpeed('a', 0)" class="w-full py-4 rounded-2xl font-black text-white text-lg shadow-lg transform active:scale-95 transition-all border-b-4 border-black/20 bg-blue-600">
+          STOP
+        </button>
+      </div>
+
+      <!-- Motor B Panel -->
+      <div class="flex flex-col items-center bg-white p-6 rounded-[2rem] shadow-xl border border-slate-100 relative overflow-hidden">
+        <div class="absolute -right-8 -top-8 w-24 h-24 rounded-full opacity-10 pointer-events-none bg-[#059669]"></div>
+        <h3 class="font-black text-2xl tracking-tight mb-5 text-emerald-600">Motor B</h3>
+        
+        <div class="flex gap-2 mb-6 w-full">
+          <button id="snap-b" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-800 text-white shadow-md" onclick="toggleSnap('b')">Snap: ON</button>
+          <button id="invert-b" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 text-slate-500 hover:bg-slate-200" onclick="toggleInvert('b')">Normal</button>
+        </div>
+        
+        <div class="bg-slate-50 w-full py-4 rounded-2xl mb-8 flex justify-center items-center shadow-inner border border-slate-200">
+          <span id="display-b" class="font-mono text-4xl font-bold text-slate-800 w-20 text-center tracking-tighter">0</span>
+        </div>
+
+        <div class="slider-container">
+          <div class="slider-center-line"></div>
+          <div id="fill-b" class="slider-track-fill" style="--thumb-color: #059669; height: 0%;"></div>
+          <input type="range" id="slider-b" min="-255" max="255" value="0" style="--thumb-color: #059669;" class="custom-slider"
+                 oninput="handleSlider('b', this.value)" onpointerup="handleSliderRelease('b')">
+        </div>
+
+        <button onclick="setSpeed('b', 0)" class="w-full py-4 rounded-2xl font-black text-white text-lg shadow-lg transform active:scale-95 transition-all border-b-4 border-black/20 bg-emerald-600">
+          STOP
+        </button>
+      </div>
+
+      <!-- Motor C Panel -->
+      <div class="flex flex-col items-center bg-white p-6 rounded-[2rem] shadow-xl border border-slate-100 relative overflow-hidden">
+        <div class="absolute -right-8 -top-8 w-24 h-24 rounded-full opacity-10 pointer-events-none bg-[#e11d48]"></div>
+        <h3 class="font-black text-2xl tracking-tight mb-5 text-rose-600">Motor C</h3>
+        
+        <div class="flex gap-2 mb-6 w-full">
+          <button id="snap-c" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 text-slate-500 hover:bg-slate-200" onclick="toggleSnap('c')">Snap: OFF</button>
+          <button id="invert-c" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 text-slate-500 hover:bg-slate-200" onclick="toggleInvert('c')">Normal</button>
+        </div>
+        
+        <div class="bg-slate-50 w-full py-4 rounded-2xl mb-8 flex justify-center items-center shadow-inner border border-slate-200">
+          <span id="display-c" class="font-mono text-4xl font-bold text-slate-800 w-20 text-center tracking-tighter">0</span>
+        </div>
+
+        <div class="slider-container">
+          <div class="slider-center-line"></div>
+          <div id="fill-c" class="slider-track-fill" style="--thumb-color: #e11d48; height: 0%;"></div>
+          <input type="range" id="slider-c" min="-255" max="255" value="0" style="--thumb-color: #e11d48;" class="custom-slider"
+                 oninput="handleSlider('c', this.value)" onpointerup="handleSliderRelease('c')">
+        </div>
+
+        <button onclick="setSpeed('c', 0)" class="w-full py-4 rounded-2xl font-black text-white text-lg shadow-lg transform active:scale-95 transition-all border-b-4 border-black/20 bg-rose-600">
+          STOP
+        </button>
+      </div>
+
+    </div>
+    
+    <!-- Global Controls -->
+    <div class="mt-12 flex justify-center">
+      <button onclick="stopAll()" class="flex items-center justify-center px-10 py-5 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black text-xl shadow-xl shadow-red-600/20 transform active:scale-95 transition-all w-full max-w-md border-b-4 border-red-800">
+        <i class="ph-fill ph-stop mr-3 text-2xl"></i>
+        EMERGENCY STOP
+      </button>
+    </div>
+    
+    <!-- Instructions -->
+    <div class="mt-16 p-6 bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6">
+      <div class="flex-1">
+        <h3 class="font-bold text-slate-800 mb-3 flex items-center text-lg">
+          <i class="ph-fill ph-info mr-2 text-blue-500 text-xl"></i>
+          How to use
+        </h3>
+        <ol class="list-decimal list-inside text-slate-600 space-y-2 text-sm">
+          <li>Turn on your Circuit Cubes Bluetooth Hub.</li>
+          <li>Click <strong>Connect Hub</strong> and select it from the pairing menu.</li>
+          <li>Drag the sliders to control speed (-255 to 255).</li>
+          <li><strong>Snap:</strong> When ON, the motor stops instantly when you let go of the slider (perfect for steering).</li>
+          <li><strong>Invert:</strong> Reverses motor direction in software if your build is wired backwards.</li>
+        </ol>
+      </div>
+      <div class="flex-1 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+        <h3 class="font-bold text-slate-800 mb-3 text-sm uppercase tracking-wider">Keyboard Controls</h3>
+        <div class="space-y-4">
+          <div class="flex items-center text-sm text-slate-600">
+            <div class="flex gap-1 mr-3">
+              <kbd class="font-mono font-bold bg-white text-slate-800 px-2 py-1 rounded shadow-sm border border-slate-200">W</kbd>
+              <kbd class="font-mono font-bold bg-white text-slate-800 px-2 py-1 rounded shadow-sm border border-slate-200">S</kbd>
+            </div>
+            <span>Control Motor A (Drive)</span>
+          </div>
+          <div class="flex items-center text-sm text-slate-600">
+            <div class="flex gap-1 mr-3">
+              <kbd class="font-mono font-bold bg-white text-slate-800 px-2 py-1 rounded shadow-sm border border-slate-200">A</kbd>
+              <kbd class="font-mono font-bold bg-white text-slate-800 px-2 py-1 rounded shadow-sm border border-slate-200">D</kbd>
+            </div>
+            <span>Control Motor B (Steer)</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-2 italic">* Arrow keys also supported.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // --- Configuration & State ---
+    const NUS_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+    const NUS_RX_CHARACTERISTIC_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+
+    let bluetoothDevice = null;
+    let rxCharacteristic = null;
+    
+    const state = {
+      speeds: { a: 0, b: 0, c: 0 },
+      snap: { a: false, b: true, c: false },
+      invert: { a: false, b: false, c: false }
+    };
+
+    const activeKeys = new Set();
+    
+    // GATT Queueing System
+    let commandQueue = [];
+    let isWriting = false;
+
+    // --- DOM Elements ---
+    const btnConnect = document.getElementById('btn-connect');
+    const btnDisconnect = document.getElementById('btn-disconnect');
+    const connectedState = document.getElementById('connected-state');
+    const deviceNameDisplay = document.getElementById('device-name');
+    const errorBanner = document.getElementById('error-banner');
+    const errorMessage = document.getElementById('error-message');
+
+    // --- Initialization Check ---
+    if (!navigator.bluetooth) {
+      document.getElementById('unsupported-warning').classList.remove('hidden');
+    }
+
+    // --- Bluetooth Logic ---
+    btnConnect.addEventListener('click', async () => {
+      try {
+        errorBanner.classList.add('hidden');
+        btnConnect.innerHTML = '<i class="ph-bold ph-spinner animate-spin mr-2 text-xl"></i><span>Connecting...</span>';
+        
+        bluetoothDevice = await navigator.bluetooth.requestDevice({
+          filters: [{ services: [NUS_SERVICE_UUID] }]
+        });
+
+        bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+        const server = await bluetoothDevice.gatt.connect();
+        const service = await server.getPrimaryService(NUS_SERVICE_UUID);
+        rxCharacteristic = await service.getCharacteristic(NUS_RX_CHARACTERISTIC_UUID);
+        
+        // Update UI
+        deviceNameDisplay.textContent = bluetoothDevice.name || 'Circuit Cube';
+        btnConnect.classList.add('hidden');
+        connectedState.classList.remove('hidden');
+        connectedState.classList.add('flex');
+        
+      } catch (error) {
+        console.error("Connection failed", error);
+        btnConnect.innerHTML = '<i class="ph-bold ph-bluetooth mr-2 text-xl"></i><span>Connect Hub</span>';
+        if (error.name !== 'NotFoundError') {
+          errorMessage.textContent = error.message || "Failed to connect to the device.";
+          errorBanner.classList.remove('hidden');
+        }
+      }
+    });
+
+    btnDisconnect.addEventListener('click', () => {
+      if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+        bluetoothDevice.gatt.disconnect();
+      }
+    });
+
+    function onDisconnected() {
+      bluetoothDevice = null;
+      rxCharacteristic = null;
+      commandQueue = [];
+      isWriting = false;
+      stopAll();
+
+      btnConnect.innerHTML = '<i class="ph-bold ph-bluetooth mr-2 text-xl"></i><span>Connect Hub</span>';
+      btnConnect.classList.remove('hidden');
+      connectedState.classList.add('hidden');
+      connectedState.classList.remove('flex');
+    }
+
+    // --- Control Logic ---
+
+    async function processQueue() {
+      if (isWriting || commandQueue.length === 0 || !rxCharacteristic) return;
+      
+      isWriting = true;
+      const commandToSend = commandQueue.shift();
+
+      try {
+        const encoder = new TextEncoder();
+        await rxCharacteristic.writeValueWithoutResponse(encoder.encode(commandToSend));
+      } catch (err) {
+        console.error("Write error:", err);
+        if (err.name === 'NetworkError') onDisconnected();
+      } finally {
+        isWriting = false;
+        if (commandQueue.length > 0) processQueue();
+      }
+    }
+
+    function queueCommand(channel, speed) {
+      if (!rxCharacteristic) return;
+      
+      // Apply inversion
+      const actualSpeed = state.invert[channel] ? -speed : speed;
+      
+      const direction = actualSpeed >= 0 ? '+' : '-';
+      const absStr = Math.abs(actualSpeed).toString().padStart(3, '0');
+      const command = `${direction}${absStr}${channel}`;
+
+      // Prevent queue bloat by removing pending commands for the SAME channel
+      commandQueue = commandQueue.filter(c => !c.endsWith(channel));
+      commandQueue.push(command);
+
+      processQueue();
+    }
+
+    // --- UI Updaters ---
+
+    function setSpeed(channel, speed) {
+      speed = parseInt(speed);
+      state.speeds[channel] = speed;
+      
+      // Update DOM
+      document.getElementById(`slider-${channel}`).value = speed;
+      document.getElementById(`display-${channel}`).textContent = speed;
+      
+      // Update visual fill
+      const fillEl = document.getElementById(`fill-${channel}`);
+      fillEl.style.height = `${(Math.abs(speed) / 255) * 50}%`;
+      fillEl.style.transform = speed < 0 ? 'scaleY(-1)' : 'scaleY(1)';
+
+      // Send to device
+      queueCommand(channel, speed);
+    }
+
+    window.handleSlider = function(channel, val) {
+      setSpeed(channel, val);
+    };
+
+    window.handleSliderRelease = function(channel) {
+      if (state.snap[channel]) {
+        setSpeed(channel, 0);
+      }
+    };
+
+    window.stopAll = function() {
+      setSpeed('a', 0);
+      setSpeed('b', 0);
+      setSpeed('c', 0);
+    };
+
+    window.toggleSnap = function(channel) {
+      state.snap[channel] = !state.snap[channel];
+      const btn = document.getElementById(`snap-${channel}`);
+      if (state.snap[channel]) {
+        btn.textContent = 'Snap: ON';
+        btn.className = 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-800 text-white shadow-md';
+      } else {
+        btn.textContent = 'Snap: OFF';
+        btn.className = 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 text-slate-500 hover:bg-slate-200';
+      }
+    };
+
+    window.toggleInvert = function(channel) {
+      state.invert[channel] = !state.invert[channel];
+      const btn = document.getElementById(`invert-${channel}`);
+      if (state.invert[channel]) {
+        btn.textContent = 'Inverted';
+        btn.className = 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-amber-500 text-white shadow-md';
+      } else {
+        btn.textContent = 'Normal';
+        btn.className = 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 text-slate-500 hover:bg-slate-200';
+      }
+      setSpeed(channel, 0); // Safety stop when switching modes
+    };
+
+    // --- Keyboard Handlers ---
+    window.addEventListener('keydown', (e) => {
+      if (e.repeat || document.activeElement.tagName === 'INPUT') return;
+      const key = e.key.toLowerCase();
+      activeKeys.add(key);
+
+      if (key === 'w' || key === 'arrowup') setSpeed('a', 255);
+      if (key === 's' || key === 'arrowdown') setSpeed('a', -255);
+      if (key === 'a' || key === 'arrowleft') setSpeed('b', -255);
+      if (key === 'd' || key === 'arrowright') setSpeed('b', 255);
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (document.activeElement.tagName === 'INPUT') return;
+      const key = e.key.toLowerCase();
+      activeKeys.delete(key);
+
+      if ((key === 'w' || key === 'arrowup') && !activeKeys.has('s') && !activeKeys.has('arrowdown')) setSpeed('a', 0);
+      else if ((key === 'w' || key === 'arrowup')) setSpeed('a', -255);
+
+      if ((key === 's' || key === 'arrowdown') && !activeKeys.has('w') && !activeKeys.has('arrowup')) setSpeed('a', 0);
+      else if ((key === 's' || key === 'arrowdown')) setSpeed('a', 255);
+
+      if ((key === 'a' || key === 'arrowleft') && !activeKeys.has('d') && !activeKeys.has('arrowright')) setSpeed('b', 0);
+      else if ((key === 'a' || key === 'arrowleft')) setSpeed('b', 255);
+
+      if ((key === 'd' || key === 'arrowright') && !activeKeys.has('a') && !activeKeys.has('arrowleft')) setSpeed('b', 0);
+      else if ((key === 'd' || key === 'arrowright')) setSpeed('b', -255);
+    });
+
+  </script>
+</body>
+</html>
