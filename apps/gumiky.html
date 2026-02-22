@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fotorealistické Skákající Míčky</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #1a202c; /* Tmavé pozadí pro lepší vyniknutí míčků */
+            touch-action: none; /* Zabrání scrollování na mobilech při tahání míčků */
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 50%, #2d3748 0%, #1a202c 100%);
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            pointer-events: none; /* Propustí kliknutí na plátno pod UI */
+        }
+        .pointer-events-auto {
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Vykreslovací plátno -->
+    <canvas id="simulationCanvas"></canvas>
+
+    <!-- Uživatelské rozhraní -->
+    <div id="ui-layer" class="p-4 flex flex-col md:flex-row justify-between items-start md:items-center">
+        <div class="mb-4 md:mb-0 text-white drop-shadow-md">
+            <h1 class="text-2xl font-bold">Gumové míčky</h1>
+            <p class="text-sm text-gray-300">Levé tlačítko: Prak (táhni a pusť). Pravé tlačítko: Přidat kuličku.</p>
+            <div class="mt-2 flex items-center gap-2 pointer-events-auto">
+                <label for="ballSize" class="text-sm font-semibold">Velikost:</label>
+                <input type="range" id="ballSize" min="10" max="80" value="30" class="cursor-pointer">
+                <span id="ballSizeDisplay" class="text-sm">30px</span>
+            </div>
+        </div>
+        
+        <div class="flex gap-2 pointer-events-auto mt-4 md:mt-0">
+            <button id="btn-add" class="md:hidden bg-green-600 hover:bg-green-500 text-white font-semibold py-2 px-4 rounded-lg shadow-lg transition-colors duration-200">
+                + Přidat (Mobil)
+            </button>
+            <button id="btn-gravity" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg shadow-lg transition-colors duration-200">
+                Vypnout gravitaci
+            </button>
+            <button id="btn-clear" class="bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-4 rounded-lg shadow-lg transition-colors duration-200">
+                Vymazat vše
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simulationCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Nastavení fyziky
+        let gravityEnabled = true;
+        const GRAVITY = 0.4;
+        const FRICTION_AIR = 0.998; // Mírný odpor vzduchu
+        const RESTITUTION = 0.85; // Odrazivost
+
+        let width, height;
+        let balls = [];
+
+        // Proměnné pro interakci (prak)
+        let slingshotBall = null;
+        let slingshotMousePos = { x: 0, y: 0 };
+
+        // UI pro velikost
+        const sizeSlider = document.getElementById('ballSize');
+        const sizeDisplay = document.getElementById('ballSizeDisplay');
+        
+        sizeSlider.addEventListener('input', (e) => {
+            sizeDisplay.innerText = `${e.target.value}px`;
+        });
+
+        // Změna velikosti plátna
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Třída reprezentující jeden míček
+        class Ball {
+            constructor(x, y, radius, hue) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 20;
+                this.vy = (Math.random() - 0.5) * 20;
+                this.radius = radius;
+                this.mass = radius * radius;
+                this.hue = hue;
+            }
+
+            draw(ctx) {
+                // Ochrana před neplatnými souřadnicemi
+                if (!isFinite(this.x) || !isFinite(this.y) || !isFinite(this.radius) || this.radius <= 0) return;
+
+                // 1. Vykreslení stínu na pozadí - OPTIMALIZOVÁNO (bez výpočetně náročného filter: blur)
+                ctx.save();
+                ctx.beginPath();
+                const shadowX = this.x + this.radius * 0.15;
+                const shadowY = this.y + this.radius * 0.15;
+                const shadowRadius = this.radius * 1.3;
+                
+                let shadowGrad = ctx.createRadialGradient(shadowX, shadowY, 0, shadowX, shadowY, shadowRadius);
+                shadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.4)');
+                shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                
+                ctx.arc(shadowX, shadowY, shadowRadius, 0, Math.PI * 2);
+                ctx.fillStyle = shadowGrad;
+                ctx.fill();
+                ctx.restore();
+
+                // 2. Základní tělo míčku s radiálním přechodem (3D efekt)
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                
+                const gradientX = this.x - this.radius * 0.3;
+                const gradientY = this.y - this.radius * 0.3;
+                let gradient = ctx.createRadialGradient(
+                    gradientX, gradientY, Math.max(0.1, this.radius * 0.05), 
+                    this.x, this.y, this.radius
+                );
+                
+                gradient.addColorStop(0, `hsl(${this.hue}, 90%, 75%)`);
+                gradient.addColorStop(0.4, `hsl(${this.hue}, 90%, 45%)`);
+                gradient.addColorStop(1, `hsl(${this.hue}, 100%, 15%)`);
+                
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+                // 3. Ostrý odlesk (Specular highlight)
+                ctx.beginPath();
+                const specRadius = this.radius * 0.35;
+                const specX = this.x - this.radius * 0.4;
+                const specY = this.y - this.radius * 0.4;
+                
+                ctx.arc(specX, specY, specRadius, 0, Math.PI * 2);
+                let specGradient = ctx.createRadialGradient(
+                    specX, specY, 0,
+                    specX, specY, specRadius
+                );
+                specGradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+                specGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                
+                ctx.fillStyle = specGradient;
+                ctx.fill();
+            }
+
+            update() {
+                // Pokud je míček v praku, nepůsobí na něj fyzika a visí na místě
+                if (slingshotBall === this) {
+                    this.vx = 0;
+                    this.vy = 0;
+                    return;
+                }
+
+                if (gravityEnabled) {
+                    this.vy += GRAVITY;
+                }
+
+                this.vx *= FRICTION_AIR;
+                this.vy *= FRICTION_AIR;
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.x - this.radius < 0) {
+                    this.x = this.radius;
+                    this.vx = -this.vx * RESTITUTION;
+                } else if (this.x + this.radius > width) {
+                    this.x = width - this.radius;
+                    this.vx = -this.vx * RESTITUTION;
+                }
+
+                if (this.y - this.radius < 0) {
+                    this.y = this.radius;
+                    this.vy = -this.vy * RESTITUTION;
+                } else if (this.y + this.radius > height) {
+                    this.y = height - this.radius;
+                    this.vy = -this.vy * RESTITUTION;
+                    if (Math.abs(this.vy) < GRAVITY * 1.5) {
+                        this.vy = 0;
+                    }
+                }
+            }
+        }
+
+        function resolveCollisions() {
+            for (let i = 0; i < balls.length; i++) {
+                for (let j = i + 1; j < balls.length; j++) {
+                    let b1 = balls[i];
+                    let b2 = balls[j];
+
+                    let dx = b2.x - b1.x;
+                    let dy = b2.y - b1.y;
+                    let distance = Math.hypot(dx, dy);
+
+                    // POJISTKA PROTI DĚLENÍ NULOU (Zamezuje chybám NaN a The provided double value is non-finite)
+                    if (distance === 0) {
+                        dx = 0.1;
+                        dy = 0.1;
+                        distance = Math.hypot(dx, dy);
+                    }
+
+                    let minDist = b1.radius + b2.radius;
+
+                    if (distance < minDist) {
+                        let penetration = minDist - distance;
+                        let nx = dx / distance;
+                        let ny = dy / distance;
+
+                        let totalMass = b1.mass + b2.mass;
+                        let m1Ratio = b2.mass / totalMass;
+                        let m2Ratio = b1.mass / totalMass;
+
+                        if (slingshotBall !== b1) {
+                            b1.x -= nx * penetration * m1Ratio;
+                            b1.y -= ny * penetration * m1Ratio;
+                        }
+                        if (slingshotBall !== b2) {
+                            b2.x += nx * penetration * m2Ratio;
+                            b2.y += ny * penetration * m2Ratio;
+                        }
+
+                        let dvx = b2.vx - b1.vx;
+                        let dvy = b2.vy - b1.vy;
+                        let velocityAlongNormal = dvx * nx + dvy * ny;
+
+                        if (velocityAlongNormal > 0) continue;
+
+                        let jFactor = -(1 + RESTITUTION) * velocityAlongNormal;
+                        jFactor /= (1 / b1.mass) + (1 / b2.mass);
+
+                        let impulseX = jFactor * nx;
+                        let impulseY = jFactor * ny;
+
+                        if (slingshotBall !== b1) {
+                            b1.vx -= impulseX / b1.mass;
+                            b1.vy -= impulseY / b1.mass;
+                        }
+                        if (slingshotBall !== b2) {
+                            b2.vx += impulseX / b2.mass;
+                            b2.vy += impulseY / b2.mass;
+                        }
+                    }
+                }
+            }
+        }
+
+        function addBall(x, y) {
+            const radius = parseInt(sizeSlider.value) || 30; 
+            const hue = Math.floor(Math.random() * 360);
+            balls.push(new Ball(x, y, radius, hue));
+        }
+
+        // --- Interakce myší a dotykem ---
+        
+        // Zákaz výchozího kontextového menu (zabrání vyskočení nabídky při kliknutí pravým)
+        canvas.addEventListener('contextmenu', e => e.preventDefault());
+        
+        function handleInputStart(x, y, button) {
+            if (button === 2) {
+                // Pravé tlačítko: přidáme míček
+                addBall(x, y);
+                return;
+            }
+            
+            // Levé tlačítko (nebo dotyk): hledáme míček pro prak
+            for (let i = balls.length - 1; i >= 0; i--) {
+                let ball = balls[i];
+                let dist = Math.hypot(ball.x - x, ball.y - y);
+                if (dist <= ball.radius) {
+                    slingshotBall = ball;
+                    slingshotMousePos = { x, y };
+                    return;
+                }
+            }
+        }
+
+        function handleInputMove(x, y) {
+            if (slingshotBall) {
+                slingshotMousePos = { x, y };
+            }
+        }
+
+        function handleInputEnd(button) {
+            if (button === 0 && slingshotBall) {
+                // Vystřelení - vektor od kurzoru myši zpět k míčku
+                let dx = slingshotBall.x - slingshotMousePos.x;
+                let dy = slingshotBall.y - slingshotMousePos.y;
+                
+                // Síla vystřelení
+                slingshotBall.vx = dx * 0.15;
+                slingshotBall.vy = dy * 0.15;
+                slingshotBall = null;
+            }
+        }
+
+        canvas.addEventListener('mousedown', (e) => handleInputStart(e.clientX, e.clientY, e.button));
+        window.addEventListener('mousemove', (e) => handleInputMove(e.clientX, e.clientY));
+        window.addEventListener('mouseup', (e) => handleInputEnd(e.button));
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.target !== canvas) return;
+            e.preventDefault();
+            handleInputStart(e.touches[0].clientX, e.touches[0].clientY, 0);
+        }, { passive: false });
+        window.addEventListener('touchmove', (e) => {
+            if (e.target !== canvas) return;
+            e.preventDefault();
+            handleInputMove(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: false });
+        window.addEventListener('touchend', () => handleInputEnd(0));
+
+        // --- Tlačítka UI ---
+
+        const btnAdd = document.getElementById('btn-add');
+        if (btnAdd) {
+            btnAdd.addEventListener('click', () => {
+                addBall(width / 2, height / 2);
+            });
+        }
+
+        document.getElementById('btn-gravity').addEventListener('click', (e) => {
+            gravityEnabled = !gravityEnabled;
+            e.target.innerText = gravityEnabled ? "Vypnout gravitaci" : "Zapnout gravitaci";
+            e.target.classList.toggle('bg-blue-600', gravityEnabled);
+            e.target.classList.toggle('bg-gray-600', !gravityEnabled);
+        });
+
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            balls = [];
+        });
+
+        // --- Hlavní herní smyčka ---
+        
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+
+            balls.forEach(ball => ball.update());
+            
+            resolveCollisions();
+
+            balls.forEach(ball => ball.draw(ctx));
+
+            // Vykreslení gumičky praku
+            if (slingshotBall) {
+                ctx.beginPath();
+                ctx.moveTo(slingshotBall.x, slingshotBall.y);
+                ctx.lineTo(slingshotMousePos.x, slingshotMousePos.y);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.lineWidth = 4;
+                ctx.setLineDash([10, 10]); 
+                ctx.stroke();
+                ctx.setLineDash([]); 
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        setTimeout(() => {
+            for(let i=0; i<5; i++) {
+                addBall(width * 0.2 + (width * 0.6 * Math.random()), height * 0.2 + (height * 0.4 * Math.random()));
+            }
+        }, 100);
+
+        animate();
+
+    </script>
+</body>
+</html>
