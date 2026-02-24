@@ -103,6 +103,11 @@
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01"/></svg>
                 </button>
 
+                <!-- Tlačítko Fullscreen a Zámek rotace -->
+                <button id="btn-fullscreen" class="text-white hover:text-yellow-400 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10" title="Celoobrazovkový režim (uzamkne rotaci na tabletech/mobilech)">
+                    <svg id="icon-fullscreen" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+                </button>
+
                 <!-- Tlačítko Gravitace -->
                 <button id="btn-gravity" class="text-white hover:text-blue-400 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10" title="Zapnout/Vypnout gravitaci">
                     <svg id="icon-gravity" class="w-6 h-6 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
@@ -146,6 +151,7 @@
 
         // Odhalení UI
         function wakeUI() {
+            if (!uiLayer) return;
             uiLayer.classList.remove('is-idle');
             clearTimeout(idleTimeout);
             // Skryje UI po 2.5s bez aktivity
@@ -329,7 +335,7 @@
         }
 
         function addBall(x, y) {
-            const radius = parseInt(sizeSlider.value) || 30; 
+            const radius = sizeSlider ? (parseInt(sizeSlider.value) || 30) : 30; 
             const hue = Math.floor(Math.random() * 360);
             balls.push(new Ball(x, y, radius, hue));
         }
@@ -341,20 +347,18 @@
             let hitBall = false;
             const currentTime = new Date().getTime();
             
-            // Kontrola, zda jsme neklikli na kuličku (od nejnovější po nejstarší)
             for (let i = balls.length - 1; i >= 0; i--) {
                 let ball = balls[i];
                 let dist = Math.hypot(ball.x - x, ball.y - y);
                 if (dist <= ball.radius) {
                     hitBall = true;
                     
-                    // Detekce dvojkliku / dvojitého ťuknutí na stejnou kuličku
                     if (currentTime - lastClickTime < 300 && lastClickedBall === ball) {
-                        balls.splice(i, 1); // Odstranění kuličky z pole
+                        balls.splice(i, 1);
                         slingshotBall = null;
                         lastClickedBall = null;
                         wakeUI();
-                        return; // Ukončíme funkci, aby se nenatahoval prak
+                        return; 
                     }
 
                     slingshotBall = ball;
@@ -366,7 +370,6 @@
             
             lastClickTime = currentTime;
             
-            // Pokud jsme netrefili kuličku, zobrazíme UI (nebo přidáme novou kuličku)
             if (!hitBall) {
                 lastClickedBall = null;
                 if (button === 2) addBall(x, y);
@@ -376,17 +379,14 @@
 
         function handleInputMove(x, y) {
             if (slingshotBall) {
-                // Natahujeme prak, UI se NEZOBRAZÍ
                 slingshotMousePos = { x, y };
             } else {
-                // Jen tak hýbeme myší - probudíme UI
                 wakeUI();
             }
         }
 
         function handleInputEnd(button) {
             if (button === 0 && slingshotBall) {
-                // Vystřelení
                 let dx = slingshotBall.x - slingshotMousePos.x;
                 let dy = slingshotBall.y - slingshotMousePos.y;
                 slingshotBall.vx = dx * 0.15;
@@ -415,31 +415,72 @@
 
         // --- Tlačítka UI ---
         const btnAdd = document.getElementById('btn-add');
-        btnAdd.addEventListener('click', () => {
-            wakeUI();
-            addBall(width / 2, height / 2);
-        });
+        if (btnAdd) {
+            btnAdd.addEventListener('click', () => {
+                wakeUI();
+                addBall(width / 2, height / 2);
+            });
+        }
 
         const iconGravity = document.getElementById('icon-gravity');
         const btnGravity = document.getElementById('btn-gravity');
-        btnGravity.addEventListener('click', () => {
-            wakeUI();
-            gravityEnabled = !gravityEnabled;
-            // Animace ikony (otočení šipky nahoru/dolů) a změna barvy
-            if (gravityEnabled) {
-                iconGravity.classList.remove('rotate-180');
-                btnGravity.classList.remove('text-gray-500');
-            } else {
-                iconGravity.classList.add('rotate-180');
-                btnGravity.classList.add('text-gray-500');
-            }
-        });
+        if (btnGravity && iconGravity) {
+            btnGravity.addEventListener('click', () => {
+                wakeUI();
+                gravityEnabled = !gravityEnabled;
+                if (gravityEnabled) {
+                    iconGravity.classList.remove('rotate-180');
+                    btnGravity.classList.remove('text-gray-500');
+                } else {
+                    iconGravity.classList.add('rotate-180');
+                    btnGravity.classList.add('text-gray-500');
+                }
+            });
+        }
 
         const btnClear = document.getElementById('btn-clear');
-        btnClear.addEventListener('click', () => {
-            wakeUI();
-            balls = [];
-        });
+        if (btnClear) {
+            btnClear.addEventListener('click', () => {
+                wakeUI();
+                balls = [];
+            });
+        }
+
+        // --- Fullscreen a Zámek rotace ---
+        const btnFullscreen = document.getElementById('btn-fullscreen');
+        const iconFullscreen = document.getElementById('icon-fullscreen');
+
+        if (btnFullscreen && iconFullscreen) {
+            btnFullscreen.addEventListener('click', async () => {
+                wakeUI();
+                try {
+                    if (!document.fullscreenElement) {
+                        await document.documentElement.requestFullscreen();
+                        
+                        if (screen.orientation && screen.orientation.lock) {
+                            try {
+                                await screen.orientation.lock(screen.orientation.type);
+                            } catch (err) {
+                                console.warn("Prohlížeč nebo zařízení nepodporuje uzamčení rotace.", err);
+                            }
+                        }
+                        
+                        iconFullscreen.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 14h6m0 0v6m0-6l-7 7m17-11h-6m0 0V4m0 6l7-7M4 10h6m0 0V4m0 6l-7-7m17 11h-6m0 0v6m0-6l7 7"/>';
+                    } else {
+                        if (document.exitFullscreen) {
+                            await document.exitFullscreen();
+                        }
+                        if (screen.orientation && screen.orientation.unlock) {
+                            screen.orientation.unlock();
+                        }
+                        
+                        iconFullscreen.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>';
+                    }
+                } catch (err) {
+                    console.error("Chyba při přepínání fullscreenu:", err);
+                }
+            });
+        }
 
         // --- Gyroskop ---
         let useGyro = false;
@@ -470,36 +511,38 @@
             }
         }
 
-        btnGyro.addEventListener('click', async () => {
-            wakeUI();
-            if (!useGyro) {
-                if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    try {
-                        const permission = await DeviceOrientationEvent.requestPermission();
-                        if (permission === 'granted') {
-                            window.addEventListener('deviceorientation', handleOrientation);
-                            useGyro = true;
-                        } else {
-                            alert("Přístup ke gyroskopu byl zamítnut.");
+        if (btnGyro) {
+            btnGyro.addEventListener('click', async () => {
+                wakeUI();
+                if (!useGyro) {
+                    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                        try {
+                            const permission = await DeviceOrientationEvent.requestPermission();
+                            if (permission === 'granted') {
+                                window.addEventListener('deviceorientation', handleOrientation);
+                                useGyro = true;
+                            } else {
+                                alert("Přístup ke gyroskopu byl zamítnut.");
+                                return;
+                            }
+                        } catch (err) {
+                            console.error(err);
                             return;
                         }
-                    } catch (err) {
-                        console.error(err);
-                        return;
+                    } else {
+                        window.addEventListener('deviceorientation', handleOrientation);
+                        useGyro = true;
                     }
+                    btnGyro.classList.add('text-yellow-400');
                 } else {
-                    window.addEventListener('deviceorientation', handleOrientation);
-                    useGyro = true;
+                    window.removeEventListener('deviceorientation', handleOrientation);
+                    useGyro = false;
+                    btnGyro.classList.remove('text-yellow-400');
+                    gravityX = 0;
+                    gravityY = baseGravity;
                 }
-                btnGyro.classList.add('text-yellow-400');
-            } else {
-                window.removeEventListener('deviceorientation', handleOrientation);
-                useGyro = false;
-                btnGyro.classList.remove('text-yellow-400');
-                gravityX = 0;
-                gravityY = baseGravity;
-            }
-        });
+            });
+        }
 
         // --- Hlavní herní smyčka ---
         function animate() {
@@ -521,7 +564,55 @@
                 ctx.setLineDash([]); 
             }
 
+            // Vykreslení indikátoru gravitace
+            drawGravityIndicator(ctx);
+
             requestAnimationFrame(animate);
+        }
+
+        // Nenápadný indikátor směru gravitace (vpravo dole)
+        function drawGravityIndicator(ctx) {
+            const cx = width - 35;
+            const cy = height - 35;
+            const r = 16;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            if (gravityEnabled) {
+                const mag = Math.hypot(gravityX, gravityY);
+                if (mag > 0.01) {
+                    const angle = Math.atan2(gravityY, gravityX);
+                    ctx.beginPath();
+                    ctx.moveTo(cx, cy);
+                    
+                    const ex = cx + Math.cos(angle) * r;
+                    const ey = cy + Math.sin(angle) * r;
+                    ctx.lineTo(ex, ey);
+                    
+                    ctx.lineTo(ex - Math.cos(angle - 0.4) * 6, ey - Math.sin(angle - 0.4) * 6);
+                    ctx.moveTo(ex, ey);
+                    ctx.lineTo(ex - Math.cos(angle + 0.4) * 6, ey - Math.sin(angle + 0.4) * 6);
+                    
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                    ctx.stroke();
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                    ctx.fill();
+                }
+            } else {
+                ctx.beginPath();
+                ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+                ctx.fill();
+            }
+            ctx.restore();
         }
 
         setTimeout(() => {
