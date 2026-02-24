@@ -98,19 +98,14 @@
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 </button>
 
-                <!-- Tlačítko Gyroskop -->
-                <button id="btn-gyro" class="text-white hover:text-purple-400 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10" title="Zapnout/Vypnout gyroskop">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01"/></svg>
+                <!-- Společné Tlačítko Režimu Gravitace (3 stavy) -->
+                <button id="btn-gravity-mode" class="text-blue-400 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10" title="Gravitace: Dolů">
+                    <svg id="icon-gravity-mode" class="w-6 h-6 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
                 </button>
 
                 <!-- Tlačítko Fullscreen a Zámek rotace -->
                 <button id="btn-fullscreen" class="text-white hover:text-yellow-400 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10" title="Celoobrazovkový režim (uzamkne rotaci na tabletech/mobilech)">
                     <svg id="icon-fullscreen" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
-                </button>
-
-                <!-- Tlačítko Gravitace -->
-                <button id="btn-gravity" class="text-white hover:text-blue-400 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10" title="Zapnout/Vypnout gravitaci">
-                    <svg id="icon-gravity" class="w-6 h-6 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
                 </button>
 
                 <!-- Tlačítko Vymazat -->
@@ -125,8 +120,10 @@
         const canvas = document.getElementById('simulationCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Nastavení fyziky
-        let gravityEnabled = true;
+        // Nastavení fyziky a gyroskopu
+        let gravityMode = 'down'; // Možné stavy: 'down', 'gyro', 'none'
+        let hasGyroSupport = typeof window.DeviceOrientationEvent !== 'undefined' && (/Mobi|Android/i.test(navigator.userAgent) || navigator.maxTouchPoints > 0);
+        let useGyro = false;
         let baseGravity = 0.4;
         let gravityX = 0;
         let gravityY = baseGravity;
@@ -154,7 +151,6 @@
             if (!uiLayer) return;
             uiLayer.classList.remove('is-idle');
             clearTimeout(idleTimeout);
-            // Skryje UI po 2.5s bez aktivity
             idleTimeout = setTimeout(() => {
                 uiLayer.classList.add('is-idle');
             }, 2500);
@@ -240,7 +236,7 @@
                     return;
                 }
 
-                if (gravityEnabled) {
+                if (gravityMode !== 'none') {
                     this.vx += gravityX;
                     this.vy += gravityY;
                 }
@@ -422,22 +418,6 @@
             });
         }
 
-        const iconGravity = document.getElementById('icon-gravity');
-        const btnGravity = document.getElementById('btn-gravity');
-        if (btnGravity && iconGravity) {
-            btnGravity.addEventListener('click', () => {
-                wakeUI();
-                gravityEnabled = !gravityEnabled;
-                if (gravityEnabled) {
-                    iconGravity.classList.remove('rotate-180');
-                    btnGravity.classList.remove('text-gray-500');
-                } else {
-                    iconGravity.classList.add('rotate-180');
-                    btnGravity.classList.add('text-gray-500');
-                }
-            });
-        }
-
         const btnClear = document.getElementById('btn-clear');
         if (btnClear) {
             btnClear.addEventListener('click', () => {
@@ -456,7 +436,6 @@
                 try {
                     if (!document.fullscreenElement) {
                         await document.documentElement.requestFullscreen();
-                        
                         if (screen.orientation && screen.orientation.lock) {
                             try {
                                 await screen.orientation.lock(screen.orientation.type);
@@ -464,7 +443,6 @@
                                 console.warn("Prohlížeč nebo zařízení nepodporuje uzamčení rotace.", err);
                             }
                         }
-                        
                         iconFullscreen.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 14h6m0 0v6m0-6l-7 7m17-11h-6m0 0V4m0 6l7-7M4 10h6m0 0V4m0 6l-7-7m17 11h-6m0 0v6m0-6l7 7"/>';
                     } else {
                         if (document.exitFullscreen) {
@@ -473,7 +451,6 @@
                         if (screen.orientation && screen.orientation.unlock) {
                             screen.orientation.unlock();
                         }
-                        
                         iconFullscreen.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>';
                     }
                 } catch (err) {
@@ -482,9 +459,25 @@
             });
         }
 
-        // --- Gyroskop ---
-        let useGyro = false;
-        const btnGyro = document.getElementById('btn-gyro');
+        // --- Sloučené ovládání Gyroskopu / Gravitace ---
+        const btnGravityMode = document.getElementById('btn-gravity-mode');
+
+        function updateGravityUI() {
+            if (!btnGravityMode) return;
+            if (gravityMode === 'down') {
+                btnGravityMode.innerHTML = `<svg id="icon-gravity-mode" class="w-6 h-6 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>`;
+                btnGravityMode.className = "text-blue-400 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10";
+                btnGravityMode.title = "Gravitace: Dolů";
+            } else if (gravityMode === 'gyro') {
+                btnGravityMode.innerHTML = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01"/></svg>`;
+                btnGravityMode.className = "text-purple-400 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10";
+                btnGravityMode.title = "Gravitace: Gyroskop";
+            } else if (gravityMode === 'none') {
+                btnGravityMode.innerHTML = `<svg id="icon-gravity-mode" class="w-6 h-6 transition-transform duration-300 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>`;
+                btnGravityMode.className = "text-gray-500 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10";
+                btnGravityMode.title = "Gravitace: Vypnuto";
+            }
+        }
 
         function handleOrientation(e) {
             if (!useGyro) return;
@@ -511,36 +504,48 @@
             }
         }
 
-        if (btnGyro) {
-            btnGyro.addEventListener('click', async () => {
+        if (btnGravityMode) {
+            btnGravityMode.addEventListener('click', async () => {
                 wakeUI();
-                if (!useGyro) {
+                // Určíme, jaké režimy jsou k dispozici podle podpory gyroskopu
+                const modes = hasGyroSupport ? ['down', 'gyro', 'none'] : ['down', 'none'];
+                let nextIndex = (modes.indexOf(gravityMode) + 1) % modes.length;
+                let nextMode = modes[nextIndex];
+
+                if (nextMode === 'gyro') {
                     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                         try {
                             const permission = await DeviceOrientationEvent.requestPermission();
-                            if (permission === 'granted') {
-                                window.addEventListener('deviceorientation', handleOrientation);
-                                useGyro = true;
-                            } else {
-                                alert("Přístup ke gyroskopu byl zamítnut.");
-                                return;
+                            if (permission !== 'granted') {
+                                hasGyroSupport = false; 
+                                nextMode = 'none'; 
                             }
                         } catch (err) {
                             console.error(err);
-                            return;
+                            hasGyroSupport = false;
+                            nextMode = 'none';
                         }
-                    } else {
+                    }
+                    if (nextMode === 'gyro') {
                         window.addEventListener('deviceorientation', handleOrientation);
                         useGyro = true;
                     }
-                    btnGyro.classList.add('text-yellow-400');
-                } else {
+                } 
+                
+                if (nextMode !== 'gyro') {
                     window.removeEventListener('deviceorientation', handleOrientation);
                     useGyro = false;
-                    btnGyro.classList.remove('text-yellow-400');
-                    gravityX = 0;
-                    gravityY = baseGravity;
+                    if (nextMode === 'down') {
+                        gravityX = 0;
+                        gravityY = baseGravity;
+                    } else if (nextMode === 'none') {
+                        gravityX = 0;
+                        gravityY = 0;
+                    }
                 }
+
+                gravityMode = nextMode;
+                updateGravityUI();
             });
         }
 
@@ -583,7 +588,7 @@
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            if (gravityEnabled) {
+            if (gravityMode !== 'none') {
                 const mag = Math.hypot(gravityX, gravityY);
                 if (mag > 0.01) {
                     const angle = Math.atan2(gravityY, gravityX);
