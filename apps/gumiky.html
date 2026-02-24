@@ -12,8 +12,8 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #1a202c; /* Tmavé pozadí pro lepší vyniknutí míčků */
-            touch-action: none; /* Zabrání scrollování na mobilech při tahání míčků */
+            background-color: #1a202c; 
+            touch-action: none; 
         }
         canvas {
             display: block;
@@ -26,10 +26,50 @@
             top: 0;
             left: 0;
             width: 100%;
-            pointer-events: none; /* Propustí kliknutí na plátno pod UI */
+            pointer-events: none; 
+            z-index: 10;
         }
+        
+        /* Animace pro plynulé skrytí UI */
+        #ui-content {
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* Třída, která se přidá při nečinnosti */
+        .is-idle #ui-content {
+            opacity: 0;
+            transform: translateY(-10px);
+            pointer-events: none !important;
+        }
+        
         .pointer-events-auto {
             pointer-events: auto;
+        }
+
+        /* Vlastní stylování posuvníku */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 80px;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
         }
     </style>
 </head>
@@ -39,27 +79,40 @@
     <canvas id="simulationCanvas"></canvas>
 
     <!-- Uživatelské rozhraní -->
-    <div id="ui-layer" class="p-4 flex flex-col md:flex-row justify-between items-start md:items-center">
-        <div class="mb-4 md:mb-0 text-white drop-shadow-md">
-            <h1 class="text-2xl font-bold">Gumové míčky</h1>
-            <p class="text-sm text-gray-300">Levé tlačítko: Prak (táhni a pusť). Pravé tlačítko: Přidat kuličku.</p>
-            <div class="mt-2 flex items-center gap-2 pointer-events-auto">
-                <label for="ballSize" class="text-sm font-semibold">Velikost:</label>
-                <input type="range" id="ballSize" min="10" max="80" value="30" class="cursor-pointer">
-                <span id="ballSizeDisplay" class="text-sm">30px</span>
+    <div id="ui-layer" class="p-4 flex justify-center w-full">
+        <!-- Kompaktní plovoucí lišta s ikonami -->
+        <div id="ui-content" class="flex flex-wrap items-center gap-3 md:gap-6 bg-black/40 backdrop-blur-md px-6 py-3 rounded-full shadow-2xl pointer-events-auto border border-white/10">
+            
+            <!-- Posuvník velikosti -->
+            <div class="flex items-center gap-2" title="Velikost přidávané kuličky">
+                <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" stroke-width="2"/></svg>
+                <input type="range" id="ballSize" min="10" max="80" value="30">
             </div>
-        </div>
-        
-        <div class="flex gap-2 pointer-events-auto mt-4 md:mt-0">
-            <button id="btn-add" class="md:hidden bg-green-600 hover:bg-green-500 text-white font-semibold py-2 px-4 rounded-lg shadow-lg transition-colors duration-200">
-                + Přidat (Mobil)
-            </button>
-            <button id="btn-gravity" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg shadow-lg transition-colors duration-200">
-                Vypnout gravitaci
-            </button>
-            <button id="btn-clear" class="bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-4 rounded-lg shadow-lg transition-colors duration-200">
-                Vymazat vše
-            </button>
+
+            <!-- Dělící čára -->
+            <div class="w-px h-6 bg-white/20 hidden sm:block"></div>
+            
+            <div class="flex items-center gap-2 sm:gap-4">
+                <!-- Tlačítko Přidat -->
+                <button id="btn-add" class="text-white hover:text-green-400 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10" title="Přidat kuličku (lze i pravým tlačítkem)">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                </button>
+
+                <!-- Tlačítko Gyroskop -->
+                <button id="btn-gyro" class="text-white hover:text-purple-400 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10" title="Zapnout/Vypnout gyroskop">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01"/></svg>
+                </button>
+
+                <!-- Tlačítko Gravitace -->
+                <button id="btn-gravity" class="text-white hover:text-blue-400 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10" title="Zapnout/Vypnout gravitaci">
+                    <svg id="icon-gravity" class="w-6 h-6 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+                </button>
+
+                <!-- Tlačítko Vymazat -->
+                <button id="btn-clear" class="text-white hover:text-red-400 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10" title="Vymazat všechny kuličky">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -69,9 +122,11 @@
 
         // Nastavení fyziky
         let gravityEnabled = true;
-        const GRAVITY = 0.4;
-        const FRICTION_AIR = 0.998; // Mírný odpor vzduchu
-        const RESTITUTION = 0.85; // Odrazivost
+        let baseGravity = 0.4;
+        let gravityX = 0;
+        let gravityY = baseGravity;
+        const FRICTION_AIR = 0.998; 
+        const RESTITUTION = 0.85; 
 
         let width, height;
         let balls = [];
@@ -80,18 +135,26 @@
         let slingshotBall = null;
         let slingshotMousePos = { x: 0, y: 0 };
 
-        // UI pro velikost
+        // UI elementy
         const sizeSlider = document.getElementById('ballSize');
-        const sizeDisplay = document.getElementById('ballSizeDisplay');
-        
-        sizeSlider.addEventListener('input', (e) => {
-            sizeDisplay.innerText = `${e.target.value}px`;
-        });
+        let idleTimeout;
+        const uiLayer = document.getElementById('ui-layer');
+
+        // Odhalení UI
+        function wakeUI() {
+            uiLayer.classList.remove('is-idle');
+            clearTimeout(idleTimeout);
+            // Skryje UI po 2.5s bez aktivity
+            idleTimeout = setTimeout(() => {
+                uiLayer.classList.add('is-idle');
+            }, 2500);
+        }
 
         // Změna velikosti plátna
         function resize() {
             width = canvas.width = window.innerWidth;
             height = canvas.height = window.innerHeight;
+            wakeUI();
         }
         window.addEventListener('resize', resize);
         resize();
@@ -109,10 +172,8 @@
             }
 
             draw(ctx) {
-                // Ochrana před neplatnými souřadnicemi
                 if (!isFinite(this.x) || !isFinite(this.y) || !isFinite(this.radius) || this.radius <= 0) return;
 
-                // 1. Vykreslení stínu na pozadí - OPTIMALIZOVÁNO (bez výpočetně náročného filter: blur)
                 ctx.save();
                 ctx.beginPath();
                 const shadowX = this.x + this.radius * 0.15;
@@ -128,7 +189,6 @@
                 ctx.fill();
                 ctx.restore();
 
-                // 2. Základní tělo míčku s radiálním přechodem (3D efekt)
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
                 
@@ -146,7 +206,6 @@
                 ctx.fillStyle = gradient;
                 ctx.fill();
 
-                // 3. Ostrý odlesk (Specular highlight)
                 ctx.beginPath();
                 const specRadius = this.radius * 0.35;
                 const specX = this.x - this.radius * 0.4;
@@ -165,7 +224,6 @@
             }
 
             update() {
-                // Pokud je míček v praku, nepůsobí na něj fyzika a visí na místě
                 if (slingshotBall === this) {
                     this.vx = 0;
                     this.vy = 0;
@@ -173,7 +231,8 @@
                 }
 
                 if (gravityEnabled) {
-                    this.vy += GRAVITY;
+                    this.vx += gravityX;
+                    this.vy += gravityY;
                 }
 
                 this.vx *= FRICTION_AIR;
@@ -185,20 +244,21 @@
                 if (this.x - this.radius < 0) {
                     this.x = this.radius;
                     this.vx = -this.vx * RESTITUTION;
+                    if (Math.abs(this.vx) < Math.abs(gravityX) * 1.5) this.vx = 0;
                 } else if (this.x + this.radius > width) {
                     this.x = width - this.radius;
                     this.vx = -this.vx * RESTITUTION;
+                    if (Math.abs(this.vx) < Math.abs(gravityX) * 1.5) this.vx = 0;
                 }
 
                 if (this.y - this.radius < 0) {
                     this.y = this.radius;
                     this.vy = -this.vy * RESTITUTION;
+                    if (Math.abs(this.vy) < Math.abs(gravityY) * 1.5) this.vy = 0;
                 } else if (this.y + this.radius > height) {
                     this.y = height - this.radius;
                     this.vy = -this.vy * RESTITUTION;
-                    if (Math.abs(this.vy) < GRAVITY * 1.5) {
-                        this.vy = 0;
-                    }
+                    if (Math.abs(this.vy) < Math.abs(gravityY) * 1.5) this.vy = 0;
                 }
             }
         }
@@ -213,7 +273,6 @@
                     let dy = b2.y - b1.y;
                     let distance = Math.hypot(dx, dy);
 
-                    // POJISTKA PROTI DĚLENÍ NULOU (Zamezuje chybám NaN a The provided double value is non-finite)
                     if (distance === 0) {
                         dx = 0.1;
                         dy = 0.1;
@@ -272,45 +331,50 @@
         }
 
         // --- Interakce myší a dotykem ---
-        
-        // Zákaz výchozího kontextového menu (zabrání vyskočení nabídky při kliknutí pravým)
         canvas.addEventListener('contextmenu', e => e.preventDefault());
         
         function handleInputStart(x, y, button) {
-            if (button === 2) {
-                // Pravé tlačítko: přidáme míček
-                addBall(x, y);
-                return;
-            }
+            let hitBall = false;
             
-            // Levé tlačítko (nebo dotyk): hledáme míček pro prak
+            // Kontrola, zda jsme neklikli na kuličku (od nejnovější po nejstarší)
             for (let i = balls.length - 1; i >= 0; i--) {
                 let ball = balls[i];
                 let dist = Math.hypot(ball.x - x, ball.y - y);
                 if (dist <= ball.radius) {
                     slingshotBall = ball;
                     slingshotMousePos = { x, y };
-                    return;
+                    hitBall = true;
+                    break;
                 }
+            }
+            
+            // Pokud jsme netrefili kuličku, zobrazíme UI (nebo přidáme novou kuličku)
+            if (!hitBall) {
+                if (button === 2) addBall(x, y);
+                wakeUI();
             }
         }
 
         function handleInputMove(x, y) {
             if (slingshotBall) {
+                // Natahujeme prak, UI se NEZOBRAZÍ
                 slingshotMousePos = { x, y };
+            } else {
+                // Jen tak hýbeme myší - probudíme UI
+                wakeUI();
             }
         }
 
         function handleInputEnd(button) {
             if (button === 0 && slingshotBall) {
-                // Vystřelení - vektor od kurzoru myši zpět k míčku
+                // Vystřelení
                 let dx = slingshotBall.x - slingshotMousePos.x;
                 let dy = slingshotBall.y - slingshotMousePos.y;
-                
-                // Síla vystřelení
                 slingshotBall.vx = dx * 0.15;
                 slingshotBall.vy = dy * 0.15;
                 slingshotBall = null;
+            } else {
+                wakeUI();
             }
         }
 
@@ -331,34 +395,99 @@
         window.addEventListener('touchend', () => handleInputEnd(0));
 
         // --- Tlačítka UI ---
-
         const btnAdd = document.getElementById('btn-add');
-        if (btnAdd) {
-            btnAdd.addEventListener('click', () => {
-                addBall(width / 2, height / 2);
-            });
-        }
-
-        document.getElementById('btn-gravity').addEventListener('click', (e) => {
-            gravityEnabled = !gravityEnabled;
-            e.target.innerText = gravityEnabled ? "Vypnout gravitaci" : "Zapnout gravitaci";
-            e.target.classList.toggle('bg-blue-600', gravityEnabled);
-            e.target.classList.toggle('bg-gray-600', !gravityEnabled);
+        btnAdd.addEventListener('click', () => {
+            wakeUI();
+            addBall(width / 2, height / 2);
         });
 
-        document.getElementById('btn-clear').addEventListener('click', () => {
+        const iconGravity = document.getElementById('icon-gravity');
+        const btnGravity = document.getElementById('btn-gravity');
+        btnGravity.addEventListener('click', () => {
+            wakeUI();
+            gravityEnabled = !gravityEnabled;
+            // Animace ikony (otočení šipky nahoru/dolů) a změna barvy
+            if (gravityEnabled) {
+                iconGravity.classList.remove('rotate-180');
+                btnGravity.classList.remove('text-gray-500');
+            } else {
+                iconGravity.classList.add('rotate-180');
+                btnGravity.classList.add('text-gray-500');
+            }
+        });
+
+        const btnClear = document.getElementById('btn-clear');
+        btnClear.addEventListener('click', () => {
+            wakeUI();
             balls = [];
         });
 
+        // --- Gyroskop ---
+        let useGyro = false;
+        const btnGyro = document.getElementById('btn-gyro');
+
+        function handleOrientation(e) {
+            if (!useGyro) return;
+            let gamma = e.gamma; 
+            let beta = e.beta;   
+
+            if (gamma === null || beta === null) return;
+
+            if (beta > 90) beta = 90;
+            if (beta < -90) beta = -90;
+
+            let angle = window.screen && window.screen.orientation ? window.screen.orientation.angle : window.orientation || 0;
+            let maxG = 1.0; 
+
+            if (angle === 90) {
+                gravityX = (beta / 90) * maxG;
+                gravityY = (-gamma / 90) * maxG;
+            } else if (angle === -90 || angle === 270) {
+                gravityX = (-beta / 90) * maxG;
+                gravityY = (gamma / 90) * maxG;
+            } else {
+                gravityX = (gamma / 90) * maxG;
+                gravityY = (beta / 90) * maxG;
+            }
+        }
+
+        btnGyro.addEventListener('click', async () => {
+            wakeUI();
+            if (!useGyro) {
+                if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    try {
+                        const permission = await DeviceOrientationEvent.requestPermission();
+                        if (permission === 'granted') {
+                            window.addEventListener('deviceorientation', handleOrientation);
+                            useGyro = true;
+                        } else {
+                            alert("Přístup ke gyroskopu byl zamítnut.");
+                            return;
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        return;
+                    }
+                } else {
+                    window.addEventListener('deviceorientation', handleOrientation);
+                    useGyro = true;
+                }
+                btnGyro.classList.add('text-yellow-400');
+            } else {
+                window.removeEventListener('deviceorientation', handleOrientation);
+                useGyro = false;
+                btnGyro.classList.remove('text-yellow-400');
+                gravityX = 0;
+                gravityY = baseGravity;
+            }
+        });
+
         // --- Hlavní herní smyčka ---
-        
         function animate() {
             ctx.clearRect(0, 0, width, height);
 
             balls.forEach(ball => ball.update());
-            
             resolveCollisions();
-
             balls.forEach(ball => ball.draw(ctx));
 
             // Vykreslení gumičky praku
