@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DualSense Motion Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+        .sensor-card { background: #1e293b; border: 1px solid #334155; padding: 1.5rem; border-radius: 0.75rem; }
+        .axis-label { color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .value { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 1.5rem; color: #f8fafc; }
+        .visualizer { height: 100px; background: #0f172a; border-radius: 0.5rem; position: relative; overflow: hidden; margin-top: 1rem; }
+        .needle { position: absolute; bottom: 0; left: 50%; width: 2px; height: 100%; background: #3b82f6; transition: transform 0.05s linear; }
+        .dot { position: absolute; width: 10px; height: 10px; background: #ef4444; border-radius: 50%; transform: translate(-50%, -50%); transition: all 0.05s linear; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-white">DualSense Motion Lab</h1>
+                <p class="text-slate-400 mt-1">Real-time WebHID Telemetry (Bluetooth Optimized)</p>
+            </div>
+            <button id="connectBtn" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-6 rounded-lg transition-all flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 16V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12"/><path d="M12 12h.01"/><path d="M16 16v1a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-1"/><path d="M12 8h.01"/><path d="M7 22h10"/></svg>
+                Connect Controller
+            </button>
+        </header>
+
+        <div id="statusMessage" class="mb-6 p-4 rounded-lg bg-blue-900/30 border border-blue-500/50 text-blue-200 text-sm">
+            Please connect your DualSense via Bluetooth and click "Connect Controller".
+        </div>
+
+        <div id="dashboard" class="opacity-30 pointer-events-none transition-opacity duration-500">
+            <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                <span id="deviceIcon" class="w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
+                Controller Telemetry
+            </h2>
+
+            <div class="data-grid">
+                <!-- Gyroscope -->
+                <div class="sensor-card">
+                    <h3 class="axis-label mb-2">Gyroscope (Angular Velocity)</h3>
+                    <div class="flex justify-between items-end border-b border-slate-700 pb-2 mb-2">
+                        <span class="text-xs text-slate-500">X (Pitch)</span>
+                        <span id="gyroX" class="value">0</span>
+                    </div>
+                    <div class="flex justify-between items-end border-b border-slate-700 pb-2 mb-2">
+                        <span class="text-xs text-slate-500">Y (Yaw)</span>
+                        <span id="gyroY" class="value">0</span>
+                    </div>
+                    <div class="flex justify-between items-end">
+                        <span class="text-xs text-slate-500">Z (Roll)</span>
+                        <span id="gyroZ" class="value">0</span>
+                    </div>
+                    <div class="visualizer">
+                        <div id="gyroNeedle" class="needle" style="left: 50%"></div>
+                    </div>
+                </div>
+
+                <!-- Accelerometer -->
+                <div class="sensor-card">
+                    <h3 class="axis-label mb-2">Accelerometer (G-Force)</h3>
+                    <div class="flex justify-between items-end border-b border-slate-700 pb-2 mb-2">
+                        <span class="text-xs text-slate-500">X-Axis</span>
+                        <span id="accelX" class="value">0</span>
+                    </div>
+                    <div class="flex justify-between items-end border-b border-slate-700 pb-2 mb-2">
+                        <span class="text-xs text-slate-500">Y-Axis</span>
+                        <span id="accelY" class="value">0</span>
+                    </div>
+                    <div class="flex justify-between items-end">
+                        <span class="text-xs text-slate-500">Z-Axis</span>
+                        <span id="accelZ" class="value">0</span>
+                    </div>
+                    <div class="visualizer flex items-center justify-center">
+                        <div id="accelDot" class="dot" style="top: 50%; left: 50%"></div>
+                    </div>
+                </div>
+
+                <!-- Battery & Touchpad -->
+                <div class="sensor-card">
+                    <h3 class="axis-label mb-2">System Info</h3>
+                    <div class="flex justify-between items-end border-b border-slate-700 pb-2 mb-2">
+                        <span class="text-xs text-slate-500">Battery Level</span>
+                        <span id="battery" class="value">--%</span>
+                    </div>
+                    <div class="flex justify-between items-end">
+                        <span class="text-xs text-slate-500">Connection Mode</span>
+                        <span id="reportId" class="value">BT</span>
+                    </div>
+                    <div class="mt-4 p-3 bg-slate-800 rounded text-xs text-slate-400">
+                        Raw sensor values are 16-bit signed integers. 
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const connectBtn = document.getElementById('connectBtn');
+        const dashboard = document.getElementById('dashboard');
+        const statusMessage = document.getElementById('statusMessage');
+        const deviceIcon = document.getElementById('deviceIcon');
+
+        let device = null;
+
+        // Sony DualSense Identifiers
+        const DUALSENSE_VENDOR_ID = 0x054c;
+        const DUALSENSE_PRODUCT_ID = 0x0ce6;
+        const DUALSENSE_EDGE_PRODUCT_ID = 0x0df2;
+
+        connectBtn.addEventListener('click', async () => {
+            try {
+                const devices = await navigator.hid.requestDevice({
+                    filters: [{ vendorId: DUALSENSE_VENDOR_ID }]
+                });
+
+                if (devices.length === 0) return;
+
+                device = devices[0];
+                await device.open();
+
+                statusMessage.textContent = `Connected to: ${device.deviceName}`;
+                statusMessage.className = "mb-6 p-4 rounded-lg bg-green-900/30 border border-green-500/50 text-green-200 text-sm";
+                dashboard.classList.remove('opacity-30', 'pointer-events-none');
+                deviceIcon.classList.replace('bg-red-500', 'bg-green-500');
+
+                device.oninputreport = handleInputReport;
+
+                connectBtn.disabled = true;
+                connectBtn.textContent = "Connected";
+                connectBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            } catch (error) {
+                console.error(error);
+                statusMessage.textContent = `Error: ${error.message}. Make sure you are in a Chromium browser (Chrome/Edge).`;
+                statusMessage.className = "mb-6 p-4 rounded-lg bg-red-900/30 border border-red-500/50 text-red-200 text-sm";
+            }
+        });
+
+        function handleInputReport(event) {
+            const { data, reportId } = event;
+
+            // Bluetooth typically sends Report ID 0x31 for full telemetry
+            // If the controller is in simple mode, it might be 0x01
+            // We use different offsets based on the report structure.
+            
+            let accelOffset, gyroOffset, batteryOffset;
+
+            if (reportId === 0x01) {
+                // Standard/USB Report
+                accelOffset = 15;
+                gyroOffset = 21;
+                batteryOffset = 52;
+                document.getElementById('reportId').textContent = "USB/STD";
+            } else if (reportId === 0x31) {
+                // Full Bluetooth Report
+                accelOffset = 16;
+                gyroOffset = 22;
+                batteryOffset = 53;
+                document.getElementById('reportId').textContent = "BT FULL";
+            } else {
+                return; // Unknown report type
+            }
+
+            // Extracting values as 16-bit signed little-endian integers
+            const aX = data.getInt16(accelOffset, true);
+            const aY = data.getInt16(accelOffset + 2, true);
+            const aZ = data.getInt16(accelOffset + 4, true);
+
+            const gX = data.getInt16(gyroOffset, true);
+            const gY = data.getInt16(gyroOffset + 2, true);
+            const gZ = data.getInt16(gyroOffset + 4, true);
+
+            // Update UI
+            document.getElementById('accelX').textContent = aX;
+            document.getElementById('accelY').textContent = aY;
+            document.getElementById('accelZ').textContent = aZ;
+
+            document.getElementById('gyroX').textContent = gX;
+            document.getElementById('gyroY').textContent = gY;
+            document.getElementById('gyroZ').textContent = gZ;
+
+            // Simple Visualizers
+            // Gyro X (Pitch) Needle
+            const gyroRot = Math.max(-90, Math.min(90, gX / 100));
+            document.getElementById('gyroNeedle').style.transform = `translateX(-50%) rotate(${gyroRot}deg)`;
+
+            // Accel X/Y Dot (Gravity vector)
+            const dotX = 50 + (aX / 300);
+            const dotY = 50 + (aY / 300);
+            document.getElementById('accelDot').style.left = `${dotX}%`;
+            document.getElementById('accelDot').style.top = `${dotY}%`;
+
+            // Battery (Approximate - usually 4 bits for level)
+            const battByte = data.getUint8(batteryOffset);
+            const battLevel = (battByte & 0x0F) * 10;
+            const isCharging = (battByte & 0xF0) > 0;
+            document.getElementById('battery').textContent = `${battLevel}% ${isCharging ? '⚡' : ''}`;
+        }
+    </script>
+</body>
+</html>
