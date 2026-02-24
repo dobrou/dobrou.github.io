@@ -134,6 +134,10 @@
         // Proměnné pro interakci (prak)
         let slingshotBall = null;
         let slingshotMousePos = { x: 0, y: 0 };
+        
+        // Proměnné pro detekci dvojkliku
+        let lastClickTime = 0;
+        let lastClickedBall = null;
 
         // UI elementy
         const sizeSlider = document.getElementById('ballSize');
@@ -335,21 +339,36 @@
         
         function handleInputStart(x, y, button) {
             let hitBall = false;
+            const currentTime = new Date().getTime();
             
             // Kontrola, zda jsme neklikli na kuličku (od nejnovější po nejstarší)
             for (let i = balls.length - 1; i >= 0; i--) {
                 let ball = balls[i];
                 let dist = Math.hypot(ball.x - x, ball.y - y);
                 if (dist <= ball.radius) {
+                    hitBall = true;
+                    
+                    // Detekce dvojkliku / dvojitého ťuknutí na stejnou kuličku
+                    if (currentTime - lastClickTime < 300 && lastClickedBall === ball) {
+                        balls.splice(i, 1); // Odstranění kuličky z pole
+                        slingshotBall = null;
+                        lastClickedBall = null;
+                        wakeUI();
+                        return; // Ukončíme funkci, aby se nenatahoval prak
+                    }
+
                     slingshotBall = ball;
                     slingshotMousePos = { x, y };
-                    hitBall = true;
+                    lastClickedBall = ball;
                     break;
                 }
             }
             
+            lastClickTime = currentTime;
+            
             // Pokud jsme netrefili kuličku, zobrazíme UI (nebo přidáme novou kuličku)
             if (!hitBall) {
+                lastClickedBall = null;
                 if (button === 2) addBall(x, y);
                 wakeUI();
             }
