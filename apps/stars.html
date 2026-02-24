@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AR Hvězdář</title>
+    <style>
+        :root {
+            --ui-bg: rgba(15, 23, 42, 0.7);
+            --ui-text: #f8fafc;
+            --accent: #38bdf8;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            font-family: system-ui, -apple-system, sans-serif;
+            touch-action: none; /* Zabrání nativnímu scrollování při tažení */
+        }
+        
+        #video-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+
+        #ar-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+            pointer-events: none; /* Propustí dotyky na canvas pro kalibraci */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .hud-panel {
+            background: var(--ui-bg);
+            color: var(--ui-text);
+            padding: 12px;
+            margin: 15px;
+            border-radius: 12px;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            font-size: 14px;
+            pointer-events: auto; /* Tlačítka musí být klikatelná */
+        }
+
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            transform: translate(-50%, -50%);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            z-index: 3;
+            pointer-events: none;
+        }
+        .crosshair::before, .crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.5);
+        }
+        .crosshair::before { top: -10px; bottom: -10px; left: 18px; width: 2px; }
+        .crosshair::after { left: -10px; right: -10px; top: 18px; height: 2px; }
+
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0f172a;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        #map-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .start-content {
+            background: rgba(15, 23, 42, 0.6);
+            padding: 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        button {
+            background: var(--accent);
+            color: #0f172a;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(56, 189, 248, 0.4);
+            transition: transform 0.2s;
+        }
+        button:active { transform: scale(0.95); }
+
+        .hidden { display: none !important; }
+        .data-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .data-label { color: #94a3b8; }
+        
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.5);
+            padding: 8px 16px;
+            border-radius: 20px;
+            color: white;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Obraz z kamery -->
+    <video id="video-background" autoplay playsinline></video>
+
+    <!-- AR Překryv -->
+    <canvas id="ar-canvas"></canvas>
+    
+    <!-- Zaměřovač uprostřed -->
+    <div class="crosshair"></div>
+
+    <!-- UI -->
+    <div id="ui-layer" class="hidden">
+        <div class="hud-panel">
+            <div class="data-row"><span class="data-label">GPS:</span> <span id="val-gps">Hledám...</span></div>
+            <div class="data-row"><span class="data-label">Azimut:</span> <span id="val-az">0°</span></div>
+            <div class="data-row"><span class="data-label">Výška:</span> <span id="val-alt">0°</span></div>
+            <div class="data-row"><span class="data-label">FOV (Zoom):</span> <span id="val-fov">60°</span></div>
+            <div class="data-row" style="margin-top: 8px; border-top: 1px solid #334155; padding-top: 8px;">
+                <span class="data-label">Kalibrace Az:</span> <span id="val-cal-az">0.0°</span>
+            </div>
+            <div class="data-row"><span class="data-label">Kalibrace Alt:</span> <span id="val-cal-alt">0.0°</span></div>
+            <button id="btn-reset-cal" style="padding: 5px 10px; font-size: 12px; margin-top: 10px; width: 100%;">Reset Kalibrace</button>
+        </div>
+        
+        <div class="instructions">
+            👆 Tažením kalibrujte • ✌️ Špetkou zoomujte
+        </div>
+    </div>
+
+    <!-- Úvodní obrazovka vyžadující interakci pro povolení API -->
+    <div id="start-screen">
+        <canvas id="map-canvas"></canvas>
+        <div class="start-content">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 20px;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+                <path d="M2 12h20"></path>
+            </svg>
+            <h1 style="margin: 0 0 10px 0;">AR Hvězdář</h1>
+            <p style="color: #cbd5e1; max-width: 300px; font-size: 15px;">
+                Aplikace potřebuje přístup ke kameře, GPS a senzorům orientace pro přesné zobrazení oblohy.
+            </p>
+            <button id="btn-start">Spustit AR Pozorovatele</button>
+        </div>
+    </div>
+
+    <script>
+        // --- STAV APLIKACE ---
+        const state = {
+            mode: 'start', // 'start' nebo 'ar'
+            lat: 49.8, // Výchozí střed ČR, než se chytí GPS
+            lon: 15.5,
+            hasGps: false,
+            
+            // Senzory zařízení
+            deviceAzimuth: 0,
+            deviceAltitude: 0,
+            deviceRoll: 0,
+            
+            // Uživatelská kalibrace a pohled
+            offsetAz: 0,
+            offsetAlt: 0,
+            fov: 60, // Zorné pole ve stupních (zoom)
+            
+            // Dotykové ovládání
+            touchStartX: 0,
+            touchStartY: 0,
+            isDragging: false,
+            initialDistance: 0,
+            initialFov: 60
+        };
+
+        // --- KATALOG TĚLES ---
+        // Vybrané jasné hvězdy (Rektascenze ve stupních, Deklinace ve stupních)
+        const stars = [
+            { name: "Polárka", ra: 37.95, dec: 89.26, color: "#fff" },
+            { name: "Sirius", ra: 101.287, dec: -16.716, color: "#e2f2ff" },
+            { name: "Arcturus", ra: 213.915, dec: 19.182, color: "#ffd2b3" },
+            { name: "Vega", ra: 279.234, dec: 38.783, color: "#fff" },
+            { name: "Capella", ra: 79.172, dec: 45.998, color: "#ffffeb" },
+            { name: "Rigel", ra: 78.634, dec: -8.201, color: "#d1e5ff" },
+            { name: "Betelgeuse", ra: 88.793, dec: 7.407, color: "#ffb3b3" },
+            { name: "Aldebaran", ra: 68.98, dec: 16.509, color: "#ffc299" },
+            { name: "Spica", ra: 201.298, dec: -11.161, color: "#d9eaff" },
+            { name: "Antares", ra: 247.351, dec: -26.432, color: "#ff8080" }
+        ];
+
+        // --- DOM ELEMENTY ---
+        const video = document.getElementById('video-background');
+        const canvas = document.getElementById('ar-canvas');
+        const mapCanvas = document.getElementById('map-canvas');
+        const ctx = canvas.getContext('2d');
+        const mapCtx = mapCanvas.getContext('2d');
+        const startScreen = document.getElementById('start-screen');
+        const uiLayer = document.getElementById('ui-layer');
+        const btnStart = document.getElementById('btn-start');
+        
+        // UI hodnoty
+        const uiGps = document.getElementById('val-gps');
+        const uiAz = document.getElementById('val-az');
+        const uiAlt = document.getElementById('val-alt');
+        const uiFov = document.getElementById('val-fov');
+        const uiCalAz = document.getElementById('val-cal-az');
+        const uiCalAlt = document.getElementById('val-cal-alt');
+        const btnResetCal = document.getElementById('btn-reset-cal');
+
+        // Nastavení velikosti plátna
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            if (mapCanvas) {
+                mapCanvas.width = window.innerWidth;
+                mapCanvas.height = window.innerHeight;
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // --- ASTRONOMICKÉ VÝPOČTY ---
+        
+        // Juliánské datum
+        function getJD(date) {
+            return (date.getTime() / 86400000) + 2440587.5;
+        }
+
+        // Místní hvězdný čas (LST) ve stupních
+        function getLST(jd, lon) {
+            let d = jd - 2451545.0;
+            let lst = 280.46061837 + 360.98564736629 * d + lon;
+            lst = lst % 360;
+            if (lst < 0) lst += 360;
+            return lst;
+        }
+
+        // Převod RA/Dec na Azimut/Výšku
+        function getAzAlt(ra, dec, lat, lst) {
+            let ha = (lst - ra) % 360;
+            if (ha < 0) ha += 360;
+            let haRad = ha * Math.PI / 180;
+            let latRad = lat * Math.PI / 180;
+            let decRad = dec * Math.PI / 180;
+
+            let sinAlt = Math.sin(latRad) * Math.sin(decRad) + Math.cos(latRad) * Math.cos(decRad) * Math.cos(haRad);
+            let altRad = Math.asin(sinAlt);
+
+            let cosAz = (Math.sin(decRad) - Math.sin(latRad) * sinAlt) / (Math.cos(latRad) * Math.cos(altRad));
+            // Ošetření nepřesností výpočtu
+            cosAz = Math.max(-1, Math.min(1, cosAz)); 
+            
+            let azRad = Math.acos(cosAz);
+            if (Math.sin(haRad) > 0) azRad = 2 * Math.PI - azRad;
+
+            return { 
+                az: azRad * 180 / Math.PI, 
+                alt: altRad * 180 / Math.PI 
+            };
+        }
+
+        // Výpočet pozice Slunce (zjednodušený, pro AR dostatečný)
+        function getSunPosition(jd) {
+            let n = jd - 2451545.0;
+            let L = (280.460 + 0.9856474 * n) % 360;
+            if (L < 0) L += 360;
+            let g = (357.528 + 0.9856003 * n) % 360;
+            let gRad = g * Math.PI / 180;
+            let lambda = L + 1.915 * Math.sin(gRad) + 0.020 * Math.sin(2 * gRad);
+            let lambdaRad = lambda * Math.PI / 180;
+            let epsilon = 23.439 - 0.0000004 * n;
+            let epsRad = epsilon * Math.PI / 180;
+
+            let raRad = Math.atan2(Math.cos(epsRad) * Math.sin(lambdaRad), Math.cos(lambdaRad));
+            let decRad = Math.asin(Math.sin(epsRad) * Math.sin(lambdaRad));
+
+            let ra = raRad * 180 / Math.PI;
+            if (ra < 0) ra += 360;
+            return { ra: ra, dec: decRad * 180 / Math.PI };
+        }
+
+        // Výpočet pozice Měsíce (zjednodušený)
+        function getMoonPosition(jd) {
+            let n = jd - 2451545.0;
+            let L = (218.316 + 13.176396 * n) % 360;
+            let M = (134.963 + 13.064993 * n) % 360;
+            let F = (93.272 + 13.229350 * n) % 360;
+            
+            let Lrad = L * Math.PI/180, Mrad = M * Math.PI/180, Frad = F * Math.PI/180;
+            let lon = L + 6.289 * Math.sin(Mrad);
+            let lat = 5.128 * Math.sin(Frad);
+            
+            let lonRad = lon * Math.PI/180, latRad = lat * Math.PI/180;
+            let epsilon = 23.439 * Math.PI/180;
+
+            let sinDec = Math.sin(latRad)*Math.cos(epsilon) + Math.cos(latRad)*Math.sin(epsilon)*Math.sin(lonRad);
+            let decRad = Math.asin(sinDec);
+            let y = Math.sin(lonRad)*Math.cos(epsilon) - Math.tan(latRad)*Math.sin(epsilon);
+            let x = Math.cos(lonRad);
+            let raRad = Math.atan2(y, x);
+
+            let ra = raRad * 180 / Math.PI;
+            if (ra < 0) ra += 360;
+            return { ra: ra, dec: decRad * 180 / Math.PI };
+        }
+
+        // --- SENZORY A INICIALIZACE ---
+
+        // Okamžitá inicializace GPS
+        if ("geolocation" in navigator) {
+            navigator.geolocation.watchPosition(
+                (pos) => {
+                    state.lat = pos.coords.latitude;
+                    state.lon = pos.coords.longitude;
+                    state.hasGps = true;
+                    if (uiGps) uiGps.innerText = `${state.lat.toFixed(2)}°, ${state.lon.toFixed(2)}°`;
+                },
+                (err) => { if (uiGps) uiGps.innerText = "Chyba GPS"; },
+                { enableHighAccuracy: true }
+            );
+        } else {
+            if (uiGps) uiGps.innerText = "GPS nedostupné";
+        }
+
+        // Gyroskop a Kompas - spuštění ihned, pokud to prohlížeč dovolí
+        const setupOrientation = () => {
+            window.addEventListener('deviceorientation', handleOrientation, true);
+        };
+
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            // iOS 13+ čeká na kliknutí, neuděláme nic, mapa bude prozatím statická
+        } else {
+            setupOrientation();
+        }
+
+        btnStart.addEventListener('click', async () => {
+            // Skrýt start, ukázat UI
+            state.mode = 'ar';
+            startScreen.classList.add('hidden');
+            uiLayer.classList.remove('hidden');
+
+            try {
+                // Kamera
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment" } 
+                });
+                video.srcObject = stream;
+            } catch (err) {
+                alert("Nelze přistoupit ke kameře: " + err.message);
+            }
+
+            // Fullscreen (volitelně)
+            try {
+                if (document.documentElement.requestFullscreen) {
+                    await document.documentElement.requestFullscreen();
+                }
+            } catch(e) { console.log("Fullscreen zamítnut/nepodporován."); }
+
+            // Vyžádání orientace po kliknutí (nutné pro iOS)
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    const permissionState = await DeviceOrientationEvent.requestPermission();
+                    if (permissionState === 'granted') {
+                        setupOrientation();
+                    }
+                } catch(e) { console.error(e); }
+            }
+        });
+
+        // Zpracování dat z gyroskopu
+        function handleOrientation(event) {
+            let alpha = event.alpha; // Z vodorovné roviny (kompas)
+            let beta = event.beta;   // Náklon vpřed/vzad
+            let gamma = event.gamma; // Náklon doleva/doprava
+
+            if (alpha === null || beta === null || gamma === null) return;
+
+            // iOS poskytuje webkitCompassHeading, Android má alpha vzhledem ke kompasu (pokud je zařízení zkalibrováno)
+            if (event.webkitCompassHeading) {
+                state.deviceAzimuth = event.webkitCompassHeading;
+            } else {
+                // Převod alpha na kompasový azimut (může záviset na prohlížeči, Android Chrome obvykle dává absolutní nebo 360-alpha)
+                state.deviceAzimuth = (360 - alpha) % 360; 
+            }
+
+            // Výpočet výšky (Pitch kamery). Držení v portrétu (beta=90) znamená výšku 0 (horizont).
+            // Leží-li telefon na stole (beta=0), zadní kamera kouká dolů (Alt = -90).
+            let alt = beta - 90; 
+            
+            // Ošetření překlopení telefonu přes hlavu
+            if (gamma > 90 || gamma < -90) {
+                // Telefon je vzhůru nohama nebo silně nakloněn
+            }
+
+            state.deviceAltitude = alt;
+            state.deviceRoll = gamma; // Použijeme pro natočení horizontu
+        }
+
+        // --- INTERAKCE (KALIBRACE A ZOOM) ---
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                state.isDragging = true;
+                state.touchStartX = e.touches[0].clientX;
+                state.touchStartY = e.touches[0].clientY;
+            } else if (e.touches.length === 2) {
+                state.isDragging = false;
+                state.initialDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                state.initialFov = state.fov;
+            }
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (state.isDragging && e.touches.length === 1) {
+                let dx = e.touches[0].clientX - state.touchStartX;
+                let dy = e.touches[0].clientY - state.touchStartY;
+                
+                // Přepočet pixelů na stupně na základě aktuálního FOV
+                let degPerPixelX = state.fov / canvas.width;
+                let degPerPixelY = (state.fov * (canvas.height / canvas.width)) / canvas.height;
+
+                // Tah doleva (dx < 0) znamená, že chci posunout oblohu doleva -> zvyšuji azimut kamery
+                state.offsetAz -= dx * degPerPixelX;
+                // Tah nahoru (dy < 0) znamená oblohu nahoru -> snižuji výšku kamery
+                state.offsetAlt += dy * degPerPixelY;
+
+                state.touchStartX = e.touches[0].clientX;
+                state.touchStartY = e.touches[0].clientY;
+
+            } else if (e.touches.length === 2) {
+                let currentDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                
+                let scale = state.initialDistance / currentDistance;
+                // Omezení FOV (Zoomu) mezi 10° a 100°
+                state.fov = Math.max(10, Math.min(100, state.initialFov * scale));
+            }
+        });
+
+        canvas.addEventListener('touchend', () => {
+            state.isDragging = false;
+        });
+
+        btnResetCal.addEventListener('click', () => {
+            state.offsetAz = 0;
+            state.offsetAlt = 0;
+            state.fov = 60;
+        });
+
+        // --- RENDER ---
+
+        // Vykreslení tělesa na plátno
+        function drawBody(name, bodyAz, bodyAlt, camAz, camAlt, fovX, fovY, color, size, isSunMoon = false) {
+            // Rozdíl souřadnic s ošetřením přetečení 360°
+            let dAz = bodyAz - camAz;
+            if (dAz > 180) dAz -= 360;
+            if (dAz < -180) dAz += 360;
+
+            let dAlt = bodyAlt - camAlt;
+
+            // Vynechání, pokud je objekt příliš daleko od pohledu (optimalizace)
+            if (Math.abs(dAz) > fovX && Math.abs(dAlt) > fovY) return;
+
+            // Projekce na plátno
+            let x = canvas.width / 2 + (dAz / fovX) * (canvas.width / 2);
+            // Kladná výška znamená nahoru na obrazovce, tj. menší Y
+            let y = canvas.height / 2 - (dAlt / fovY) * (canvas.height / 2);
+
+            // Nastavení velikosti v závislosti na zoomu (FOV)
+            // Základní FOV je 60. Při menším FOV (zoom) se tělesa zvětší.
+            let scaleFactor = 60 / state.fov;
+            let renderSize = size * scaleFactor;
+
+            // Vykreslení
+            ctx.beginPath();
+            ctx.arc(x, y, renderSize, 0, 2 * Math.PI);
+            ctx.fillStyle = color;
+            ctx.fill();
+
+            if (isSunMoon) {
+                // Přidání záře pro Slunce/Měsíc
+                ctx.shadowBlur = 20 * scaleFactor;
+                ctx.shadowColor = color;
+                ctx.fill();
+                ctx.shadowBlur = 0; // reset
+            }
+
+            // Jmenovka
+            ctx.fillStyle = "white";
+            ctx.font = `${Math.max(10, 14 * scaleFactor)}px sans-serif`;
+            ctx.textAlign = "center";
+            ctx.fillText(name, x, y + renderSize + (15 * scaleFactor));
+        }
+
+        function drawAR() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (!state.hasGps) {
+                ctx.fillStyle = "white";
+                ctx.textAlign = "center";
+                ctx.font = "16px sans-serif";
+                ctx.fillText("Čekám na GPS...", canvas.width/2, canvas.height/2 - 50);
+                requestAnimationFrame(drawAR);
+                return;
+            }
+
+            // Aktuální pozice kamery včetně uživatelské kalibrace
+            let camAz = (state.deviceAzimuth + state.offsetAz) % 360;
+            if (camAz < 0) camAz += 360;
+            let camAlt = state.deviceAltitude + state.offsetAlt;
+
+            // Aktualizace UI
+            uiAz.innerText = camAz.toFixed(1) + '°';
+            uiAlt.innerText = camAlt.toFixed(1) + '°';
+            uiFov.innerText = state.fov.toFixed(1) + '°';
+            uiCalAz.innerText = state.offsetAz.toFixed(1) + '°';
+            uiCalAlt.innerText = state.offsetAlt.toFixed(1) + '°';
+
+            // Rozsah viditelnosti
+            let fovX = state.fov;
+            let fovY = fovX * (canvas.height / canvas.width);
+
+            // Získání astronomického času
+            let now = new Date();
+            let jd = getJD(now);
+            let lst = getLST(jd, state.lon);
+
+            // --- VYKRESLENÍ HORIZONTU ---
+            // Užitečné pro orientaci. Pokud je camAlt > 0 (koukáme na nebe), 
+            // horizont je dole (kladné dAlt).
+            let dAltHorizon = 0 - camAlt; 
+            let horizonY = canvas.height / 2 - (dAltHorizon / fovY) * (canvas.height / 2);
+            
+            ctx.save();
+            // Náklon obrazu (Roll) - Volitelné, ale dělá AR přirozenější
+            // Zjednodušená rotace kolem středu
+            if (Math.abs(state.deviceRoll) < 45) { // Omezeno jen na režim portrét
+               ctx.translate(canvas.width/2, canvas.height/2);
+               ctx.rotate(-state.deviceRoll * Math.PI / 180);
+               ctx.translate(-canvas.width/2, -canvas.height/2);
+            }
+
+            // Čára horizontu (zelenkavá, mírně průhledná)
+            if (horizonY > -100 && horizonY < canvas.height + 100) {
+                ctx.beginPath();
+                ctx.moveTo(-1000, horizonY);
+                ctx.lineTo(canvas.width + 1000, horizonY);
+                ctx.strokeStyle = "rgba(74, 222, 128, 0.4)";
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = "rgba(74, 222, 128, 0.4)";
+                ctx.fillText("Horizont", canvas.width/2, horizonY - 5);
+            }
+
+            // --- VYKRESLENÍ SLUNCE ---
+            let sunEq = getSunPosition(jd);
+            let sunHoriz = getAzAlt(sunEq.ra, sunEq.dec, state.lat, lst);
+            drawBody("Slunce", sunHoriz.az, sunHoriz.alt, camAz, camAlt, fovX, fovY, "#fbbf24", 12, true);
+
+            // --- VYKRESLENÍ MĚSÍCE ---
+            let moonEq = getMoonPosition(jd);
+            let moonHoriz = getAzAlt(moonEq.ra, moonEq.dec, state.lat, lst);
+            drawBody("Měsíc", moonHoriz.az, moonHoriz.alt, camAz, camAlt, fovX, fovY, "#e2e8f0", 10, true);
+
+            // --- VYKRESLENÍ HVĚZD ---
+            for (let star of stars) {
+                let starHoriz = getAzAlt(star.ra, star.dec, state.lat, lst);
+                // Nevykreslovat hvězdy pod horizontem (s malou rezervou)
+                if (starHoriz.alt > -5) {
+                    drawBody(star.name, starHoriz.az, starHoriz.alt, camAz, camAlt, fovX, fovY, star.color, 3, false);
+                }
+            }
+            
+            ctx.restore();
+        }
+
+        // --- VYKRESLENÍ MAPY (Start Screen) ---
+        function drawMap() {
+            if (!mapCtx) return;
+
+            // Zamezit vykreslování, pokud plátno ještě nemá nastavenou velikost
+            if (mapCanvas.width === 0 || mapCanvas.height === 0) return;
+
+            mapCtx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+            
+            let cx = mapCanvas.width / 2;
+            let cy = mapCanvas.height / 2;
+            // Ochrana proti negativnímu poloměru (když je okno příliš malé nebo se teprve inicializuje)
+            let R = Math.max(10, Math.min(cx, cy) - 30);
+
+            // Vykreslení radarového pozadí
+            mapCtx.beginPath();
+            mapCtx.arc(cx, cy, R, 0, 2 * Math.PI);
+            mapCtx.fillStyle = "rgba(15, 23, 42, 0.4)";
+            mapCtx.fill();
+            mapCtx.strokeStyle = "rgba(56, 189, 248, 0.3)";
+            mapCtx.lineWidth = 1;
+            mapCtx.stroke();
+
+            // Značky světových stran
+            let heading = state.deviceAzimuth || 0; // natočení mapy podle kompasu
+            
+            mapCtx.fillStyle = "#94a3b8";
+            mapCtx.font = "bold 14px sans-serif";
+            mapCtx.textAlign = "center";
+            mapCtx.textBaseline = "middle";
+
+            const dirs = [{l:'S', a:0}, {l:'V', a:90}, {l:'J', a:180}, {l:'Z', a:270}];
+            for (let d of dirs) {
+                let aRad = (d.a - heading - 90) * Math.PI / 180;
+                let tx = cx + (R + 15) * Math.cos(aRad);
+                let ty = cy + (R + 15) * Math.sin(aRad);
+                mapCtx.fillText(d.l, tx, ty);
+            }
+            
+            // Kříž uprostřed (Zenit - přímo nad hlavou)
+            mapCtx.beginPath();
+            mapCtx.moveTo(cx - 5, cy); mapCtx.lineTo(cx + 5, cy);
+            mapCtx.moveTo(cx, cy - 5); mapCtx.lineTo(cx, cy + 5);
+            mapCtx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+            mapCtx.stroke();
+
+            // Získání astronomického času
+            let now = new Date();
+            let jd = getJD(now);
+            let lst = getLST(jd, state.lon);
+
+            // Pomocná funkce pro mapu
+            function drawMapBody(name, az, alt, color, size, isSunMoon) {
+                if (alt < 0) return; // Pod horizontem nekreslíme
+                
+                // Projekce (alt 90 = střed, alt 0 = okraj)
+                let r = R * (90 - alt) / 90;
+                let aRad = (az - heading - 90) * Math.PI / 180;
+                
+                let x = cx + r * Math.cos(aRad);
+                let y = cy + r * Math.sin(aRad);
+                
+                mapCtx.beginPath();
+                mapCtx.arc(x, y, size, 0, 2 * Math.PI);
+                mapCtx.fillStyle = color;
+                mapCtx.fill();
+                
+                if (isSunMoon) {
+                    mapCtx.shadowBlur = 10;
+                    mapCtx.shadowColor = color;
+                    mapCtx.fill();
+                    mapCtx.shadowBlur = 0;
+                }
+                
+                mapCtx.fillStyle = "rgba(255, 255, 255, 0.8)";
+                mapCtx.font = "10px sans-serif";
+                mapCtx.fillText(name, x, y + size + 8);
+            }
+
+            // Slunce
+            let sunEq = getSunPosition(jd);
+            let sunHoriz = getAzAlt(sunEq.ra, sunEq.dec, state.lat, lst);
+            drawMapBody("Slunce", sunHoriz.az, sunHoriz.alt, "#fbbf24", 6, true);
+
+            // Měsíc
+            let moonEq = getMoonPosition(jd);
+            let moonHoriz = getAzAlt(moonEq.ra, moonEq.dec, state.lat, lst);
+            drawMapBody("Měsíc", moonHoriz.az, moonHoriz.alt, "#e2e8f0", 5, true);
+
+            // Hvězdy
+            for (let star of stars) {
+                let starHoriz = getAzAlt(star.ra, star.dec, state.lat, lst);
+                drawMapBody(star.name, starHoriz.az, starHoriz.alt, star.color, 2, false);
+            }
+        }
+
+        // --- HLAVNÍ SMYČKA ---
+        function appLoop() {
+            if (state.mode === 'start') {
+                drawMap();
+            } else if (state.mode === 'ar') {
+                drawAR();
+            }
+            requestAnimationFrame(appLoop);
+        }
+
+        // Odstraněn původní "requestAnimationFrame(drawAR);" a spuštěna jednotná smyčka:
+        appLoop();
+    </script>
+</body>
+</html>
