@@ -176,15 +176,10 @@
             <div class="data-row"><span class="data-label">Azimut:</span> <span id="val-az">0°</span></div>
             <div class="data-row"><span class="data-label">Výška:</span> <span id="val-alt">0°</span></div>
             <div class="data-row"><span class="data-label">FOV (Zoom):</span> <span id="val-fov">60°</span></div>
-            <div class="data-row" style="margin-top: 8px; border-top: 1px solid #334155; padding-top: 8px;">
-                <span class="data-label">Kalibrace Az:</span> <span id="val-cal-az">0.0°</span>
-            </div>
-            <div class="data-row"><span class="data-label">Kalibrace Alt:</span> <span id="val-cal-alt">0.0°</span></div>
-            <button id="btn-reset-cal" style="padding: 5px 10px; font-size: 12px; margin-top: 10px; width: 100%;">Reset Kalibrace</button>
         </div>
         
         <div class="instructions">
-            👆 Tažením kalibrujte • ✌️ Špetkou zoomujte
+            ✌️ Špetkou zoomujte
         </div>
     </div>
 
@@ -218,14 +213,10 @@
             deviceAltitude: 0,
             deviceRoll: 0,
             
-            // Uživatelská kalibrace a pohled
-            offsetAz: 0,
-            offsetAlt: 0,
+            // Uživatelský pohled
             fov: 60, // Zorné pole ve stupních (zoom)
             
             // Dotykové ovládání
-            touchStartX: 0,
-            touchStartY: 0,
             isDragging: false,
             initialDistance: 0,
             initialFov: 60
@@ -261,9 +252,6 @@
         const uiAz = document.getElementById('val-az');
         const uiAlt = document.getElementById('val-alt');
         const uiFov = document.getElementById('val-fov');
-        const uiCalAz = document.getElementById('val-cal-az');
-        const uiCalAlt = document.getElementById('val-cal-alt');
-        const btnResetCal = document.getElementById('btn-reset-cal');
 
         // Nastavení velikosti plátna
         function resizeCanvas() {
@@ -454,14 +442,10 @@
             state.deviceRoll = gamma; // Použijeme pro natočení horizontu
         }
 
-        // --- INTERAKCE (KALIBRACE A ZOOM) ---
+        // --- INTERAKCE (ZOOM) ---
 
         canvas.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                state.isDragging = true;
-                state.touchStartX = e.touches[0].clientX;
-                state.touchStartY = e.touches[0].clientY;
-            } else if (e.touches.length === 2) {
+            if (e.touches.length === 2) {
                 state.isDragging = false;
                 state.initialDistance = Math.hypot(
                     e.touches[0].clientX - e.touches[1].clientX,
@@ -472,23 +456,7 @@
         });
 
         canvas.addEventListener('touchmove', (e) => {
-            if (state.isDragging && e.touches.length === 1) {
-                let dx = e.touches[0].clientX - state.touchStartX;
-                let dy = e.touches[0].clientY - state.touchStartY;
-                
-                // Přepočet pixelů na stupně na základě aktuálního FOV
-                let degPerPixelX = state.fov / canvas.width;
-                let degPerPixelY = (state.fov * (canvas.height / canvas.width)) / canvas.height;
-
-                // Tah doleva (dx < 0) znamená, že chci posunout oblohu doleva -> zvyšuji azimut kamery
-                state.offsetAz -= dx * degPerPixelX;
-                // Tah nahoru (dy < 0) znamená oblohu nahoru -> snižuji výšku kamery
-                state.offsetAlt += dy * degPerPixelY;
-
-                state.touchStartX = e.touches[0].clientX;
-                state.touchStartY = e.touches[0].clientY;
-
-            } else if (e.touches.length === 2) {
+            if (e.touches.length === 2) {
                 let currentDistance = Math.hypot(
                     e.touches[0].clientX - e.touches[1].clientX,
                     e.touches[0].clientY - e.touches[1].clientY
@@ -502,12 +470,6 @@
 
         canvas.addEventListener('touchend', () => {
             state.isDragging = false;
-        });
-
-        btnResetCal.addEventListener('click', () => {
-            state.offsetAz = 0;
-            state.offsetAlt = 0;
-            state.fov = 60;
         });
 
         // --- RENDER ---
@@ -567,17 +529,15 @@
                 return;
             }
 
-            // Aktuální pozice kamery včetně uživatelské kalibrace
-            let camAz = (state.deviceAzimuth + state.offsetAz) % 360;
+            // Aktuální pozice kamery
+            let camAz = state.deviceAzimuth % 360;
             if (camAz < 0) camAz += 360;
-            let camAlt = state.deviceAltitude + state.offsetAlt;
+            let camAlt = state.deviceAltitude;
 
             // Aktualizace UI
             uiAz.innerText = camAz.toFixed(1) + '°';
             uiAlt.innerText = camAlt.toFixed(1) + '°';
             uiFov.innerText = state.fov.toFixed(1) + '°';
-            uiCalAz.innerText = state.offsetAz.toFixed(1) + '°';
-            uiCalAlt.innerText = state.offsetAlt.toFixed(1) + '°';
 
             // Rozsah viditelnosti
             let fovX = state.fov;
