@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
 ========================================================================
-App Version: 2.0.0
+App Version: 2.2.0
 
 PROMPT HISTORY TO RECREATE THIS APP:
 1. Create app, connect and control Circuit Cubes Bluetooth device
@@ -12,6 +12,8 @@ PROMPT HISTORY TO RECREATE THIS APP:
 6. Fix empty telemetry logs (filter null bytes) and add dark theme support
 7. Remove the telemetry part from app
 8. Add Multi-mode inputs (Tabs): Sliders, Phone Gyroscope (Steering wheel), and Draw-to-Drive macro. Optimize for Tank Drive (Motor A = Left, Motor B = Right). Keep UI simple and settings applied globally.
+9. Set snap:on as default
+10. Fix WASD driving mode (W=forward both, S=back both, A/D=turn). Make start/stop fluent and smooth. Add UX calibration settings to Draw mode (Speed, Distance Scale, Turn Sharpness, L/R Trim).
 ========================================================================
 -->
 <html lang="en">
@@ -62,6 +64,9 @@ PROMPT HISTORY TO RECREATE THIS APP:
       .slider-container { background-color: rgba(15, 23, 42, 0.8); border-color: rgba(51, 65, 85, 0.5); box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5); }
       .slider-center-line { background-color: #475569; }
       .tab-active { background-color: #1e293b; color: #60a5fa; box-shadow: 0 1px 3px rgba(0,0,0,0.3); border: 1px solid #334155; }
+      
+      /* Dark mode slider custom styling */
+      input[type=range] { accent-color: var(--thumb-color); }
     }
   </style>
 </head>
@@ -140,7 +145,7 @@ PROMPT HISTORY TO RECREATE THIS APP:
           <p class="text-xs font-bold text-slate-400 mb-5 uppercase tracking-wider">Motor A</p>
           
           <div class="flex gap-2 mb-6 w-full">
-            <button id="snap-a" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleSnap('a')">Snap: OFF</button>
+            <button id="snap-a" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-800 text-white shadow-md" onclick="toggleSnap('a')">Snap: ON</button>
             <button id="invert-a" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleInvert('a')">Normal</button>
           </div>
           
@@ -152,7 +157,7 @@ PROMPT HISTORY TO RECREATE THIS APP:
             <div class="slider-center-line"></div>
             <div id="fill-a" class="slider-track-fill" style="--thumb-color: #2563eb; height: 0%;"></div>
             <input type="range" id="slider-a" min="-255" max="255" value="0" style="--thumb-color: #2563eb;" class="custom-slider"
-                   oninput="handleSlider('a', this.value)" onpointerup="handleSliderRelease('a')" ontouchend="handleSliderRelease('a')">
+                   oninput="handleSlider('a', this.value)" onpointerdown="handleSliderPress('a')" onpointerup="handleSliderRelease('a')" ontouchstart="handleSliderPress('a')" ontouchend="handleSliderRelease('a')">
           </div>
         </div>
 
@@ -163,7 +168,7 @@ PROMPT HISTORY TO RECREATE THIS APP:
           <p class="text-xs font-bold text-slate-400 mb-5 uppercase tracking-wider">Motor B</p>
           
           <div class="flex gap-2 mb-6 w-full">
-            <button id="snap-b" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleSnap('b')">Snap: OFF</button>
+            <button id="snap-b" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-800 text-white shadow-md" onclick="toggleSnap('b')">Snap: ON</button>
             <button id="invert-b" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleInvert('b')">Normal</button>
           </div>
           
@@ -175,7 +180,7 @@ PROMPT HISTORY TO RECREATE THIS APP:
             <div class="slider-center-line"></div>
             <div id="fill-b" class="slider-track-fill" style="--thumb-color: #059669; height: 0%;"></div>
             <input type="range" id="slider-b" min="-255" max="255" value="0" style="--thumb-color: #059669;" class="custom-slider"
-                   oninput="handleSlider('b', this.value)" onpointerup="handleSliderRelease('b')" ontouchend="handleSliderRelease('b')">
+                   oninput="handleSlider('b', this.value)" onpointerdown="handleSliderPress('b')" onpointerup="handleSliderRelease('b')" ontouchstart="handleSliderPress('b')" ontouchend="handleSliderRelease('b')">
           </div>
         </div>
 
@@ -186,7 +191,7 @@ PROMPT HISTORY TO RECREATE THIS APP:
           <p class="text-xs font-bold text-slate-400 mb-5 uppercase tracking-wider">Motor C</p>
           
           <div class="flex gap-2 mb-6 w-full">
-            <button id="snap-c" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleSnap('c')">Snap: OFF</button>
+            <button id="snap-c" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-800 text-white shadow-md" onclick="toggleSnap('c')">Snap: ON</button>
             <button id="invert-c" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleInvert('c')">Normal</button>
           </div>
           
@@ -198,7 +203,7 @@ PROMPT HISTORY TO RECREATE THIS APP:
             <div class="slider-center-line"></div>
             <div id="fill-c" class="slider-track-fill" style="--thumb-color: #e11d48; height: 0%;"></div>
             <input type="range" id="slider-c" min="-255" max="255" value="0" style="--thumb-color: #e11d48;" class="custom-slider"
-                   oninput="handleSlider('c', this.value)" onpointerup="handleSliderRelease('c')" ontouchend="handleSliderRelease('c')">
+                   oninput="handleSlider('c', this.value)" onpointerdown="handleSliderPress('c')" onpointerup="handleSliderRelease('c')" ontouchstart="handleSliderPress('c')" ontouchend="handleSliderRelease('c')">
           </div>
         </div>
       </div>
@@ -256,7 +261,7 @@ PROMPT HISTORY TO RECREATE THIS APP:
         </div>
 
         <!-- Canvas Area -->
-        <div class="relative w-full max-w-2xl bg-slate-50 dark:bg-slate-950 rounded-2xl border-2 border-slate-200 dark:border-slate-700 mb-6 overflow-hidden touch-none" style="height: 400px; touch-action: none;">
+        <div class="relative w-full max-w-2xl bg-slate-50 dark:bg-slate-950 rounded-2xl border-2 border-slate-200 dark:border-slate-700 mb-4 overflow-hidden touch-none" style="height: 400px; touch-action: none;">
           <!-- Grid Background -->
           <div class="absolute inset-0 opacity-[0.15] dark:opacity-[0.05] pointer-events-none" style="background-image: radial-gradient(var(--tw-colors-slate-800) 1px, transparent 1px); background-size: 20px 20px;"></div>
           
@@ -265,6 +270,41 @@ PROMPT HISTORY TO RECREATE THIS APP:
           <!-- Status Overlay -->
           <div id="macro-status" class="absolute top-4 left-4 bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg z-20 hidden items-center">
             <i class="ph-bold ph-spinner animate-spin mr-2"></i> Driving Macro...
+          </div>
+        </div>
+
+        <!-- UX Calibration Menu -->
+        <div class="mb-6 bg-slate-100 dark:bg-slate-800 rounded-2xl p-4 w-full max-w-2xl text-left border border-slate-200 dark:border-slate-700">
+          <button onclick="toggleDrawSettings()" class="w-full flex justify-between items-center text-sm font-bold text-slate-700 dark:text-slate-300">
+            <span><i class="ph-bold ph-sliders-horizontal mr-2"></i> Calibration & Tuning Settings</span>
+            <i id="icon-draw-settings" class="ph-bold ph-caret-down"></i>
+          </button>
+          
+          <div id="draw-settings-panel" class="hidden mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+             <div>
+                <div class="flex justify-between text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
+                   <span>DRIVE SPEED</span> <span id="val-speed">200</span>
+                </div>
+                <input type="range" id="cal-speed" min="50" max="255" value="200" oninput="document.getElementById('val-speed').textContent=this.value" class="w-full">
+             </div>
+             <div>
+                <div class="flex justify-between text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
+                   <span>DISTANCE SCALE</span> <span id="val-scale">1.0x</span>
+                </div>
+                <input type="range" id="cal-scale" min="0.2" max="3" step="0.1" value="1.0" oninput="document.getElementById('val-scale').textContent=this.value+'x'" class="w-full">
+             </div>
+             <div>
+                <div class="flex justify-between text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
+                   <span>TURN SHARPNESS</span> <span id="val-turn">1.0x</span>
+                </div>
+                <input type="range" id="cal-turn" min="0.2" max="3" step="0.1" value="1.0" oninput="document.getElementById('val-turn').textContent=this.value+'x'" class="w-full">
+             </div>
+             <div>
+                <div class="flex justify-between text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
+                   <span>L/R TRIM (Drift fix)</span> <span id="val-trim">0</span>
+                </div>
+                <input type="range" id="cal-trim" min="-50" max="50" value="0" oninput="document.getElementById('val-trim').textContent=(this.value>0?'+':'')+this.value" class="w-full">
+             </div>
           </div>
         </div>
 
@@ -288,6 +328,37 @@ PROMPT HISTORY TO RECREATE THIS APP:
       </button>
     </div>
     
+    <!-- Instructions -->
+    <div class="mt-4 mb-12 p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-6 transition-colors">
+      <div class="flex-1">
+        <h3 class="font-bold text-slate-800 dark:text-slate-100 mb-3 flex items-center text-lg">
+          <i class="ph-fill ph-info mr-2 text-blue-500 text-xl"></i> General Setup
+        </h3>
+        <ul class="list-disc list-inside text-slate-600 dark:text-slate-400 space-y-2 text-sm">
+          <li>Ensure your vehicle uses <strong>Tank Drive</strong> (Left wheel on Motor A, Right wheel on Motor B).</li>
+          <li>If a wheel spins backward, use the <strong>Invert</strong> button under Manual mode to fix it. This setting applies to Gyro and Draw modes too!</li>
+        </ul>
+      </div>
+      <div class="flex-1 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+        <h3 class="font-bold text-slate-800 dark:text-slate-200 mb-3 text-sm uppercase tracking-wider">Keyboard Controls</h3>
+        <div class="space-y-4">
+          <div class="flex items-center text-sm text-slate-600 dark:text-slate-400">
+            <div class="flex gap-1 mr-3">
+              <kbd class="font-mono font-bold bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-2 py-1 rounded shadow-sm border border-slate-200 dark:border-slate-600">W</kbd>
+              <kbd class="font-mono font-bold bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-2 py-1 rounded shadow-sm border border-slate-200 dark:border-slate-600">S</kbd>
+            </div>
+            <span>Drive Forward & Backward</span>
+          </div>
+          <div class="flex items-center text-sm text-slate-600 dark:text-slate-400">
+            <div class="flex gap-1 mr-3">
+              <kbd class="font-mono font-bold bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-2 py-1 rounded shadow-sm border border-slate-200 dark:border-slate-600">A</kbd>
+              <kbd class="font-mono font-bold bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-2 py-1 rounded shadow-sm border border-slate-200 dark:border-slate-600">D</kbd>
+            </div>
+            <span>Steer Left & Right</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <style>
@@ -304,13 +375,17 @@ PROMPT HISTORY TO RECREATE THIS APP:
     let rxCharacteristic = null;
     
     const state = {
-      speeds: { a: 0, b: 0, c: 0 },
-      snap: { a: false, b: false, c: false },
+      snap: { a: true, b: true, c: true },
       invert: { a: false, b: false, c: false },
       currentTab: 'sliders'
     };
 
-    const activeKeys = new Set();
+    // --- Smoothing / Fluent Motor Control Engine ---
+    const targetSpeeds = { a: 0, b: 0, c: 0 };
+    const currentSpeeds = { a: 0, b: 0, c: 0 };
+    const lastSentSpeeds = { a: null, b: null, c: null };
+    const isDraggingSlider = { a: false, b: false, c: false };
+
     let commandQueue = [];
     let isWriting = false;
 
@@ -326,18 +401,15 @@ PROMPT HISTORY TO RECREATE THIS APP:
 
     // --- Tab Switching Logic ---
     window.switchTab = function(tabId) {
-      // 1. Safety stop
       stopAll(); 
       if (state.currentTab === 'gyro' && isGyroActive) toggleGyro(true);
       if (state.currentTab === 'draw' && isMacroPlaying) stopMacro();
 
       state.currentTab = tabId;
 
-      // 2. UI Update
       ['sliders', 'gyro', 'draw'].forEach(t => {
         const btn = document.getElementById(`tab-btn-${t}`);
         const content = document.getElementById(`tab-content-${t}`);
-        
         if (t === tabId) {
           btn.classList.add('tab-active');
           btn.classList.remove('text-slate-500', 'dark:text-slate-400');
@@ -351,10 +423,7 @@ PROMPT HISTORY TO RECREATE THIS APP:
         }
       });
 
-      // 3. Tab specific initializations
-      if (tabId === 'draw') {
-        setTimeout(initCanvas, 50); // Small delay to let container render before getting dimensions
-      }
+      if (tabId === 'draw') setTimeout(initCanvas, 50);
     };
 
     // --- Bluetooth Connection ---
@@ -400,7 +469,44 @@ PROMPT HISTORY TO RECREATE THIS APP:
       connectedState.classList.add('hidden'); connectedState.classList.remove('flex');
     }
 
-    // --- Motor Control Base Logic ---
+    // --- Fluent Physics Engine (50fps) ---
+    setInterval(() => {
+      for (let ch of ['a', 'b', 'c']) {
+        let diff = targetSpeeds[ch] - currentSpeeds[ch];
+        
+        if (diff !== 0) {
+          // Easing: Accelerates/decelerates by 15% of the remaining distance per frame
+          currentSpeeds[ch] += diff * 0.15;
+          
+          // Snap to target if very close to prevent micro-fluctuations
+          if (Math.abs(currentSpeeds[ch] - targetSpeeds[ch]) < 2) {
+            currentSpeeds[ch] = targetSpeeds[ch];
+          }
+
+          let outSpeed = Math.round(currentSpeeds[ch]);
+          
+          // Only queue hardware command if the rounded integer changed
+          if (lastSentSpeeds[ch] !== outSpeed) {
+            lastSentSpeeds[ch] = outSpeed;
+            queueCommand(ch, outSpeed);
+            
+            // Update UI smoothly ONLY if user is not actively dragging the slider with their finger
+            if (state.currentTab === 'sliders' && !isDraggingSlider[ch]) {
+              const slider = document.getElementById(`slider-${ch}`);
+              const display = document.getElementById(`display-${ch}`);
+              const fill = document.getElementById(`fill-${ch}`);
+              if (slider && display && fill) {
+                slider.value = outSpeed;
+                display.textContent = outSpeed;
+                fill.style.height = `${(Math.abs(outSpeed) / 255) * 50}%`;
+                fill.style.transform = outSpeed < 0 ? 'scaleY(-1)' : 'scaleY(1)';
+              }
+            }
+          }
+        }
+      }
+    }, 20);
+
     async function processQueue() {
       if (isWriting || commandQueue.length === 0 || !rxCharacteristic) return;
       isWriting = true;
@@ -417,7 +523,6 @@ PROMPT HISTORY TO RECREATE THIS APP:
       }
     }
 
-    // Central function to send commands. Respects Global Invert settings.
     function queueCommand(channel, speed) {
       if (!rxCharacteristic) return;
       const actualSpeed = state.invert[channel] ? -speed : speed;
@@ -425,47 +530,47 @@ PROMPT HISTORY TO RECREATE THIS APP:
       const absStr = Math.abs(actualSpeed).toString().padStart(3, '0');
       const command = `${direction}${absStr}${channel}`;
 
+      // Prevent buffer overflow by replacing outdated commands for the same motor
       commandQueue = commandQueue.filter(c => !c.endsWith(channel));
       commandQueue.push(command);
       processQueue();
     }
 
-    function setSpeed(channel, speed) {
-      speed = Math.max(-255, Math.min(255, parseInt(speed) || 0));
-      state.speeds[channel] = speed;
-      
-      // Update UI if we are in manual tab
-      if (state.currentTab === 'sliders') {
-        const slider = document.getElementById(`slider-${channel}`);
-        const display = document.getElementById(`display-${channel}`);
-        const fill = document.getElementById(`fill-${channel}`);
-        if(slider && display && fill) {
-          slider.value = speed;
-          display.textContent = speed;
-          fill.style.height = `${(Math.abs(speed) / 255) * 50}%`;
-          fill.style.transform = speed < 0 ? 'scaleY(-1)' : 'scaleY(1)';
-        }
-      }
-      queueCommand(channel, speed);
+    function setTargetSpeed(channel, speed) {
+      targetSpeeds[channel] = Math.max(-255, Math.min(255, parseInt(speed) || 0));
     }
 
-    window.handleSlider = function(channel, val) { setSpeed(channel, val); };
-    window.handleSliderRelease = function(channel) { if (state.snap[channel]) setSpeed(channel, 0); };
+    window.handleSliderPress = function(channel) { isDraggingSlider[channel] = true; };
+    window.handleSlider = function(channel, val) { setTargetSpeed(channel, val); };
+    window.handleSliderRelease = function(channel) { 
+      isDraggingSlider[channel] = false;
+      if (state.snap[channel]) setTargetSpeed(channel, 0); 
+    };
     
     window.stopAll = function() {
-      setSpeed('a', 0); setSpeed('b', 0); setSpeed('c', 0);
+      // Immediate stop, bypass physics smoothing
+      targetSpeeds.a = 0; targetSpeeds.b = 0; targetSpeeds.c = 0;
+      currentSpeeds.a = 0; currentSpeeds.b = 0; currentSpeeds.c = 0;
       
-      // Clear Gyro UI
+      queueCommand('a', 0); queueCommand('b', 0); queueCommand('c', 0);
+      lastSentSpeeds.a = 0; lastSentSpeeds.b = 0; lastSentSpeeds.c = 0;
+      
+      if (state.currentTab === 'sliders') {
+        ['a','b','c'].forEach(ch => {
+          const s = document.getElementById(`slider-${ch}`);
+          if(s) { s.value = 0; document.getElementById(`display-${ch}`).textContent = 0; document.getElementById(`fill-${ch}`).style.height = "0%"; }
+        });
+      }
+      
       if (state.currentTab === 'gyro') {
         document.getElementById('gyro-bubble').style.transform = `translate(0px, 0px)`;
         document.getElementById('gyro-left-val').textContent = "0";
         document.getElementById('gyro-right-val').textContent = "0";
       }
-      // Stop Macros
+      
       if (isMacroPlaying) stopMacro();
     };
 
-    // Settings
     window.toggleSnap = function(channel) {
       state.snap[channel] = !state.snap[channel];
       const btn = document.getElementById(`snap-${channel}`);
@@ -482,34 +587,56 @@ PROMPT HISTORY TO RECREATE THIS APP:
       btn.className = state.invert[channel]
         ? 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-amber-500 text-white shadow-md'
         : 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700';
-      setSpeed(channel, 0); 
+      setTargetSpeed(channel, 0); 
     };
 
-    // Keyboard bindings (Works globally, but primarily designed for Sliders tab)
+    // --- WASD Keyboard Logic (Arcade Tank Mixing) ---
+    const keyState = { w:0, a:0, s:0, d:0 };
+    let wasKeyboardActive = false;
+
     window.addEventListener('keydown', (e) => {
-      if (e.repeat || document.activeElement.tagName === 'INPUT') return;
-      const key = e.key.toLowerCase();
-      activeKeys.add(key);
-      if (key === 'w') setSpeed('a', 255);
-      if (key === 's') setSpeed('a', -255);
-      if (key === 'a') setSpeed('b', 255);
-      if (key === 'd') setSpeed('b', -255);
+      if (e.repeat || document.activeElement.tagName === 'INPUT' || state.currentTab !== 'sliders') return;
+      const k = e.key.toLowerCase();
+      if(k==='w'||k==='arrowup') keyState.w = 1;
+      if(k==='s'||k==='arrowdown') keyState.s = 1;
+      if(k==='a'||k==='arrowleft') keyState.a = 1;
+      if(k==='d'||k==='arrowright') keyState.d = 1;
+      updateKeyboardDrive();
     });
 
     window.addEventListener('keyup', (e) => {
-      if (document.activeElement.tagName === 'INPUT') return;
-      const key = e.key.toLowerCase();
-      activeKeys.delete(key);
-      if (key === 'w' && !activeKeys.has('s')) setSpeed('a', 0);
-      else if (key === 'w') setSpeed('a', -255);
-      if (key === 's' && !activeKeys.has('w')) setSpeed('a', 0);
-      else if (key === 's') setSpeed('a', 255);
-      if (key === 'a' && !activeKeys.has('d')) setSpeed('b', 0);
-      else if (key === 'a') setSpeed('b', -255);
-      if (key === 'd' && !activeKeys.has('a')) setSpeed('b', 0);
-      else if (key === 'd') setSpeed('b', 255);
+      if (document.activeElement.tagName === 'INPUT' || state.currentTab !== 'sliders') return;
+      const k = e.key.toLowerCase();
+      if(k==='w'||k==='arrowup') keyState.w = 0;
+      if(k==='s'||k==='arrowdown') keyState.s = 0;
+      if(k==='a'||k==='arrowleft') keyState.a = 0;
+      if(k==='d'||k==='arrowright') keyState.d = 0;
+      updateKeyboardDrive();
     });
 
+    function updateKeyboardDrive() {
+      let throttle = (keyState.w - keyState.s) * 255;
+      let steer = (keyState.d - keyState.a) * 255;
+
+      if (throttle === 0 && steer === 0) {
+        if (wasKeyboardActive) {
+          if (!isDraggingSlider.a && state.snap.a) setTargetSpeed('a', 0);
+          if (!isDraggingSlider.b && state.snap.b) setTargetSpeed('b', 0);
+          wasKeyboardActive = false;
+        }
+        return;
+      }
+
+      wasKeyboardActive = true;
+      let left = throttle + steer;
+      let right = throttle - steer;
+      
+      let max = Math.max(Math.abs(left), Math.abs(right));
+      if (max > 255) { left = (left/max)*255; right = (right/max)*255; }
+      
+      setTargetSpeed('a', left);
+      setTargetSpeed('b', right);
+    }
 
     // ==========================================
     // TILT (GYRO) LOGIC - TANK MIXING
@@ -529,7 +656,6 @@ PROMPT HISTORY TO RECREATE THIS APP:
         return;
       }
 
-      // iOS 13+ permissions
       if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         try {
           const permission = await DeviceOrientationEvent.requestPermission();
@@ -539,7 +665,7 @@ PROMPT HISTORY TO RECREATE THIS APP:
         }
       }
 
-      gyroZero = null; // Calibrate on next tick
+      gyroZero = null; 
       isGyroActive = true;
       window.addEventListener('deviceorientation', handleOrientation);
       
@@ -551,56 +677,47 @@ PROMPT HISTORY TO RECREATE THIS APP:
       if (!isGyroActive || state.currentTab !== 'gyro') return;
       if (event.beta === null && event.gamma === null) return;
 
-      // Set Zero position on first loop
       if (!gyroZero) {
         gyroZero = { beta: event.beta, gamma: event.gamma };
         return;
       }
 
-      // Calculate relative pitch and roll
       let pitch = event.beta - gyroZero.beta;
       let roll = event.gamma - gyroZero.gamma;
       
-      // Adapt for landscape mode
       if (window.orientation === 90 || window.orientation === -90) {
           let temp = pitch;
           pitch = (window.orientation === 90) ? -roll : roll;
           roll = (window.orientation === 90) ? temp : -temp;
       }
 
-      // Map angles (-30 to +30 degrees) to speeds
       let throttle = -(pitch / 30) * 255; 
       let steer = (roll / 30) * 255;
 
-      // Arcade to Tank Drive Mixing Algorithm
       let left = throttle + steer;
       let right = throttle - steer;
 
-      // Normalize if exceeding bounds while keeping turn ratio
       const maxVal = Math.max(Math.abs(left), Math.abs(right));
       if (maxVal > 255) {
         left = (left / maxVal) * 255;
         right = (right / maxVal) * 255;
       }
 
-      // Deadzone to prevent jitter when holding still
       if (Math.abs(left) < 30) left = 0;
       if (Math.abs(right) < 30) right = 0;
 
       left = Math.round(left);
       right = Math.round(right);
 
-      setSpeed('a', left);
-      setSpeed('b', right);
+      setTargetSpeed('a', left);
+      setTargetSpeed('b', right);
 
-      // UI visualizer update
       const bX = Math.max(-100, Math.min(100, (steer / 255) * 100));
       const bY = Math.max(-100, Math.min(100, -(throttle / 255) * 100));
       document.getElementById('gyro-bubble').style.transform = `translate(${bX}px, ${bY}px)`;
       document.getElementById('gyro-left-val').textContent = left;
       document.getElementById('gyro-right-val').textContent = right;
     }
-
 
     // ==========================================
     // DRAW PATH TO MACRO LOGIC
@@ -612,6 +729,18 @@ PROMPT HISTORY TO RECREATE THIS APP:
     let isMacroPlaying = false;
     let playAnimationId = null;
 
+    window.toggleDrawSettings = function() {
+      const panel = document.getElementById('draw-settings-panel');
+      const icon = document.getElementById('icon-draw-settings');
+      if (panel.classList.contains('hidden')) {
+          panel.classList.remove('hidden');
+          icon.classList.replace('ph-caret-down', 'ph-caret-up');
+      } else {
+          panel.classList.add('hidden');
+          icon.classList.replace('ph-caret-up', 'ph-caret-down');
+      }
+    };
+
     function initCanvas() {
       const rect = canvas.parentElement.getBoundingClientRect();
       canvas.width = rect.width;
@@ -620,9 +749,8 @@ PROMPT HISTORY TO RECREATE THIS APP:
     }
     window.addEventListener('resize', () => { if(state.currentTab === 'draw') initCanvas(); });
 
-    // Canvas Events (Touch & Mouse unified via Pointer Events)
     canvas.addEventListener('pointerdown', (e) => {
-      if (isMacroPlaying) return; // Ignore drawing while playing
+      if (isMacroPlaying) return; 
       isDrawing = true;
       const rect = canvas.getBoundingClientRect();
       rawPath = [{ x: e.clientX - rect.left, y: e.clientY - rect.top }];
@@ -647,7 +775,6 @@ PROMPT HISTORY TO RECREATE THIS APP:
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (rawPath.length < 2) return;
 
-      // Stroke Line
       ctx.beginPath();
       ctx.moveTo(rawPath[0].x, rawPath[0].y);
       for (let i = 1; i < rawPath.length; i++) {
@@ -659,35 +786,29 @@ PROMPT HISTORY TO RECREATE THIS APP:
       ctx.lineJoin = 'round';
       ctx.stroke();
 
-      // Start Dot
       ctx.beginPath();
       ctx.arc(rawPath[0].x, rawPath[0].y, 8, 0, Math.PI*2);
-      ctx.fillStyle = '#059669'; // emerald
+      ctx.fillStyle = '#059669'; 
       ctx.fill();
 
-      // Virtual Robot Indicator
       if (vRobot) {
         ctx.save();
         ctx.translate(vRobot.x, vRobot.y);
         ctx.rotate(vRobot.heading);
-        // Box
         ctx.fillStyle = '#3b82f6';
         ctx.fillRect(-12, -12, 24, 24);
-        // Front indicator
         ctx.fillStyle = '#fbbf24';
         ctx.fillRect(8, -4, 6, 8);
         ctx.restore();
       }
     }
 
-    // Pure Pursuit Algorithm to translate canvas path into Tank Motor Commands
     window.playPathMacro = function() {
       if (rawPath.length < 5 || isMacroPlaying) return;
       isMacroPlaying = true;
       document.getElementById('macro-status').classList.remove('hidden');
       document.getElementById('macro-status').classList.add('flex');
       
-      // Sub-sample the drawn path to create smooth waypoints
       const path = [rawPath[0]];
       for(let i=1; i<rawPath.length; i++) {
         const last = path[path.length-1];
@@ -696,12 +817,13 @@ PROMPT HISTORY TO RECREATE THIS APP:
         }
       }
 
-      let vRobot = { 
-        x: path[0].x, 
-        y: path[0].y, 
-        heading: Math.atan2(path[1].y - path[0].y, path[1].x - path[0].x) 
-      };
+      let vRobot = { x: path[0].x, y: path[0].y, heading: Math.atan2(path[1].y - path[0].y, path[1].x - path[0].x) };
       
+      let drawSpeed = parseInt(document.getElementById('cal-speed').value);
+      let drawScale = parseFloat(document.getElementById('cal-scale').value);
+      let drawTurn = parseFloat(document.getElementById('cal-turn').value);
+      let drawTrim = parseInt(document.getElementById('cal-trim').value);
+
       let targetIndex = 1;
       let lastTime = performance.now();
 
@@ -710,14 +832,13 @@ PROMPT HISTORY TO RECREATE THIS APP:
         
         let dt = (time - lastTime) / 1000;
         lastTime = time;
-        if (dt > 0.1) dt = 0.05; // Cap dt on lag spikes
+        if (dt > 0.1) dt = 0.05; 
 
         let target = path[targetIndex];
         let dx = target.x - vRobot.x;
         let dy = target.y - vRobot.y;
         let distance = Math.hypot(dx, dy);
 
-        // Advance to next waypoint if close
         if (distance < 20) {
           targetIndex++;
           if (targetIndex >= path.length) {
@@ -729,31 +850,31 @@ PROMPT HISTORY TO RECREATE THIS APP:
           dy = target.y - vRobot.y;
         }
 
-        // Calculate heading error
         let targetHeading = Math.atan2(dy, dx);
         let headingDiff = targetHeading - vRobot.heading;
-        // Normalize angle to [-PI, PI]
         headingDiff = Math.atan2(Math.sin(headingDiff), Math.cos(headingDiff));
 
-        // Proportional Control
-        let baseSpeed = 200; // Drive forward speed
-        if (Math.abs(headingDiff) > 0.8) baseSpeed = 50; // Slow down for sharp turns
+        // Base speed from calibration
+        let baseSpeed = drawSpeed; 
+        if (Math.abs(headingDiff) > 0.8) baseSpeed = drawSpeed * 0.3; // Slow down for corners
         
-        let turn = headingDiff * 300; // Turn multiplier (Kp)
+        // Turn Sharpness calibration
+        let turn = headingDiff * 300 * drawTurn;
 
-        let left = baseSpeed + turn;
-        let right = baseSpeed - turn;
+        // Apply L/R Trim calibration
+        let left = baseSpeed + turn - drawTrim;
+        let right = baseSpeed - turn + drawTrim;
 
-        // Cap speeds
         left = Math.max(-255, Math.min(255, Math.round(left)));
         right = Math.max(-255, Math.min(255, Math.round(right)));
 
-        setSpeed('a', left);
-        setSpeed('b', right);
+        // Feeds into the smoothing physics engine for beautiful movement!
+        setTargetSpeed('a', left);
+        setTargetSpeed('b', right);
 
-        // Update virtual robot kinematics (pixels/sec mapping)
-        let simMoveSpeed = ((left + right) / 2) / 255 * 180 * dt; // Canvas pixels per sec
-        let simTurnSpeed = ((left - right) / 2) / 255 * 3.5 * dt; // Radians per sec
+        // Distance Scale calibration for canvas updating
+        let simMoveSpeed = ((left + right) / 2) / 255 * 180 * dt / drawScale; 
+        let simTurnSpeed = ((left - right) / 2) / 255 * 3.5 * dt * drawTurn; 
 
         vRobot.heading += simTurnSpeed;
         vRobot.x += Math.cos(vRobot.heading) * simMoveSpeed;
@@ -771,8 +892,8 @@ PROMPT HISTORY TO RECREATE THIS APP:
       if (playAnimationId) cancelAnimationFrame(playAnimationId);
       document.getElementById('macro-status').classList.remove('flex');
       document.getElementById('macro-status').classList.add('hidden');
-      stopAll();
-      drawPath(); // Re-draw without the virtual robot
+      setTargetSpeed('a', 0); setTargetSpeed('b', 0); // Decelerate smoothly
+      drawPath(); 
     };
 
   </script>
