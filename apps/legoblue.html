@@ -14,6 +14,7 @@ PROMPT HISTORY TO RECREATE THIS APP:
 8. Add Multi-mode inputs (Tabs): Sliders, Phone Gyroscope (Steering wheel), and Draw-to-Drive macro. Optimize for Tank Drive (Motor A = Left, Motor B = Right). Keep UI simple and settings applied globally.
 9. Set snap:on as default
 10. Fix WASD driving mode (W=forward both, S=back both, A/D=turn). Make start/stop fluent and smooth. Add UX calibration settings to Draw mode (Speed, Distance Scale, Turn Sharpness, L/R Trim).
+11. Block OS/browser context menu on long press
 ========================================================================
 -->
 <html lang="en">
@@ -28,7 +29,7 @@ PROMPT HISTORY TO RECREATE THIS APP:
   </script>
   <style>
     /* Prevent pull-to-refresh and selection during active controls */
-    body { overscroll-behavior-y: none; user-select: none; -webkit-user-select: none; touch-action: pan-y; }
+    body { overscroll-behavior-y: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: pan-y; }
     
     /* Custom CSS for vertical sliders */
     .slider-container {
@@ -398,6 +399,11 @@ PROMPT HISTORY TO RECREATE THIS APP:
     if (!navigator.bluetooth) {
       document.getElementById('unsupported-warning').classList.remove('hidden');
     }
+
+    // Prevent OS/Browser context menu on long press
+    window.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+    });
 
     // --- Tab Switching Logic ---
     window.switchTab = function(tabId) {
