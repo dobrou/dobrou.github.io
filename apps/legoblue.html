@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
 ========================================================================
-App Version: 1.3.0
+App Version: 2.0.0
 
 PROMPT HISTORY TO RECREATE THIS APP:
 1. Create app, connect and control Circuit Cubes Bluetooth device
@@ -11,12 +11,13 @@ PROMPT HISTORY TO RECREATE THIS APP:
 5. Keep prompts comment shorter, only summarized user input. Keep also update app version at top of the top comment
 6. Fix empty telemetry logs (filter null bytes) and add dark theme support
 7. Remove the telemetry part from app
+8. Add Multi-mode inputs (Tabs): Sliders, Phone Gyroscope (Steering wheel), and Draw-to-Drive macro. Optimize for Tank Drive (Motor A = Left, Motor B = Right). Keep UI simple and settings applied globally.
 ========================================================================
 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Circuit Control</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
@@ -24,98 +25,43 @@ PROMPT HISTORY TO RECREATE THIS APP:
     tailwind.config = { darkMode: 'media' }
   </script>
   <style>
+    /* Prevent pull-to-refresh and selection during active controls */
+    body { overscroll-behavior-y: none; user-select: none; -webkit-user-select: none; touch-action: pan-y; }
+    
     /* Custom CSS for vertical sliders */
     .slider-container {
-      position: relative;
-      height: 256px; /* h-64 equivalent */
-      width: 80px;   /* w-20 equivalent */
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background-color: rgba(241, 245, 249, 0.8);
-      border-radius: 40px;
-      box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
-      border: 1px solid rgba(226, 232, 240, 0.5);
-      margin-bottom: 2rem;
+      position: relative; height: 256px; width: 80px; display: flex; align-items: center; justify-content: center;
+      background-color: rgba(241, 245, 249, 0.8); border-radius: 40px;
+      box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06); border: 1px solid rgba(226, 232, 240, 0.5); margin-bottom: 2rem;
     }
-
-    .slider-center-line {
-      position: absolute;
-      width: 40px;
-      height: 4px;
-      background-color: #cbd5e1;
-      border-radius: 9999px;
-      z-index: 0;
-    }
-
+    .slider-center-line { position: absolute; width: 40px; height: 4px; background-color: #cbd5e1; border-radius: 9999px; z-index: 0; }
     .custom-slider {
-      -webkit-appearance: none;
-      background: transparent;
-      width: 256px; /* Matches container height */
-      height: 8px;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%) rotate(-90deg);
-      z-index: 10;
-      outline: none;
+      -webkit-appearance: none; background: transparent; width: 256px; height: 8px; position: absolute;
+      top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-90deg); z-index: 10; outline: none; touch-action: none;
     }
-
     .custom-slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: var(--thumb-color, #2563eb);
-      cursor: grab;
-      border: 6px solid #ffffff;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15), inset 0 2px 4px rgba(255,255,255,0.3);
-      transition: transform 0.1s;
+      -webkit-appearance: none; appearance: none; width: 44px; height: 44px; border-radius: 50%;
+      background: var(--thumb-color, #2563eb); cursor: grab; border: 6px solid #ffffff;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15), inset 0 2px 4px rgba(255,255,255,0.3); transition: transform 0.1s;
     }
-
-    .custom-slider::-webkit-slider-thumb:active {
-      cursor: grabbing;
-      transform: scale(1.05);
-    }
-
+    .custom-slider::-webkit-slider-thumb:active { cursor: grabbing; transform: scale(1.05); }
     .custom-slider::-moz-range-thumb {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: var(--thumb-color, #2563eb);
-      cursor: grab;
-      border: 6px solid #ffffff;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15), inset 0 2px 4px rgba(255,255,255,0.3);
-      transition: transform 0.1s;
+      width: 44px; height: 44px; border-radius: 50%; background: var(--thumb-color, #2563eb); cursor: grab;
+      border: 6px solid #ffffff; box-shadow: 0 4px 10px rgba(0,0,0,0.15), inset 0 2px 4px rgba(255,255,255,0.3); transition: transform 0.1s;
     }
-
-    .custom-slider::-moz-range-thumb:active {
-      cursor: grabbing;
-      transform: scale(1.05);
-    }
-    
-    /* Active Track Indicator */
+    .custom-slider::-moz-range-thumb:active { cursor: grabbing; transform: scale(1.05); }
     .slider-track-fill {
-      position: absolute;
-      width: 8px;
-      border-radius: 9999px;
-      z-index: 0;
-      opacity: 0.2;
-      bottom: 50%;
-      transform-origin: bottom;
-      background-color: var(--thumb-color, #2563eb);
+      position: absolute; width: 8px; border-radius: 9999px; z-index: 0; opacity: 0.2; bottom: 50%;
+      transform-origin: bottom; background-color: var(--thumb-color, #2563eb);
     }
 
+    /* Tab active states */
+    .tab-active { background-color: white; color: #2563eb; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    
     @media (prefers-color-scheme: dark) {
-      .slider-container {
-        background-color: rgba(15, 23, 42, 0.8); /* slate-900 */
-        border-color: rgba(51, 65, 85, 0.5); /* slate-700 */
-        box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
-      }
-      .slider-center-line {
-        background-color: #475569; /* slate-600 */
-      }
+      .slider-container { background-color: rgba(15, 23, 42, 0.8); border-color: rgba(51, 65, 85, 0.5); box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5); }
+      .slider-center-line { background-color: #475569; }
+      .tab-active { background-color: #1e293b; color: #60a5fa; box-shadow: 0 1px 3px rgba(0,0,0,0.3); border: 1px solid #334155; }
     }
   </style>
 </head>
@@ -127,9 +73,7 @@ PROMPT HISTORY TO RECREATE THIS APP:
       <i class="ph ph-warning-circle text-6xl text-red-400 mb-6 block"></i>
       <h2 class="text-2xl font-bold mb-3 text-white">Browser Not Supported</h2>
       <p class="text-red-200 leading-relaxed">
-        Your browser doesn't support the Web Bluetooth API needed to connect to Circuit Cubes. 
-        <br><br>
-        Please use <strong>Chrome, Edge, or Opera</strong> on Desktop/Android. If you're on iOS, you need a specialized BLE browser like <strong>Bluefy</strong>.
+        Your browser doesn't support Web Bluetooth. Please use <strong>Chrome, Edge, or Opera</strong> on Desktop/Android. For iOS, use a BLE browser like <strong>Bluefy</strong>.
       </p>
     </div>
   </div>
@@ -146,17 +90,14 @@ PROMPT HISTORY TO RECREATE THIS APP:
     </div>
     
     <div>
-      <!-- Connect Button -->
       <button id="btn-connect" class="flex items-center px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-bold shadow-lg shadow-blue-600/20 transition-all transform active:scale-95">
-        <i class="ph-bold ph-bluetooth mr-2 text-xl"></i>
-        <span>Connect Hub</span>
+        <i class="ph-bold ph-bluetooth mr-2 text-xl"></i><span class="hidden sm:inline">Connect Hub</span>
       </button>
 
-      <!-- Connected State (Hidden by default) -->
       <div id="connected-state" class="hidden flex items-center space-x-3">
         <span class="flex items-center text-sm font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-full border border-slate-200 dark:border-slate-700 transition-colors">
           <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
-          <span id="device-name">Circuit Cube</span>
+          <span id="device-name" class="max-w-[100px] truncate sm:max-w-none">Circuit Cube</span>
         </span>
         <button id="btn-disconnect" class="p-2.5 text-slate-400 dark:text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors" title="Disconnect">
           <i class="ph-bold ph-power text-xl"></i>
@@ -167,7 +108,6 @@ PROMPT HISTORY TO RECREATE THIS APP:
 
   <main class="flex-1 max-w-5xl w-full mx-auto p-4 md:p-8">
     
-    <!-- Error Message -->
     <div id="error-banner" class="hidden mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-2xl flex items-start text-red-700 dark:text-red-400 shadow-sm transition-colors">
       <i class="ph-fill ph-warning-circle text-2xl mr-3 shrink-0 mt-0.5"></i>
       <div>
@@ -176,137 +116,187 @@ PROMPT HISTORY TO RECREATE THIS APP:
       </div>
     </div>
 
-    <!-- Motors Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-      
-      <!-- Motor A Panel -->
-      <div class="flex flex-col items-center bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 relative overflow-hidden transition-colors">
-        <div class="absolute -right-8 -top-8 w-24 h-24 rounded-full opacity-10 pointer-events-none bg-[#2563eb]"></div>
-        <h3 class="font-black text-2xl tracking-tight mb-5 text-blue-600 dark:text-blue-500">Motor A</h3>
+    <!-- TABS NAVIGATION -->
+    <div class="flex p-1.5 space-x-1 md:space-x-2 mb-8 bg-slate-200/60 dark:bg-slate-800/60 rounded-2xl sticky top-20 z-40 backdrop-blur-md">
+      <button onclick="switchTab('sliders')" id="tab-btn-sliders" class="flex-1 py-3 rounded-xl font-bold tab-active transition-all text-xs sm:text-sm md:text-base flex justify-center items-center">
+        <i class="ph-bold ph-sliders mr-1.5 md:mr-2 text-lg"></i> <span class="hidden xs:inline">Sliders</span>
+      </button>
+      <button onclick="switchTab('gyro')" id="tab-btn-gyro" class="flex-1 py-3 rounded-xl font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all text-xs sm:text-sm md:text-base flex justify-center items-center">
+        <i class="ph-bold ph-device-rotate mr-1.5 md:mr-2 text-lg"></i> <span class="hidden xs:inline">Gyroscope</span>
+      </button>
+      <button onclick="switchTab('draw')" id="tab-btn-draw" class="flex-1 py-3 rounded-xl font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all text-xs sm:text-sm md:text-base flex justify-center items-center">
+        <i class="ph-bold ph-scribble-loop mr-1.5 md:mr-2 text-lg"></i> <span class="hidden xs:inline">Draw Path</span>
+      </button>
+    </div>
+
+    <!-- TAB 1: SLIDERS (MANUAL) -->
+    <div id="tab-content-sliders" class="block animate-fade-in">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
         
-        <div class="flex gap-2 mb-6 w-full">
-          <button id="snap-a" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleSnap('a')">Snap: OFF</button>
-          <button id="invert-a" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleInvert('a')">Normal</button>
-        </div>
-        
-        <div class="bg-slate-50 dark:bg-slate-950 w-full py-4 rounded-2xl mb-8 flex justify-center items-center shadow-inner border border-slate-200 dark:border-slate-800 transition-colors">
-          <span id="display-a" class="font-mono text-4xl font-bold text-slate-800 dark:text-slate-100 w-20 text-center tracking-tighter">0</span>
+        <!-- Motor A Panel (LEFT TANK) -->
+        <div class="flex flex-col items-center bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 relative overflow-hidden transition-colors">
+          <div class="absolute -right-8 -top-8 w-24 h-24 rounded-full opacity-10 pointer-events-none bg-[#2563eb]"></div>
+          <h3 class="font-black text-2xl tracking-tight text-blue-600 dark:text-blue-500">Left Track</h3>
+          <p class="text-xs font-bold text-slate-400 mb-5 uppercase tracking-wider">Motor A</p>
+          
+          <div class="flex gap-2 mb-6 w-full">
+            <button id="snap-a" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleSnap('a')">Snap: OFF</button>
+            <button id="invert-a" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleInvert('a')">Normal</button>
+          </div>
+          
+          <div class="bg-slate-50 dark:bg-slate-950 w-full py-4 rounded-2xl mb-8 flex justify-center items-center shadow-inner border border-slate-200 dark:border-slate-800 transition-colors">
+            <span id="display-a" class="font-mono text-4xl font-bold text-slate-800 dark:text-slate-100 w-20 text-center tracking-tighter">0</span>
+          </div>
+
+          <div class="slider-container">
+            <div class="slider-center-line"></div>
+            <div id="fill-a" class="slider-track-fill" style="--thumb-color: #2563eb; height: 0%;"></div>
+            <input type="range" id="slider-a" min="-255" max="255" value="0" style="--thumb-color: #2563eb;" class="custom-slider"
+                   oninput="handleSlider('a', this.value)" onpointerup="handleSliderRelease('a')" ontouchend="handleSliderRelease('a')">
+          </div>
         </div>
 
-        <div class="slider-container">
-          <div class="slider-center-line"></div>
-          <div id="fill-a" class="slider-track-fill" style="--thumb-color: #2563eb; height: 0%;"></div>
-          <input type="range" id="slider-a" min="-255" max="255" value="0" style="--thumb-color: #2563eb;" class="custom-slider"
-                 oninput="handleSlider('a', this.value)" onpointerup="handleSliderRelease('a')">
+        <!-- Motor B Panel (RIGHT TANK) -->
+        <div class="flex flex-col items-center bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 relative overflow-hidden transition-colors">
+          <div class="absolute -right-8 -top-8 w-24 h-24 rounded-full opacity-10 pointer-events-none bg-[#059669]"></div>
+          <h3 class="font-black text-2xl tracking-tight text-emerald-600 dark:text-emerald-500">Right Track</h3>
+          <p class="text-xs font-bold text-slate-400 mb-5 uppercase tracking-wider">Motor B</p>
+          
+          <div class="flex gap-2 mb-6 w-full">
+            <button id="snap-b" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleSnap('b')">Snap: OFF</button>
+            <button id="invert-b" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleInvert('b')">Normal</button>
+          </div>
+          
+          <div class="bg-slate-50 dark:bg-slate-950 w-full py-4 rounded-2xl mb-8 flex justify-center items-center shadow-inner border border-slate-200 dark:border-slate-800 transition-colors">
+            <span id="display-b" class="font-mono text-4xl font-bold text-slate-800 dark:text-slate-100 w-20 text-center tracking-tighter">0</span>
+          </div>
+
+          <div class="slider-container">
+            <div class="slider-center-line"></div>
+            <div id="fill-b" class="slider-track-fill" style="--thumb-color: #059669; height: 0%;"></div>
+            <input type="range" id="slider-b" min="-255" max="255" value="0" style="--thumb-color: #059669;" class="custom-slider"
+                   oninput="handleSlider('b', this.value)" onpointerup="handleSliderRelease('b')" ontouchend="handleSliderRelease('b')">
+          </div>
         </div>
 
-        <button onclick="setSpeed('a', 0)" class="w-full py-4 rounded-2xl font-black text-white text-lg shadow-lg transform active:scale-95 transition-all border-b-4 border-black/20 bg-blue-600">
-          STOP
+        <!-- Motor C Panel (AUX) -->
+        <div class="flex flex-col items-center bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 relative overflow-hidden transition-colors hidden md:flex">
+          <div class="absolute -right-8 -top-8 w-24 h-24 rounded-full opacity-10 pointer-events-none bg-[#e11d48]"></div>
+          <h3 class="font-black text-2xl tracking-tight text-rose-600 dark:text-rose-500">Auxiliary</h3>
+          <p class="text-xs font-bold text-slate-400 mb-5 uppercase tracking-wider">Motor C</p>
+          
+          <div class="flex gap-2 mb-6 w-full">
+            <button id="snap-c" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleSnap('c')">Snap: OFF</button>
+            <button id="invert-c" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleInvert('c')">Normal</button>
+          </div>
+          
+          <div class="bg-slate-50 dark:bg-slate-950 w-full py-4 rounded-2xl mb-8 flex justify-center items-center shadow-inner border border-slate-200 dark:border-slate-800 transition-colors">
+            <span id="display-c" class="font-mono text-4xl font-bold text-slate-800 dark:text-slate-100 w-20 text-center tracking-tighter">0</span>
+          </div>
+
+          <div class="slider-container">
+            <div class="slider-center-line"></div>
+            <div id="fill-c" class="slider-track-fill" style="--thumb-color: #e11d48; height: 0%;"></div>
+            <input type="range" id="slider-c" min="-255" max="255" value="0" style="--thumb-color: #e11d48;" class="custom-slider"
+                   oninput="handleSlider('c', this.value)" onpointerup="handleSliderRelease('c')" ontouchend="handleSliderRelease('c')">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: TILT (GYRO) -->
+    <div id="tab-content-gyro" class="hidden animate-fade-in">
+      <div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 flex flex-col items-center">
+        
+        <div class="text-center mb-8 max-w-md">
+          <h3 class="text-2xl font-black mb-2 text-slate-800 dark:text-white">Tilt to Drive</h3>
+          <p class="text-slate-500 dark:text-slate-400 text-sm">Tap Start, hold your phone comfortably, and tilt it like a steering wheel. Tank mixing is handled automatically!</p>
+        </div>
+
+        <!-- Target Visualizer -->
+        <div class="relative w-64 h-64 bg-slate-100 dark:bg-slate-800 rounded-full border-4 border-slate-200 dark:border-slate-700 mb-8 overflow-hidden shadow-inner flex items-center justify-center pointer-events-none">
+          <!-- Crosshairs -->
+          <div class="absolute w-full h-0.5 bg-slate-300 dark:bg-slate-600/50"></div>
+          <div class="absolute h-full w-0.5 bg-slate-300 dark:bg-slate-600/50"></div>
+          <!-- Inner circles -->
+          <div class="absolute w-48 h-48 rounded-full border border-slate-300 dark:border-slate-600/30"></div>
+          <div class="absolute w-24 h-24 rounded-full border border-slate-300 dark:border-slate-600/30"></div>
+          
+          <!-- Moving Bubble -->
+          <div id="gyro-bubble" class="absolute w-12 h-12 bg-indigo-500 rounded-full shadow-lg transition-transform duration-75 ease-out flex items-center justify-center z-10" style="transform: translate(0px, 0px);">
+            <div class="w-8 h-8 rounded-full border-4 border-white/50"></div>
+          </div>
+        </div>
+
+        <!-- Telemetry Data -->
+        <div class="flex gap-4 w-full max-w-md mb-6">
+          <div class="flex-1 bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl text-center border border-slate-200 dark:border-slate-800">
+            <p class="text-xs font-bold text-slate-400 mb-1">LEFT TRACK (A)</p>
+            <p id="gyro-left-val" class="font-mono text-2xl font-bold text-blue-600 dark:text-blue-400">0</p>
+          </div>
+          <div class="flex-1 bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl text-center border border-slate-200 dark:border-slate-800">
+            <p class="text-xs font-bold text-slate-400 mb-1">RIGHT TRACK (B)</p>
+            <p id="gyro-right-val" class="font-mono text-2xl font-bold text-emerald-600 dark:text-emerald-400">0</p>
+          </div>
+        </div>
+
+        <button id="btn-toggle-gyro" onclick="toggleGyro()" class="w-full max-w-md py-4 rounded-2xl font-black text-white text-lg shadow-lg transform active:scale-95 transition-all border-b-4 border-black/20 bg-indigo-600 hover:bg-indigo-700">
+          <i class="ph-bold ph-play mr-2"></i> START & SET ZERO
         </button>
       </div>
+    </div>
 
-      <!-- Motor B Panel -->
-      <div class="flex flex-col items-center bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 relative overflow-hidden transition-colors">
-        <div class="absolute -right-8 -top-8 w-24 h-24 rounded-full opacity-10 pointer-events-none bg-[#059669]"></div>
-        <h3 class="font-black text-2xl tracking-tight mb-5 text-emerald-600 dark:text-emerald-500">Motor B</h3>
+    <!-- TAB 3: DRAW PATH (MACRO) -->
+    <div id="tab-content-draw" class="hidden animate-fade-in">
+      <div class="bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 flex flex-col items-center">
         
-        <div class="flex gap-2 mb-6 w-full">
-          <button id="snap-b" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-800 text-white shadow-md" onclick="toggleSnap('b')">Snap: ON</button>
-          <button id="invert-b" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleInvert('b')">Normal</button>
-        </div>
-        
-        <div class="bg-slate-50 dark:bg-slate-950 w-full py-4 rounded-2xl mb-8 flex justify-center items-center shadow-inner border border-slate-200 dark:border-slate-800 transition-colors">
-          <span id="display-b" class="font-mono text-4xl font-bold text-slate-800 dark:text-slate-100 w-20 text-center tracking-tighter">0</span>
+        <div class="text-center mb-6 max-w-xl">
+          <h3 class="text-2xl font-black mb-2 text-slate-800 dark:text-white">Draw to Drive</h3>
+          <p class="text-slate-500 dark:text-slate-400 text-sm">Draw a continuous path on the canvas below. When you tap Drive, the app simulates a robot driving that path and sends tank commands to your hub.</p>
         </div>
 
-        <div class="slider-container">
-          <div class="slider-center-line"></div>
-          <div id="fill-b" class="slider-track-fill" style="--thumb-color: #059669; height: 0%;"></div>
-          <input type="range" id="slider-b" min="-255" max="255" value="0" style="--thumb-color: #059669;" class="custom-slider"
-                 oninput="handleSlider('b', this.value)" onpointerup="handleSliderRelease('b')">
+        <!-- Canvas Area -->
+        <div class="relative w-full max-w-2xl bg-slate-50 dark:bg-slate-950 rounded-2xl border-2 border-slate-200 dark:border-slate-700 mb-6 overflow-hidden touch-none" style="height: 400px; touch-action: none;">
+          <!-- Grid Background -->
+          <div class="absolute inset-0 opacity-[0.15] dark:opacity-[0.05] pointer-events-none" style="background-image: radial-gradient(var(--tw-colors-slate-800) 1px, transparent 1px); background-size: 20px 20px;"></div>
+          
+          <canvas id="draw-canvas" class="absolute inset-0 w-full h-full z-10 cursor-crosshair touch-none"></canvas>
+          
+          <!-- Status Overlay -->
+          <div id="macro-status" class="absolute top-4 left-4 bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg z-20 hidden items-center">
+            <i class="ph-bold ph-spinner animate-spin mr-2"></i> Driving Macro...
+          </div>
         </div>
 
-        <button onclick="setSpeed('b', 0)" class="w-full py-4 rounded-2xl font-black text-white text-lg shadow-lg transform active:scale-95 transition-all border-b-4 border-black/20 bg-emerald-600">
-          STOP
-        </button>
+        <!-- Controls -->
+        <div class="flex gap-4 w-full max-w-2xl">
+          <button onclick="clearCanvas()" class="flex-1 py-4 rounded-2xl font-black text-slate-600 dark:text-slate-300 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-lg shadow transition-all transform active:scale-95">
+            CLEAR
+          </button>
+          <button id="btn-play-macro" onclick="playPathMacro()" class="flex-[2] py-4 rounded-2xl font-black text-white text-lg shadow-lg transform active:scale-95 transition-all border-b-4 border-black/20 bg-emerald-600 hover:bg-emerald-700">
+            <i class="ph-bold ph-play mr-2"></i> DRIVE PATH
+          </button>
+        </div>
       </div>
-
-      <!-- Motor C Panel -->
-      <div class="flex flex-col items-center bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-xl border border-slate-100 dark:border-slate-800 relative overflow-hidden transition-colors">
-        <div class="absolute -right-8 -top-8 w-24 h-24 rounded-full opacity-10 pointer-events-none bg-[#e11d48]"></div>
-        <h3 class="font-black text-2xl tracking-tight mb-5 text-rose-600 dark:text-rose-500">Motor C</h3>
-        
-        <div class="flex gap-2 mb-6 w-full">
-          <button id="snap-c" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleSnap('c')">Snap: OFF</button>
-          <button id="invert-c" class="flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" onclick="toggleInvert('c')">Normal</button>
-        </div>
-        
-        <div class="bg-slate-50 dark:bg-slate-950 w-full py-4 rounded-2xl mb-8 flex justify-center items-center shadow-inner border border-slate-200 dark:border-slate-800 transition-colors">
-          <span id="display-c" class="font-mono text-4xl font-bold text-slate-800 dark:text-slate-100 w-20 text-center tracking-tighter">0</span>
-        </div>
-
-        <div class="slider-container">
-          <div class="slider-center-line"></div>
-          <div id="fill-c" class="slider-track-fill" style="--thumb-color: #e11d48; height: 0%;"></div>
-          <input type="range" id="slider-c" min="-255" max="255" value="0" style="--thumb-color: #e11d48;" class="custom-slider"
-                 oninput="handleSlider('c', this.value)" onpointerup="handleSliderRelease('c')">
-        </div>
-
-        <button onclick="setSpeed('c', 0)" class="w-full py-4 rounded-2xl font-black text-white text-lg shadow-lg transform active:scale-95 transition-all border-b-4 border-black/20 bg-rose-600">
-          STOP
-        </button>
-      </div>
-
     </div>
     
-    <!-- Global Controls -->
-    <div class="mt-12 flex justify-center">
+    <!-- Global Emergency Stop -->
+    <div class="mt-8 mb-12 flex justify-center">
       <button onclick="stopAll()" class="flex items-center justify-center px-10 py-5 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black text-xl shadow-xl shadow-red-600/20 transform active:scale-95 transition-all w-full max-w-md border-b-4 border-red-800">
         <i class="ph-fill ph-stop mr-3 text-2xl"></i>
         EMERGENCY STOP
       </button>
     </div>
     
-    <!-- Instructions -->
-    <div class="mt-12 p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-6 transition-colors">
-      <div class="flex-1">
-        <h3 class="font-bold text-slate-800 dark:text-slate-100 mb-3 flex items-center text-lg">
-          <i class="ph-fill ph-info mr-2 text-blue-500 text-xl"></i>
-          How to use
-        </h3>
-        <ol class="list-decimal list-inside text-slate-600 dark:text-slate-400 space-y-2 text-sm">
-          <li>Turn on your Circuit Cubes Bluetooth Hub.</li>
-          <li>Click <strong>Connect Hub</strong> and select it from the pairing menu.</li>
-          <li>Drag the sliders to control speed (-255 to 255).</li>
-          <li><strong>Snap:</strong> When ON, the motor stops instantly when you let go of the slider (perfect for steering).</li>
-          <li><strong>Invert:</strong> Reverses motor direction in software if your build is wired backwards.</li>
-        </ol>
-      </div>
-      <div class="flex-1 bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50">
-        <h3 class="font-bold text-slate-800 dark:text-slate-200 mb-3 text-sm uppercase tracking-wider">Keyboard Controls</h3>
-        <div class="space-y-4">
-          <div class="flex items-center text-sm text-slate-600 dark:text-slate-400">
-            <div class="flex gap-1 mr-3">
-              <kbd class="font-mono font-bold bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-2 py-1 rounded shadow-sm border border-slate-200 dark:border-slate-600">W</kbd>
-              <kbd class="font-mono font-bold bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-2 py-1 rounded shadow-sm border border-slate-200 dark:border-slate-600">S</kbd>
-            </div>
-            <span>Control Motor A (Drive)</span>
-          </div>
-          <div class="flex items-center text-sm text-slate-600 dark:text-slate-400">
-            <div class="flex gap-1 mr-3">
-              <kbd class="font-mono font-bold bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-2 py-1 rounded shadow-sm border border-slate-200 dark:border-slate-600">A</kbd>
-              <kbd class="font-mono font-bold bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-2 py-1 rounded shadow-sm border border-slate-200 dark:border-slate-600">D</kbd>
-            </div>
-            <span>Control Motor B (Steer)</span>
-          </div>
-          <p class="text-xs text-slate-400 dark:text-slate-500 mt-2 italic">* Arrow keys also supported.</p>
-        </div>
-      </div>
-    </div>
   </main>
 
+  <style>
+    .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+
   <script>
-    // --- Configuration & State ---
+    // --- Configuration & Global State ---
     const NUS_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
     const NUS_RX_CHARACTERISTIC_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
 
@@ -315,34 +305,63 @@ PROMPT HISTORY TO RECREATE THIS APP:
     
     const state = {
       speeds: { a: 0, b: 0, c: 0 },
-      snap: { a: false, b: true, c: false },
-      invert: { a: false, b: false, c: false }
+      snap: { a: false, b: false, c: false },
+      invert: { a: false, b: false, c: false },
+      currentTab: 'sliders'
     };
 
     const activeKeys = new Set();
-    
-    // GATT Queueing System
     let commandQueue = [];
     let isWriting = false;
 
     // --- DOM Elements ---
     const btnConnect = document.getElementById('btn-connect');
-    const btnDisconnect = document.getElementById('btn-disconnect');
     const connectedState = document.getElementById('connected-state');
     const deviceNameDisplay = document.getElementById('device-name');
     const errorBanner = document.getElementById('error-banner');
-    const errorMessage = document.getElementById('error-message');
 
-    // --- Initialization Check ---
     if (!navigator.bluetooth) {
       document.getElementById('unsupported-warning').classList.remove('hidden');
     }
 
-    // --- Bluetooth Logic ---
+    // --- Tab Switching Logic ---
+    window.switchTab = function(tabId) {
+      // 1. Safety stop
+      stopAll(); 
+      if (state.currentTab === 'gyro' && isGyroActive) toggleGyro(true);
+      if (state.currentTab === 'draw' && isMacroPlaying) stopMacro();
+
+      state.currentTab = tabId;
+
+      // 2. UI Update
+      ['sliders', 'gyro', 'draw'].forEach(t => {
+        const btn = document.getElementById(`tab-btn-${t}`);
+        const content = document.getElementById(`tab-content-${t}`);
+        
+        if (t === tabId) {
+          btn.classList.add('tab-active');
+          btn.classList.remove('text-slate-500', 'dark:text-slate-400');
+          content.classList.remove('hidden');
+          content.classList.add('block');
+        } else {
+          btn.classList.remove('tab-active');
+          btn.classList.add('text-slate-500', 'dark:text-slate-400');
+          content.classList.add('hidden');
+          content.classList.remove('block');
+        }
+      });
+
+      // 3. Tab specific initializations
+      if (tabId === 'draw') {
+        setTimeout(initCanvas, 50); // Small delay to let container render before getting dimensions
+      }
+    };
+
+    // --- Bluetooth Connection ---
     btnConnect.addEventListener('click', async () => {
       try {
         errorBanner.classList.add('hidden');
-        btnConnect.innerHTML = '<i class="ph-bold ph-spinner animate-spin mr-2 text-xl"></i><span>Connecting...</span>';
+        btnConnect.innerHTML = '<i class="ph-bold ph-spinner animate-spin mr-2 text-xl"></i><span class="hidden sm:inline">Connecting...</span>';
         
         bluetoothDevice = await navigator.bluetooth.requestDevice({
           filters: [{ services: [NUS_SERVICE_UUID] }]
@@ -354,7 +373,6 @@ PROMPT HISTORY TO RECREATE THIS APP:
         const service = await server.getPrimaryService(NUS_SERVICE_UUID);
         rxCharacteristic = await service.getCharacteristic(NUS_RX_CHARACTERISTIC_UUID);
 
-        // Update UI
         deviceNameDisplay.textContent = bluetoothDevice.name || 'Circuit Cube';
         btnConnect.classList.add('hidden');
         connectedState.classList.remove('hidden');
@@ -362,38 +380,29 @@ PROMPT HISTORY TO RECREATE THIS APP:
         
       } catch (error) {
         console.error("Connection failed", error);
-        btnConnect.innerHTML = '<i class="ph-bold ph-bluetooth mr-2 text-xl"></i><span>Connect Hub</span>';
+        btnConnect.innerHTML = '<i class="ph-bold ph-bluetooth mr-2 text-xl"></i><span class="hidden sm:inline">Connect Hub</span>';
         if (error.name !== 'NotFoundError') {
-          errorMessage.textContent = error.message || "Failed to connect to the device.";
+          document.getElementById('error-message').textContent = error.message;
           errorBanner.classList.remove('hidden');
         }
       }
     });
 
-    btnDisconnect.addEventListener('click', () => {
-      if (bluetoothDevice && bluetoothDevice.gatt.connected) {
-        bluetoothDevice.gatt.disconnect();
-      }
+    document.getElementById('btn-disconnect').addEventListener('click', () => {
+      if (bluetoothDevice && bluetoothDevice.gatt.connected) bluetoothDevice.gatt.disconnect();
     });
 
     function onDisconnected() {
-      bluetoothDevice = null;
-      rxCharacteristic = null;
-      commandQueue = [];
-      isWriting = false;
-      stopAll();
-
-      btnConnect.innerHTML = '<i class="ph-bold ph-bluetooth mr-2 text-xl"></i><span>Connect Hub</span>';
+      bluetoothDevice = null; rxCharacteristic = null;
+      commandQueue = []; isWriting = false; stopAll();
+      btnConnect.innerHTML = '<i class="ph-bold ph-bluetooth mr-2 text-xl"></i><span class="hidden sm:inline">Connect Hub</span>';
       btnConnect.classList.remove('hidden');
-      connectedState.classList.add('hidden');
-      connectedState.classList.remove('flex');
+      connectedState.classList.add('hidden'); connectedState.classList.remove('flex');
     }
 
-    // --- Control Logic ---
-
+    // --- Motor Control Base Logic ---
     async function processQueue() {
       if (isWriting || commandQueue.length === 0 || !rxCharacteristic) return;
-      
       isWriting = true;
       const commandToSend = commandQueue.shift();
 
@@ -401,7 +410,6 @@ PROMPT HISTORY TO RECREATE THIS APP:
         const encoder = new TextEncoder();
         await rxCharacteristic.writeValueWithoutResponse(encoder.encode(commandToSend));
       } catch (err) {
-        console.error("Write error:", err);
         if (err.name === 'NetworkError') onDisconnected();
       } finally {
         isWriting = false;
@@ -409,112 +417,363 @@ PROMPT HISTORY TO RECREATE THIS APP:
       }
     }
 
+    // Central function to send commands. Respects Global Invert settings.
     function queueCommand(channel, speed) {
       if (!rxCharacteristic) return;
-      
-      // Apply inversion
       const actualSpeed = state.invert[channel] ? -speed : speed;
-      
       const direction = actualSpeed >= 0 ? '+' : '-';
       const absStr = Math.abs(actualSpeed).toString().padStart(3, '0');
       const command = `${direction}${absStr}${channel}`;
 
-      // Prevent queue bloat by removing pending commands for the SAME channel
       commandQueue = commandQueue.filter(c => !c.endsWith(channel));
       commandQueue.push(command);
-
       processQueue();
     }
 
-    // --- UI Updaters ---
-
     function setSpeed(channel, speed) {
-      speed = parseInt(speed);
+      speed = Math.max(-255, Math.min(255, parseInt(speed) || 0));
       state.speeds[channel] = speed;
       
-      // Update DOM
-      document.getElementById(`slider-${channel}`).value = speed;
-      document.getElementById(`display-${channel}`).textContent = speed;
-      
-      // Update visual fill
-      const fillEl = document.getElementById(`fill-${channel}`);
-      fillEl.style.height = `${(Math.abs(speed) / 255) * 50}%`;
-      fillEl.style.transform = speed < 0 ? 'scaleY(-1)' : 'scaleY(1)';
-
-      // Send to device
+      // Update UI if we are in manual tab
+      if (state.currentTab === 'sliders') {
+        const slider = document.getElementById(`slider-${channel}`);
+        const display = document.getElementById(`display-${channel}`);
+        const fill = document.getElementById(`fill-${channel}`);
+        if(slider && display && fill) {
+          slider.value = speed;
+          display.textContent = speed;
+          fill.style.height = `${(Math.abs(speed) / 255) * 50}%`;
+          fill.style.transform = speed < 0 ? 'scaleY(-1)' : 'scaleY(1)';
+        }
+      }
       queueCommand(channel, speed);
     }
 
-    window.handleSlider = function(channel, val) {
-      setSpeed(channel, val);
-    };
-
-    window.handleSliderRelease = function(channel) {
-      if (state.snap[channel]) {
-        setSpeed(channel, 0);
-      }
-    };
-
+    window.handleSlider = function(channel, val) { setSpeed(channel, val); };
+    window.handleSliderRelease = function(channel) { if (state.snap[channel]) setSpeed(channel, 0); };
+    
     window.stopAll = function() {
-      setSpeed('a', 0);
-      setSpeed('b', 0);
-      setSpeed('c', 0);
+      setSpeed('a', 0); setSpeed('b', 0); setSpeed('c', 0);
+      
+      // Clear Gyro UI
+      if (state.currentTab === 'gyro') {
+        document.getElementById('gyro-bubble').style.transform = `translate(0px, 0px)`;
+        document.getElementById('gyro-left-val').textContent = "0";
+        document.getElementById('gyro-right-val').textContent = "0";
+      }
+      // Stop Macros
+      if (isMacroPlaying) stopMacro();
     };
 
+    // Settings
     window.toggleSnap = function(channel) {
       state.snap[channel] = !state.snap[channel];
       const btn = document.getElementById(`snap-${channel}`);
-      if (state.snap[channel]) {
-        btn.textContent = 'Snap: ON';
-        btn.className = 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-800 text-white shadow-md';
-      } else {
-        btn.textContent = 'Snap: OFF';
-        btn.className = 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700';
-      }
+      btn.textContent = state.snap[channel] ? 'Snap: ON' : 'Snap: OFF';
+      btn.className = state.snap[channel] 
+        ? 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-800 text-white shadow-md'
+        : 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700';
     };
 
     window.toggleInvert = function(channel) {
       state.invert[channel] = !state.invert[channel];
       const btn = document.getElementById(`invert-${channel}`);
-      if (state.invert[channel]) {
-        btn.textContent = 'Inverted';
-        btn.className = 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-amber-500 text-white shadow-md';
-      } else {
-        btn.textContent = 'Normal';
-        btn.className = 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700';
-      }
-      setSpeed(channel, 0); // Safety stop when switching modes
+      btn.textContent = state.invert[channel] ? 'Inverted' : 'Normal';
+      btn.className = state.invert[channel]
+        ? 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-amber-500 text-white shadow-md'
+        : 'flex-1 text-xs py-2 rounded-xl font-bold transition-all bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700';
+      setSpeed(channel, 0); 
     };
 
-    // --- Keyboard Handlers ---
+    // Keyboard bindings (Works globally, but primarily designed for Sliders tab)
     window.addEventListener('keydown', (e) => {
       if (e.repeat || document.activeElement.tagName === 'INPUT') return;
       const key = e.key.toLowerCase();
       activeKeys.add(key);
-
-      if (key === 'w' || key === 'arrowup') setSpeed('a', 255);
-      if (key === 's' || key === 'arrowdown') setSpeed('a', -255);
-      if (key === 'a' || key === 'arrowleft') setSpeed('b', -255);
-      if (key === 'd' || key === 'arrowright') setSpeed('b', 255);
+      if (key === 'w') setSpeed('a', 255);
+      if (key === 's') setSpeed('a', -255);
+      if (key === 'a') setSpeed('b', 255);
+      if (key === 'd') setSpeed('b', -255);
     });
 
     window.addEventListener('keyup', (e) => {
       if (document.activeElement.tagName === 'INPUT') return;
       const key = e.key.toLowerCase();
       activeKeys.delete(key);
-
-      if ((key === 'w' || key === 'arrowup') && !activeKeys.has('s') && !activeKeys.has('arrowdown')) setSpeed('a', 0);
-      else if ((key === 'w' || key === 'arrowup')) setSpeed('a', -255);
-
-      if ((key === 's' || key === 'arrowdown') && !activeKeys.has('w') && !activeKeys.has('arrowup')) setSpeed('a', 0);
-      else if ((key === 's' || key === 'arrowdown')) setSpeed('a', 255);
-
-      if ((key === 'a' || key === 'arrowleft') && !activeKeys.has('d') && !activeKeys.has('arrowright')) setSpeed('b', 0);
-      else if ((key === 'a' || key === 'arrowleft')) setSpeed('b', 255);
-
-      if ((key === 'd' || key === 'arrowright') && !activeKeys.has('a') && !activeKeys.has('arrowleft')) setSpeed('b', 0);
-      else if ((key === 'd' || key === 'arrowright')) setSpeed('b', -255);
+      if (key === 'w' && !activeKeys.has('s')) setSpeed('a', 0);
+      else if (key === 'w') setSpeed('a', -255);
+      if (key === 's' && !activeKeys.has('w')) setSpeed('a', 0);
+      else if (key === 's') setSpeed('a', 255);
+      if (key === 'a' && !activeKeys.has('d')) setSpeed('b', 0);
+      else if (key === 'a') setSpeed('b', -255);
+      if (key === 'd' && !activeKeys.has('a')) setSpeed('b', 0);
+      else if (key === 'd') setSpeed('b', 255);
     });
+
+
+    // ==========================================
+    // TILT (GYRO) LOGIC - TANK MIXING
+    // ==========================================
+    let isGyroActive = false;
+    let gyroZero = { beta: 0, gamma: 0 };
+    
+    window.toggleGyro = async function(forceStop = false) {
+      const btn = document.getElementById('btn-toggle-gyro');
+      
+      if (isGyroActive || forceStop) {
+        window.removeEventListener('deviceorientation', handleOrientation);
+        isGyroActive = false;
+        btn.innerHTML = '<i class="ph-bold ph-play mr-2"></i> START & SET ZERO';
+        btn.className = 'w-full max-w-md py-4 rounded-2xl font-black text-white text-lg shadow-lg transform active:scale-95 transition-all border-b-4 border-black/20 bg-indigo-600 hover:bg-indigo-700';
+        stopAll();
+        return;
+      }
+
+      // iOS 13+ permissions
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          const permission = await DeviceOrientationEvent.requestPermission();
+          if (permission !== 'granted') return alert('Permission to access device orientation was denied.');
+        } catch (e) {
+          return alert('Could not request gyro permissions: ' + e.message);
+        }
+      }
+
+      gyroZero = null; // Calibrate on next tick
+      isGyroActive = true;
+      window.addEventListener('deviceorientation', handleOrientation);
+      
+      btn.innerHTML = '<i class="ph-bold ph-stop mr-2"></i> STOP GYRO';
+      btn.className = 'w-full max-w-md py-4 rounded-2xl font-black text-white text-lg shadow-lg transform active:scale-95 transition-all border-b-4 border-black/20 bg-red-600 hover:bg-red-700';
+    };
+
+    function handleOrientation(event) {
+      if (!isGyroActive || state.currentTab !== 'gyro') return;
+      if (event.beta === null && event.gamma === null) return;
+
+      // Set Zero position on first loop
+      if (!gyroZero) {
+        gyroZero = { beta: event.beta, gamma: event.gamma };
+        return;
+      }
+
+      // Calculate relative pitch and roll
+      let pitch = event.beta - gyroZero.beta;
+      let roll = event.gamma - gyroZero.gamma;
+      
+      // Adapt for landscape mode
+      if (window.orientation === 90 || window.orientation === -90) {
+          let temp = pitch;
+          pitch = (window.orientation === 90) ? -roll : roll;
+          roll = (window.orientation === 90) ? temp : -temp;
+      }
+
+      // Map angles (-30 to +30 degrees) to speeds
+      let throttle = -(pitch / 30) * 255; 
+      let steer = (roll / 30) * 255;
+
+      // Arcade to Tank Drive Mixing Algorithm
+      let left = throttle + steer;
+      let right = throttle - steer;
+
+      // Normalize if exceeding bounds while keeping turn ratio
+      const maxVal = Math.max(Math.abs(left), Math.abs(right));
+      if (maxVal > 255) {
+        left = (left / maxVal) * 255;
+        right = (right / maxVal) * 255;
+      }
+
+      // Deadzone to prevent jitter when holding still
+      if (Math.abs(left) < 30) left = 0;
+      if (Math.abs(right) < 30) right = 0;
+
+      left = Math.round(left);
+      right = Math.round(right);
+
+      setSpeed('a', left);
+      setSpeed('b', right);
+
+      // UI visualizer update
+      const bX = Math.max(-100, Math.min(100, (steer / 255) * 100));
+      const bY = Math.max(-100, Math.min(100, -(throttle / 255) * 100));
+      document.getElementById('gyro-bubble').style.transform = `translate(${bX}px, ${bY}px)`;
+      document.getElementById('gyro-left-val').textContent = left;
+      document.getElementById('gyro-right-val').textContent = right;
+    }
+
+
+    // ==========================================
+    // DRAW PATH TO MACRO LOGIC
+    // ==========================================
+    const canvas = document.getElementById('draw-canvas');
+    const ctx = canvas.getContext('2d');
+    let isDrawing = false;
+    let rawPath = [];
+    let isMacroPlaying = false;
+    let playAnimationId = null;
+
+    function initCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      drawPath();
+    }
+    window.addEventListener('resize', () => { if(state.currentTab === 'draw') initCanvas(); });
+
+    // Canvas Events (Touch & Mouse unified via Pointer Events)
+    canvas.addEventListener('pointerdown', (e) => {
+      if (isMacroPlaying) return; // Ignore drawing while playing
+      isDrawing = true;
+      const rect = canvas.getBoundingClientRect();
+      rawPath = [{ x: e.clientX - rect.left, y: e.clientY - rect.top }];
+      drawPath();
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!isDrawing) return;
+      const rect = canvas.getBoundingClientRect();
+      rawPath.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      drawPath();
+    });
+    canvas.addEventListener('pointerup', () => isDrawing = false);
+    canvas.addEventListener('pointercancel', () => isDrawing = false);
+
+    window.clearCanvas = function() {
+      if (isMacroPlaying) stopMacro();
+      rawPath = [];
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    };
+
+    function drawPath(vRobot = null) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (rawPath.length < 2) return;
+
+      // Stroke Line
+      ctx.beginPath();
+      ctx.moveTo(rawPath[0].x, rawPath[0].y);
+      for (let i = 1; i < rawPath.length; i++) {
+        ctx.lineTo(rawPath[i].x, rawPath[i].y);
+      }
+      ctx.strokeStyle = window.matchMedia('(prefers-color-scheme: dark)').matches ? '#475569' : '#cbd5e1';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
+      // Start Dot
+      ctx.beginPath();
+      ctx.arc(rawPath[0].x, rawPath[0].y, 8, 0, Math.PI*2);
+      ctx.fillStyle = '#059669'; // emerald
+      ctx.fill();
+
+      // Virtual Robot Indicator
+      if (vRobot) {
+        ctx.save();
+        ctx.translate(vRobot.x, vRobot.y);
+        ctx.rotate(vRobot.heading);
+        // Box
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillRect(-12, -12, 24, 24);
+        // Front indicator
+        ctx.fillStyle = '#fbbf24';
+        ctx.fillRect(8, -4, 6, 8);
+        ctx.restore();
+      }
+    }
+
+    // Pure Pursuit Algorithm to translate canvas path into Tank Motor Commands
+    window.playPathMacro = function() {
+      if (rawPath.length < 5 || isMacroPlaying) return;
+      isMacroPlaying = true;
+      document.getElementById('macro-status').classList.remove('hidden');
+      document.getElementById('macro-status').classList.add('flex');
+      
+      // Sub-sample the drawn path to create smooth waypoints
+      const path = [rawPath[0]];
+      for(let i=1; i<rawPath.length; i++) {
+        const last = path[path.length-1];
+        if (Math.hypot(rawPath[i].x - last.x, rawPath[i].y - last.y) > 15) {
+          path.push(rawPath[i]);
+        }
+      }
+
+      let vRobot = { 
+        x: path[0].x, 
+        y: path[0].y, 
+        heading: Math.atan2(path[1].y - path[0].y, path[1].x - path[0].x) 
+      };
+      
+      let targetIndex = 1;
+      let lastTime = performance.now();
+
+      function simulateDrive(time) {
+        if (!isMacroPlaying) return;
+        
+        let dt = (time - lastTime) / 1000;
+        lastTime = time;
+        if (dt > 0.1) dt = 0.05; // Cap dt on lag spikes
+
+        let target = path[targetIndex];
+        let dx = target.x - vRobot.x;
+        let dy = target.y - vRobot.y;
+        let distance = Math.hypot(dx, dy);
+
+        // Advance to next waypoint if close
+        if (distance < 20) {
+          targetIndex++;
+          if (targetIndex >= path.length) {
+            stopMacro();
+            return;
+          }
+          target = path[targetIndex];
+          dx = target.x - vRobot.x;
+          dy = target.y - vRobot.y;
+        }
+
+        // Calculate heading error
+        let targetHeading = Math.atan2(dy, dx);
+        let headingDiff = targetHeading - vRobot.heading;
+        // Normalize angle to [-PI, PI]
+        headingDiff = Math.atan2(Math.sin(headingDiff), Math.cos(headingDiff));
+
+        // Proportional Control
+        let baseSpeed = 200; // Drive forward speed
+        if (Math.abs(headingDiff) > 0.8) baseSpeed = 50; // Slow down for sharp turns
+        
+        let turn = headingDiff * 300; // Turn multiplier (Kp)
+
+        let left = baseSpeed + turn;
+        let right = baseSpeed - turn;
+
+        // Cap speeds
+        left = Math.max(-255, Math.min(255, Math.round(left)));
+        right = Math.max(-255, Math.min(255, Math.round(right)));
+
+        setSpeed('a', left);
+        setSpeed('b', right);
+
+        // Update virtual robot kinematics (pixels/sec mapping)
+        let simMoveSpeed = ((left + right) / 2) / 255 * 180 * dt; // Canvas pixels per sec
+        let simTurnSpeed = ((left - right) / 2) / 255 * 3.5 * dt; // Radians per sec
+
+        vRobot.heading += simTurnSpeed;
+        vRobot.x += Math.cos(vRobot.heading) * simMoveSpeed;
+        vRobot.y += Math.sin(vRobot.heading) * simMoveSpeed;
+
+        drawPath(vRobot);
+        playAnimationId = requestAnimationFrame(simulateDrive);
+      }
+
+      playAnimationId = requestAnimationFrame(simulateDrive);
+    };
+
+    window.stopMacro = function() {
+      isMacroPlaying = false;
+      if (playAnimationId) cancelAnimationFrame(playAnimationId);
+      document.getElementById('macro-status').classList.remove('flex');
+      document.getElementById('macro-status').classList.add('hidden');
+      stopAll();
+      drawPath(); // Re-draw without the virtual robot
+    };
 
   </script>
 </body>
