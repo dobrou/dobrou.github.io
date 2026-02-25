@@ -247,24 +247,35 @@
                 this.x += this.vx;
                 this.y += this.vy;
 
-                if (this.x - this.radius < 0) {
-                    this.x = this.radius;
-                    this.vx = -this.vx * RESTITUTION;
-                    if (Math.abs(this.vx) < Math.abs(gravityX) * 1.5) this.vx = 0;
-                } else if (this.x + this.radius > width) {
-                    this.x = width - this.radius;
-                    this.vx = -this.vx * RESTITUTION;
-                    if (Math.abs(this.vx) < Math.abs(gravityX) * 1.5) this.vx = 0;
-                }
+                // Vyhodnocení okrajů podle aktuálního režimu
+                if (gravityMode === 'space') {
+                    // Nekonečný vesmír: míček se přenese na druhou stranu
+                    if (this.x < -this.radius) this.x = width + this.radius;
+                    else if (this.x > width + this.radius) this.x = -this.radius;
 
-                if (this.y - this.radius < 0) {
-                    this.y = this.radius;
-                    this.vy = -this.vy * RESTITUTION;
-                    if (Math.abs(this.vy) < Math.abs(gravityY) * 1.5) this.vy = 0;
-                } else if (this.y + this.radius > height) {
-                    this.y = height - this.radius;
-                    this.vy = -this.vy * RESTITUTION;
-                    if (Math.abs(this.vy) < Math.abs(gravityY) * 1.5) this.vy = 0;
+                    if (this.y < -this.radius) this.y = height + this.radius;
+                    else if (this.y > height + this.radius) this.y = -this.radius;
+                } else {
+                    // Normální odrážení od okrajů
+                    if (this.x - this.radius < 0) {
+                        this.x = this.radius;
+                        this.vx = -this.vx * RESTITUTION;
+                        if (Math.abs(this.vx) < Math.abs(gravityX) * 1.5) this.vx = 0;
+                    } else if (this.x + this.radius > width) {
+                        this.x = width - this.radius;
+                        this.vx = -this.vx * RESTITUTION;
+                        if (Math.abs(this.vx) < Math.abs(gravityX) * 1.5) this.vx = 0;
+                    }
+
+                    if (this.y - this.radius < 0) {
+                        this.y = this.radius;
+                        this.vy = -this.vy * RESTITUTION;
+                        if (Math.abs(this.vy) < Math.abs(gravityY) * 1.5) this.vy = 0;
+                    } else if (this.y + this.radius > height) {
+                        this.y = height - this.radius;
+                        this.vy = -this.vy * RESTITUTION;
+                        if (Math.abs(this.vy) < Math.abs(gravityY) * 1.5) this.vy = 0;
+                    }
                 }
             }
         }
@@ -476,6 +487,11 @@
                 btnGravityMode.innerHTML = `<svg id="icon-gravity-mode" class="w-6 h-6 transition-transform duration-300 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>`;
                 btnGravityMode.className = "text-gray-500 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10";
                 btnGravityMode.title = "Gravitace: Vypnuto";
+            } else if (gravityMode === 'space') {
+                // Nový stav pro nekonečný vesmír (ikona hvězdiček)
+                btnGravityMode.innerHTML = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>`;
+                btnGravityMode.className = "text-yellow-200 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10";
+                btnGravityMode.title = "Gravitace: Nekonečný vesmír";
             }
         }
 
@@ -507,8 +523,8 @@
         if (btnGravityMode) {
             btnGravityMode.addEventListener('click', async () => {
                 wakeUI();
-                // Určíme, jaké režimy jsou k dispozici podle podpory gyroskopu
-                const modes = hasGyroSupport ? ['down', 'gyro', 'none'] : ['down', 'none'];
+                // Přidání režimu 'space' do seznamu přepínání
+                const modes = hasGyroSupport ? ['down', 'gyro', 'none', 'space'] : ['down', 'none', 'space'];
                 let nextIndex = (modes.indexOf(gravityMode) + 1) % modes.length;
                 let nextMode = modes[nextIndex];
 
@@ -538,7 +554,8 @@
                     if (nextMode === 'down') {
                         gravityX = 0;
                         gravityY = baseGravity;
-                    } else if (nextMode === 'none') {
+                    } else if (nextMode === 'none' || nextMode === 'space') {
+                        // V obou případech (bez gravitace i vesmír) je síla G nulová
                         gravityX = 0;
                         gravityY = 0;
                     }
@@ -588,7 +605,8 @@
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            if (gravityMode !== 'none') {
+            // Indikátor gravitace se nezobrazuje ani ve vesmíru
+            if (gravityMode !== 'none' && gravityMode !== 'space') {
                 const mag = Math.hypot(gravityX, gravityY);
                 if (mag > 0.01) {
                     const angle = Math.atan2(gravityY, gravityX);
