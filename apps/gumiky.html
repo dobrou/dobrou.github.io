@@ -92,6 +92,21 @@
             <!-- Dělící čára -->
             <div class="w-px h-6 bg-white/20 hidden sm:block"></div>
             
+            <!-- Výběr barvy -->
+            <div class="flex items-center gap-1.5" id="color-picker" title="Barva nové kuličky">
+                <!-- Duhové tlačítko (náhodná barva) -->
+                <button data-hue="random" class="color-btn w-5 h-5 rounded-full ring-2 ring-white shadow-sm transition-transform hover:scale-110" style="background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);"></button>
+                <!-- Konkrétní barvy -->
+                <button data-hue="0" class="color-btn w-5 h-5 rounded-full opacity-60 hover:opacity-100 transition-all hover:scale-110" style="background-color: hsl(0, 90%, 55%);"></button>
+                <button data-hue="40" class="color-btn w-5 h-5 rounded-full opacity-60 hover:opacity-100 transition-all hover:scale-110" style="background-color: hsl(40, 90%, 55%);"></button>
+                <button data-hue="120" class="color-btn w-5 h-5 rounded-full opacity-60 hover:opacity-100 transition-all hover:scale-110" style="background-color: hsl(120, 90%, 45%);"></button>
+                <button data-hue="200" class="color-btn w-5 h-5 rounded-full opacity-60 hover:opacity-100 transition-all hover:scale-110" style="background-color: hsl(200, 90%, 55%);"></button>
+                <button data-hue="280" class="color-btn w-5 h-5 rounded-full opacity-60 hover:opacity-100 transition-all hover:scale-110" style="background-color: hsl(280, 90%, 60%);"></button>
+            </div>
+
+            <!-- Dělící čára -->
+            <div class="w-px h-6 bg-white/20 hidden sm:block"></div>
+
             <div class="flex items-center gap-2 sm:gap-4">
                 <!-- Tlačítko Přidat -->
                 <button id="btn-add" class="text-white hover:text-green-400 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10" title="Přidat kuličku (lze i pravým tlačítkem)">
@@ -341,9 +356,11 @@
             }
         }
 
+        let selectedHue = null;
+
         function addBall(x, y) {
             const radius = sizeSlider ? (parseInt(sizeSlider.value) || 30) : 30; 
-            const hue = Math.floor(Math.random() * 360);
+            const hue = selectedHue !== null ? selectedHue : Math.floor(Math.random() * 360);
             balls.push(new Ball(x, y, radius, hue));
         }
 
@@ -428,6 +445,31 @@
                 addBall(width / 2, height / 2);
             });
         }
+
+        // Výběr barvy
+        const colorButtons = document.querySelectorAll('.color-btn');
+        colorButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                wakeUI();
+                // Reset stylů všech barevných tlačítek
+                colorButtons.forEach(b => {
+                    b.classList.remove('ring-2', 'ring-white');
+                    b.classList.add('opacity-60');
+                });
+                
+                // Zvýraznění právě kliknutého tlačítka
+                const target = e.target;
+                target.classList.remove('opacity-60');
+                target.classList.add('ring-2', 'ring-white');
+                
+                const hueVal = target.getAttribute('data-hue');
+                if (hueVal === 'random') {
+                    selectedHue = null;
+                } else {
+                    selectedHue = parseInt(hueVal);
+                }
+            });
+        });
 
         const btnClear = document.getElementById('btn-clear');
         if (btnClear) {
