@@ -89,14 +89,9 @@
                 <input type="range" id="ballSize" min="10" max="80" value="30">
             </div>
 
-            <!-- Dělící čára -->
-            <div class="w-px h-6 bg-white/20 hidden sm:block"></div>
-            
             <!-- Výběr barvy -->
             <div class="flex items-center gap-1.5" id="color-picker" title="Barva nové kuličky">
-                <!-- Duhové tlačítko (náhodná barva) -->
                 <button data-hue="random" class="color-btn w-5 h-5 rounded-full ring-2 ring-white shadow-sm transition-transform hover:scale-110" style="background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);"></button>
-                <!-- Konkrétní barvy -->
                 <button data-hue="0" class="color-btn w-5 h-5 rounded-full opacity-60 hover:opacity-100 transition-all hover:scale-110" style="background-color: hsl(0, 90%, 55%);"></button>
                 <button data-hue="40" class="color-btn w-5 h-5 rounded-full opacity-60 hover:opacity-100 transition-all hover:scale-110" style="background-color: hsl(40, 90%, 55%);"></button>
                 <button data-hue="120" class="color-btn w-5 h-5 rounded-full opacity-60 hover:opacity-100 transition-all hover:scale-110" style="background-color: hsl(120, 90%, 45%);"></button>
@@ -104,16 +99,16 @@
                 <button data-hue="280" class="color-btn w-5 h-5 rounded-full opacity-60 hover:opacity-100 transition-all hover:scale-110" style="background-color: hsl(280, 90%, 60%);"></button>
             </div>
 
-            <!-- Dělící čára -->
+            <!-- Tlačítko Přidat -->
+            <button id="btn-add" class="text-white hover:text-green-400 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10" title="Přidat kuličku (lze i pravým tlačítkem)">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            </button>
+
+            <!-- Dělící čára (pouze jedna) -->
             <div class="w-px h-6 bg-white/20 hidden sm:block"></div>
 
             <div class="flex items-center gap-2 sm:gap-4">
-                <!-- Tlačítko Přidat -->
-                <button id="btn-add" class="text-white hover:text-green-400 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10" title="Přidat kuličku (lze i pravým tlačítkem)">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                </button>
-
-                <!-- Společné Tlačítko Režimu Gravitace (3 stavy) -->
+                <!-- Společné Tlačítko Režimu Gravitace (4 stavy) -->
                 <button id="btn-gravity-mode" class="text-blue-400 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10" title="Gravitace: Dolů">
                     <svg id="icon-gravity-mode" class="w-6 h-6 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
                 </button>
@@ -136,7 +131,7 @@
         const ctx = canvas.getContext('2d');
 
         // Nastavení fyziky a gyroskopu
-        let gravityMode = 'down'; // Možné stavy: 'down', 'gyro', 'none'
+        let gravityMode = 'down'; // Možné stavy: 'down', 'gyro', 'none', 'space'
         let hasGyroSupport = typeof window.DeviceOrientationEvent !== 'undefined' && (/Mobi|Android/i.test(navigator.userAgent) || navigator.maxTouchPoints > 0);
         let useGyro = false;
         let baseGravity = 0.4;
@@ -144,6 +139,13 @@
         let gravityY = baseGravity;
         const FRICTION_AIR = 0.998; 
         const RESTITUTION = 0.85; 
+
+        // Proměnné pro animaci indikátoru gravitace
+        let prevGravX = gravityX;
+        let prevGravY = gravityY;
+        let prevGravMode = gravityMode;
+        let indicatorAlpha = 1.0;
+        let indicatorFadeTimer = 120; // Drží plně zobrazené první 2 vteřiny
 
         let width, height;
         let balls = [];
@@ -251,7 +253,7 @@
                     return;
                 }
 
-                if (gravityMode !== 'none') {
+                if (gravityMode !== 'none' && gravityMode !== 'space') {
                     this.vx += gravityX;
                     this.vy += gravityY;
                 }
@@ -356,7 +358,7 @@
             }
         }
 
-        let selectedHue = null;
+        let selectedHue = null; // null znamená náhodná barva
 
         function addBall(x, y) {
             const radius = sizeSlider ? (parseInt(sizeSlider.value) || 30) : 30; 
@@ -451,13 +453,11 @@
         colorButtons.forEach(btn => {
             btn.addEventListener('click', (e) => {
                 wakeUI();
-                // Reset stylů všech barevných tlačítek
                 colorButtons.forEach(b => {
                     b.classList.remove('ring-2', 'ring-white');
                     b.classList.add('opacity-60');
                 });
                 
-                // Zvýraznění právě kliknutého tlačítka
                 const target = e.target;
                 target.classList.remove('opacity-60');
                 target.classList.add('ring-2', 'ring-white');
@@ -530,7 +530,6 @@
                 btnGravityMode.className = "text-gray-500 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10";
                 btnGravityMode.title = "Gravitace: Vypnuto";
             } else if (gravityMode === 'space') {
-                // Nový stav pro nekonečný vesmír (ikona hvězdiček)
                 btnGravityMode.innerHTML = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>`;
                 btnGravityMode.className = "text-yellow-200 p-2 rounded-full transition-colors bg-white/5 hover:bg-white/10";
                 btnGravityMode.title = "Gravitace: Nekonečný vesmír";
@@ -565,7 +564,6 @@
         if (btnGravityMode) {
             btnGravityMode.addEventListener('click', async () => {
                 wakeUI();
-                // Přidání režimu 'space' do seznamu přepínání
                 const modes = hasGyroSupport ? ['down', 'gyro', 'none', 'space'] : ['down', 'none', 'space'];
                 let nextIndex = (modes.indexOf(gravityMode) + 1) % modes.length;
                 let nextMode = modes[nextIndex];
@@ -597,7 +595,6 @@
                         gravityX = 0;
                         gravityY = baseGravity;
                     } else if (nextMode === 'none' || nextMode === 'space') {
-                        // V obou případech (bez gravitace i vesmír) je síla G nulová
                         gravityX = 0;
                         gravityY = 0;
                     }
@@ -611,6 +608,24 @@
         // --- Hlavní herní smyčka ---
         function animate() {
             ctx.clearRect(0, 0, width, height);
+
+            // Logika pro zobrazení/skrytí indikátoru gravitace
+            const gChange = Math.abs(gravityX - prevGravX) + Math.abs(gravityY - prevGravY);
+            // Reaguje na změnu hodnot gyroskopu nebo na manuální přepnutí režimu
+            if (gChange > 0.02 || gravityMode !== prevGravMode) {
+                indicatorAlpha = 1.0;
+                indicatorFadeTimer = 60; // podrží plnou viditelnost na 1 vteřinu (60 snímků)
+            } else {
+                if (indicatorFadeTimer > 0) {
+                    indicatorFadeTimer--;
+                } else {
+                    indicatorAlpha -= 0.02; // plynulé slábnutí
+                    if (indicatorAlpha < 0) indicatorAlpha = 0;
+                }
+            }
+            prevGravX = gravityX;
+            prevGravY = gravityY;
+            prevGravMode = gravityMode;
 
             balls.forEach(ball => ball.update());
             resolveCollisions();
@@ -628,8 +643,10 @@
                 ctx.setLineDash([]); 
             }
 
-            // Vykreslení indikátoru gravitace
-            drawGravityIndicator(ctx);
+            // Vykreslení indikátoru gravitace (pouze když je alpha > 0)
+            if (indicatorAlpha > 0) {
+                drawGravityIndicator(ctx);
+            }
 
             requestAnimationFrame(animate);
         }
@@ -643,11 +660,11 @@
             ctx.save();
             ctx.beginPath();
             ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            // Opacita závisí na indicatorAlpha
+            ctx.strokeStyle = `rgba(255, 255, 255, ${0.15 * indicatorAlpha})`;
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // Indikátor gravitace se nezobrazuje ani ve vesmíru
             if (gravityMode !== 'none' && gravityMode !== 'space') {
                 const mag = Math.hypot(gravityX, gravityY);
                 if (mag > 0.01) {
@@ -663,18 +680,18 @@
                     ctx.moveTo(ex, ey);
                     ctx.lineTo(ex - Math.cos(angle + 0.4) * 6, ey - Math.sin(angle + 0.4) * 6);
                     
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${0.4 * indicatorAlpha})`;
                     ctx.stroke();
                 } else {
                     ctx.beginPath();
                     ctx.arc(cx, cy, 2, 0, Math.PI * 2);
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.4 * indicatorAlpha})`;
                     ctx.fill();
                 }
             } else {
                 ctx.beginPath();
                 ctx.arc(cx, cy, 2, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.15 * indicatorAlpha})`;
                 ctx.fill();
             }
             ctx.restore();
