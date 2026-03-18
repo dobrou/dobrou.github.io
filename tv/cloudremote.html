@@ -89,7 +89,7 @@
         <button id='com.samsung.tv.knox-browser'>Knox</button>
         <button id='org.tizen.video-player-tv'>Video</button>
       </div>
-      <button onclick="document.getElementById('link').value=document.getElementById('link').value.replace(/:\/\/(www.)?youtu(?:.*\/v\/|.*v\=|\.be\/)([A-Za-z0-9_\-]{11}).*/,'://www.youtube.com/embed/$2?autoplay=1&rel=0')">YTembed</button>
+      <button onclick="document.getElementById('link').value=document.getElementById('link').value.replace(/:\/\/(www.)?youtu(?:.*\/v\/|.*v\=|\.be\/)([A-Za-z0-9_\-]{11}).*/,'://dobrou.github.io/video/youtube?v=$2')">YTembed</button>
     </dialog>
   </div>
   <div onclick='clickKey(event.target.innerText)'>      
@@ -231,7 +231,7 @@
         if( isPwa && url )
         {
           await sendCmd('switch:on');
-          launchApp('org.tizen.browser', url.replace(/:\/\/(www.)?youtu(?:.*\/v\/|.*v\=|\.be\/)([A-Za-z0-9_\-]{11}).*/,'://www.youtube.com/embed/$2?autoplay=1&rel=0'));
+          launchApp('org.tizen.browser', url);
           document.getElementById('link').value = url;
           document.getElementById('openLink').show();
           setStatus(['openLink',isOff,url]);
