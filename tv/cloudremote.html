@@ -202,7 +202,7 @@
         };
         
         var main = status?.components?.main;
-        setStatus(`Connected: ${deviceTv?.label} (${health?.state}:${main?.switch?.switch?.value})<br/>${main?.tvChannel?.tvChannelName?.value} ${main?.tvChannel?.tvChannel?.value}`);
+        setStatus(`Connected: ${deviceTv?.label} (${health?.state}:${main?.switch?.switch?.value})<br/>${main?.tvChannel?.tvChannelName?.value} ${main?.tvChannel?.tvChannel?.value} ${main['samsungvd.mediaInputSource']?.inputSource?.value}`);
         document.getElementById('switch:on') .classList.toggle('light', main?.switch?.switch?.value == 'on'  );
         document.getElementById('switch:off').classList.toggle('light', main?.switch?.switch?.value == 'off' );
         document.getElementById('org.tizen.art-app').classList.toggle('light', main?.tvChannel?.tvChannelName?.value == 'art' );
