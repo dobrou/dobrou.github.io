@@ -246,6 +246,20 @@
       // touch move
       var startTouch;
       document.body.addEventListener('touchstart', e => startTouch = e);
+      document.body.addEventListener('touchend', e => {
+        if(e.target!=document.body) return;
+        var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
+        var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
+
+        if(dx*dx>dy*dy && dx> 30) clickKey('RIGHT');
+        if(dx*dx>dy*dy && dx<-30) clickKey('LEFT');
+        if(dy*dy>dx*dx && dy> 30) clickKey('DOWN');
+        if(dy*dy>dx*dx && dy<-30) clickKey('UP');
+      });      
+      /* RATE LIMIT saving
+      // touch move
+      var startTouch;
+      document.body.addEventListener('touchstart', e => startTouch = e);
       document.body.addEventListener('touchmove', e => {
         if(e.target!=document.body) return;
         var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
@@ -278,6 +292,7 @@
         releaseKey('CHUP');
         releaseKey('CHDOWN');
       });
+      */
       
       // keypress forward
       const keyMap = new Map([
