@@ -230,8 +230,9 @@
         var url = params.get('url') ?? params.get('text') ?? params.get('title');
         if( isPwa && url )
         {
-          await sendCmd('switch:on');
-          launchApp('org.tizen.browser', url);
+          let isOff = window.tv.isOff;
+          await sendCmd('switch:on');          
+          launchApp(url.match(/^https:\/\/api\..*\/download$/) ? 'org.tizen.video-player-tv' :'org.tizen.browser', url);          
           document.getElementById('link').value = url;
           document.getElementById('openLink').show();
           setStatus(['openLink',isOff,url]);
