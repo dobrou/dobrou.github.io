@@ -249,49 +249,14 @@
         if(e.target!=document.body) return;
         var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
         var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
+        var dt = startTouch.timeStamp - e.timeStamp;
 
-        if(dx*dx>dy*dy && dx> 30) clickKey('RIGHT');
-        if(dx*dx>dy*dy && dx<-30) clickKey('LEFT');
-        if(dy*dy>dx*dx && dy> 30) clickKey('DOWN');
-        if(dy*dy>dx*dx && dy<-30) clickKey('UP');
+        if(dx*dx>dy*dy && dx> 30) clickKey('RIGHT'); else
+        if(dx*dx>dy*dy && dx<-30) clickKey('LEFT'); else
+        if(dy*dy>dx*dx && dy> 30) clickKey('DOWN'); else
+        if(dy*dy>dx*dx && dy<-30) clickKey('UP'); else
+        if(dt<250) clickKey('ENTER');
       });      
-      /* RATE LIMIT saving
-      // touch move
-      var startTouch;
-      document.body.addEventListener('touchstart', e => startTouch = e);
-      document.body.addEventListener('touchmove', e => {
-        if(e.target!=document.body) return;
-        var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
-        var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
-
-        if(e.touches.length < 2){
-          if(dx*dx>dy*dy && dx> 30) pressKey('RIGHT') && releaseKey('LEFT');
-          if(dx*dx>dy*dy && dx<-30) pressKey('LEFT')  && releaseKey('RIGHT');
-          if(dy*dy>dx*dx && dy> 30) pressKey('DOWN')  && releaseKey('UP');
-          if(dy*dy>dx*dx && dy<-30) pressKey('UP')    && releaseKey('DOWN');
-        }else{
-          //if(dx*dx>dy*dy && dx> 30) pressKey('VOLUP')   && releaseKey('VOLDOWN');
-          //if(dx*dx>dy*dy && dx<-30) pressKey('VOLDOWN') && releaseKey('VOLUP');
-          if(dy*dy>dx*dx && dy> 30) pressKey('CHDOWN')  && releaseKey('CHUP');
-          if(dy*dy>dx*dx && dy<-30) pressKey('CHUP')    && releaseKey('CHDOWN');          
-        }
-      });      
-      document.body.addEventListener('touchend', e => {
-        if(e.target!=document.body && startTouch.target!=document.body) return;
-        var dx = e.changedTouches[0].pageX-startTouch.changedTouches[0].pageX;
-        var dy = e.changedTouches[0].pageY-startTouch.changedTouches[0].pageY;
-        
-        if(dx==0&&dy==0) clickKey('OK');        
-        releaseKey('RIGHT');
-        releaseKey('LEFT');
-        releaseKey('UP');
-        releaseKey('DOWN');
-        //releaseKey('VOLUP');
-        //releaseKey('VOLDOWN');
-        releaseKey('CHUP');
-        releaseKey('CHDOWN');
-      });
-      */
       
       // keypress forward
       const keyMap = new Map([
