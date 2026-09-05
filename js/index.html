@@ -16,8 +16,7 @@
         h1 { font-size: 1.3rem; border-bottom: 2px solid #eee; padding-bottom: 8px; margin-bottom: 10px; }
         p { color: #666; font-size: 0.85rem; margin-bottom: 20px; }
         ul { list-style: none; padding: 0; margin: 0; }
-        li { background: #fff; padding: 12px; border-radius: 8px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-        .file-title { font-weight: bold; font-size: 0.95rem; margin-bottom: 8px; color: #444; }
+        li { background: #fff; padding: 10px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
         .btn-group { display: flex; gap: 8px; }
         a.bookmarklet {
             flex: 1;
@@ -37,13 +36,14 @@
         }
         a.bookmarklet.embedded { background: #2ea44f; }
         a.bookmarklet:hover { opacity: 0.9; }
+        .icon { font-style: normal; margin-right: 4px; }
         .loading { color: #666; font-style: italic; text-align: center; background: none; box-shadow: none; }
     </style>
 </head>
 <body>
 
     <h1>Bookmarklets</h1>
-    <p>Drag the buttons below to your bookmarks bar. Hover over them to inspect size and type.</p>
+    <p>Drag the buttons below to your bookmarks bar. Hover over them to inspect size and type (🔗 Linked, 📦 Embedded).</p>
     
     <ul id="bookmarklet-list">
         <li class="loading">Detecting environment and building bookmarklets...</li>
@@ -95,17 +95,12 @@
                     const scriptUrl = `https://${user}.github.io/${prefix}${pathPart}${file.name}`;
                     const displayName = 'js: ' + file.name.replace(/\.js$/, '').replace(/\./g, ' ');
 
-                    // Variant 1: Linked / External (Multi-trick loader)
                     const linkedCode = `javascript:(function(){var u='${scriptUrl}?t='+Date.now();function x(){var h=new XMLHttpRequest();h.open('GET',u);h.onload=function(){if(h.status>=200&&h.status<300)try{eval(h.responseText)}catch(e){}};h.send()}function f(){fetch(u).then(r=>r.text()).then(c=>eval(c)).catch(x)}try{var s=document.createElement('script');s.src=u;s.onerror=f;document.head.appendChild(s)}catch(e){f()}})();`;
                     
-                    // Variant 2: Embedded / Offline (Fetch source code and bundle via Base64)
                     let embeddedCode = '#';
-                    let embeddedSizeInfo = 'Failed to embed';
                     try {
                         const fileRes = await fetch(file.download_url);
                         const scriptText = await fileRes.text();
-                        
-                        // Convert script to Base64 safely handling UTF-8
                         const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(scriptText)));
                         embeddedCode = `javascript:(function(){try{eval(new TextDecoder().decode(Uint8Array.from(atob('${b64}'),c=>c.charCodeAt(0))));}catch(e){alert('Execution failed: '+e);}})();`;
                     } catch (err) {
@@ -115,29 +110,20 @@
                     const linkedSize = linkedCode.length;
                     const embeddedSize = embeddedCode.length;
 
-                    // Build list item UI
                     const li = document.createElement('li');
-                    
-                    const titleDiv = document.createElement('div');
-                    titleDiv.className = 'file-title';
-                    titleDiv.textContent = file.name;
-                    li.appendChild(titleDiv);
-
                     const btnGroup = document.createElement('div');
                     btnGroup.className = 'btn-group';
 
-                    // Linked button
                     const aLinked = document.createElement('a');
                     aLinked.href = linkedCode;
                     aLinked.className = 'bookmarklet';
-                    aLinked.textContent = displayName + ' (Linked)';
+                    aLinked.innerHTML = `<span class="icon">🔗</span>${displayName}`;
                     aLinked.title = `Type: Linked (External Script)\nName: ${displayName}\nSize: ${linkedSize} characters\nLoads from: ${scriptUrl}`;
 
-                    // Embedded button
                     const aEmbedded = document.createElement('a');
                     aEmbedded.href = embeddedCode;
                     aEmbedded.className = 'bookmarklet embedded';
-                    aEmbedded.textContent = displayName + ' (Embedded)';
+                    aEmbedded.innerHTML = `<span class="icon">📦</span>${displayName}`;
                     aEmbedded.title = `Type: Embedded (Self-Contained Offline)\nName: ${displayName}\nSize: ${embeddedSize} characters\nNo external requests required.`;
 
                     btnGroup.appendChild(aLinked);
