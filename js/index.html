@@ -19,7 +19,14 @@
         p { color: #666; font-size: 0.85rem; margin-bottom: 20px; }
         ul { list-style: none; padding: 0; margin: 0; }
         li { background: #fff; padding: 10px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-        .btn-group { display: flex; gap: 8px; }
+        .btn-group { display: flex; gap: 10px; }
+        .btn-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+        }
+        .icon { font-size: 1rem; user-select: none; }
         a.bookmarklet {
             flex: 1;
             box-sizing: border-box;
@@ -38,7 +45,6 @@
         }
         a.bookmarklet.embedded { background: #2ea44f; }
         a.bookmarklet:hover { opacity: 0.9; }
-        .icon { font-style: normal; margin-right: 4px; }
         .loading { color: #666; font-style: italic; text-align: center; background: none; box-shadow: none; }
     </style>
 </head>
@@ -106,11 +112,9 @@
                         const fileRes = await fetch(file.download_url);
                         const scriptText = await fileRes.text();
                         
-                        // Minify the raw script source using Terser
                         const minifiedResult = await Terser.minify(scriptText);
                         if (minifiedResult.error) throw minifiedResult.error;
                         
-                        // Directly include the minified script source inside eval via JSON serialization
                         embeddedCode = `javascript:(function(){eval(${JSON.stringify(minifiedResult.code)});})();`;
                     } catch (err) {
                         console.error(`Could not embed/minify ${file.name}:`, err);
@@ -123,22 +127,40 @@
                     const btnGroup = document.createElement('div');
                     btnGroup.className = 'btn-group';
 
-                    // Linked button
+                    // Linked wrapper + icon + button
+                    const linkedWrapper = document.createElement('div');
+                    linkedWrapper.className = 'btn-wrapper';
+                    const linkedIcon = document.createElement('span');
+                    linkedIcon.className = 'icon';
+                    linkedIcon.textContent = '🔗';
+                    
                     const aLinked = document.createElement('a');
                     aLinked.href = linkedCode;
                     aLinked.className = 'bookmarklet';
-                    aLinked.innerHTML = `<span class="icon">🔗</span>${displayName}`;
+                    aLinked.textContent = displayName;
                     aLinked.title = `Type: Linked (External Script)\nName: ${displayName}\nSize: ${linkedSize} characters\nLoads from: ${scriptUrl}`;
+                    
+                    linkedWrapper.appendChild(linkedIcon);
+                    linkedWrapper.appendChild(aLinked);
 
-                    // Embedded button
+                    // Embedded wrapper + icon + button
+                    const embeddedWrapper = document.createElement('div');
+                    embeddedWrapper.className = 'btn-wrapper';
+                    const embeddedIcon = document.createElement('span');
+                    embeddedIcon.className = 'icon';
+                    embeddedIcon.textContent = '📦';
+
                     const aEmbedded = document.createElement('a');
                     aEmbedded.href = embeddedCode;
                     aEmbedded.className = 'bookmarklet embedded';
-                    aEmbedded.innerHTML = `<span class="icon">📦</span>${displayName}`;
+                    aEmbedded.textContent = displayName;
                     aEmbedded.title = `Type: Embedded (Minified Offline Bundle)\nName: ${displayName}\nSize: ${embeddedSize} characters\nNo external requests required.`;
 
-                    btnGroup.appendChild(aLinked);
-                    btnGroup.appendChild(aEmbedded);
+                    embeddedWrapper.appendChild(embeddedIcon);
+                    embeddedWrapper.appendChild(aEmbedded);
+
+                    btnGroup.appendChild(linkedWrapper);
+                    btnGroup.appendChild(embeddedWrapper);
                     li.appendChild(btnGroup);
                     listEl.appendChild(li);
                 }
