@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Bookmarklet Generator</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 0 20px;
+            color: #333;
+            background: #f9f9f9;
+        }
+        h1 { font-size: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        p.instructions { color: #666; font-size: 0.9rem; }
+        ul { list-style: none; padding: 0; }
+        li { margin: 12px 0; background: #fff; padding: 12px 16px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+        a.bookmarklet {
+            background: #0366d6;
+            color: white;
+            padding: 8px 14px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        a.bookmarklet:hover { background: #0056b3; }
+        .filename { font-family: monospace; font-size: 1rem; color: #333; }
+        .loading { color: #666; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <h1>My Bookmarklets</h1>
+    <p class="instructions">Drag the buttons below directly to your browser's bookmarks bar:</p>
+    
+    <ul id="bookmarklet-list">
+        <li class="loading">Loading scripts from GitHub...</li>
+    </ul>
+
+    <script>
+        // --- CONFIGURATION ---
+        const GITHUB_USER = 'dobrou';
+        const GITHUB_REPO = 'dobrou.github.io'; // Your GitHub Pages repo name
+        const SUBDIRECTORY = 'js';              // Subfolder where .js files are stored
+        // ---------------------
+
+        async function generateBookmarklets() {
+            const listEl = document.getElementById('bookmarklet-list');
+            const apiUrl = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${SUBDIRECTORY}`;
+
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) throw new Error(`GitHub API error: ${response.statusText}`);
+                
+                const files = await response.json();
+                const jsFiles = files.filter(file => file.type === 'file' && file.name.endsWith('.js'));
+
+                if (jsFiles.length === 0) {
+                    listEl.innerHTML = '<li>No .js files found in this directory.</li>';
+                    return;
+                }
+
+                listEl.innerHTML = ''; // Clear loading text
+
+                jsFiles.forEach(file => {
+                    // Construct the public GitHub Pages URL for the script
+                    const scriptUrl = `https://${GITHUB_USER}.github.io/${SUBDIRECTORY}/${file.name}`;
+
+                    // Minified robust bookmarklet code (Script Tag -> Fetch -> XHR fallbacks)
+                    const bookmarkletCode = `javascript:(function(){var u='${scriptUrl}?t='+Date.now();function x(){var h=new XMLHttpRequest();h.open('GET',u);h.onload=function(){if(h.status>=200&&h.status<300)try{eval(h.responseText)}catch(e){}};h.send()}function f(){fetch(u).then(r=>r.text()).then(c=>eval(c)).catch(x)}try{var s=document.createElement('script');s.src=u;s.onerror=f;document.head.appendChild(s)}catch(e){f()}})();`;
+
+                    // Create list item UI
+                    const li = document.createElement('span');
+                    li.className = 'filename';
+                    li.textContent = file.name;
+
+                    const a = document.createElement('a');
+                    a.href = bookmarkletCode;
+                    a.className = 'bookmarklet';
+                    a.textContent = file.name.replace('.js', '');
+                    a.title = `Drag to bookmarks: ${file.name}`;
+
+                    const container = document.createElement('li');
+                    container.appendChild(li);
+                    container.appendChild(a);
+                    
+                    listEl.appendChild(container);
+                });
+
+            } catch (error) {
+                listEl.innerHTML = `<li style="color: red;">Failed to load scripts: ${error.message}</li>`;
+            }
+        }
+
+        generateBookmarklets();
+    </script>
+</body>
+</html>
