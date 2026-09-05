@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bookmarklets Generator</title>
+    <!-- Load Terser minification library from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/terser/dist/bundle.min.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -95,16 +97,23 @@
                     const scriptUrl = `https://${user}.github.io/${prefix}${pathPart}${file.name}`;
                     const displayName = 'js: ' + file.name.replace(/\.js$/, '').replace(/\./g, ' ');
 
+                    // Variant 1: Linked / External (Multi-trick loader)
                     const linkedCode = `javascript:(function(){var u='${scriptUrl}?t='+Date.now();function x(){var h=new XMLHttpRequest();h.open('GET',u);h.onload=function(){if(h.status>=200&&h.status<300)try{eval(h.responseText)}catch(e){}};h.send()}function f(){fetch(u).then(r=>r.text()).then(c=>eval(c)).catch(x)}try{var s=document.createElement('script');s.src=u;s.onerror=f;document.head.appendChild(s)}catch(e){f()}})();`;
                     
+                    // Variant 2: Embedded / Offline (Minified via Terser and directly wrapped in eval)
                     let embeddedCode = '#';
                     try {
                         const fileRes = await fetch(file.download_url);
                         const scriptText = await fileRes.text();
-                        const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(scriptText)));
-                        embeddedCode = `javascript:(function(){try{eval(new TextDecoder().decode(Uint8Array.from(atob('${b64}'),c=>c.charCodeAt(0))));}catch(e){alert('Execution failed: '+e);}})();`;
+                        
+                        // Minify the raw script source using Terser
+                        const minifiedResult = await Terser.minify(scriptText);
+                        if (minifiedResult.error) throw minifiedResult.error;
+                        
+                        // Directly include the minified script source inside eval via JSON serialization
+                        embeddedCode = `javascript:(function(){eval(${JSON.stringify(minifiedResult.code)});})();`;
                     } catch (err) {
-                        console.error(`Could not embed ${file.name}:`, err);
+                        console.error(`Could not embed/minify ${file.name}:`, err);
                     }
 
                     const linkedSize = linkedCode.length;
@@ -114,17 +123,19 @@
                     const btnGroup = document.createElement('div');
                     btnGroup.className = 'btn-group';
 
+                    // Linked button
                     const aLinked = document.createElement('a');
                     aLinked.href = linkedCode;
                     aLinked.className = 'bookmarklet';
                     aLinked.innerHTML = `<span class="icon">🔗</span>${displayName}`;
                     aLinked.title = `Type: Linked (External Script)\nName: ${displayName}\nSize: ${linkedSize} characters\nLoads from: ${scriptUrl}`;
 
+                    // Embedded button
                     const aEmbedded = document.createElement('a');
                     aEmbedded.href = embeddedCode;
                     aEmbedded.className = 'bookmarklet embedded';
                     aEmbedded.innerHTML = `<span class="icon">📦</span>${displayName}`;
-                    aEmbedded.title = `Type: Embedded (Self-Contained Offline)\nName: ${displayName}\nSize: ${embeddedSize} characters\nNo external requests required.`;
+                    aEmbedded.title = `Type: Embedded (Minified Offline Bundle)\nName: ${displayName}\nSize: ${embeddedSize} characters\nNo external requests required.`;
 
                     btnGroup.appendChild(aLinked);
                     btnGroup.appendChild(aEmbedded);
