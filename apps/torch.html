@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Torch - Screen Flashlight</title>
+  
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Torch">
+  <meta name="description" content="Simple, bright, and configurable full-screen torch & flashlight web app.">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    /* Prevent text selection and touch gestures during interaction */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #ffffff;
+      transition: background-color 0.15s ease-out;
+    }
+
+    /* Custom range slider styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: rgba(255, 255, 255, 0.25);
+      border-radius: 9999px;
+      height: 8px;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 24px;
+      width: 24px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      cursor: pointer;
+    }
+
+    /* Hide scrollbars completely */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="relative flex flex-col justify-between items-center w-full h-full font-sans">
+
+  <!-- Main Flashlight Screen Canvas Layer -->
+  <div id="flashlightCanvas" class="absolute inset-0 w-full h-full z-0 cursor-pointer"></div>
+
+  <!-- Wake Lock / App Status Indicator Floating Pill (Top) -->
+  <div id="uiHeader" class="z-10 mt-6 px-4 py-2 rounded-full bg-black/40 backdrop-blur-md text-white text-xs font-semibold flex items-center gap-2 shadow-lg transition-opacity duration-300">
+    <span id="wakeLockBadge" class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+    <span id="wakeLockStatusText">Screen Awake: Off</span>
+    <button id="wakeLockToggleBtn" class="ml-2 underline text-white/80 hover:text-white text-xs">Enable</button>
+  </div>
+
+  <!-- Central Interaction Hint (Fades out automatically) -->
+  <div id="tapHint" class="z-10 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center text-black/40 pointer-events-none transition-opacity duration-500">
+    <i class="fa-solid fa-hand-pointer text-4xl mb-2 animate-bounce"></i>
+    <p class="text-sm font-medium">Tap for menu • Drag up/down for brightness</p>
+  </div>
+
+  <!-- Controls Panel Drawer (Bottom Sheet) -->
+  <div id="uiPanel" class="z-20 w-full max-w-md p-6 mb-4 rounded-3xl bg-black/60 backdrop-blur-xl text-white shadow-2xl transition-all duration-300 transform translate-y-0 opacity-100 border border-white/10">
+    
+    <div class="flex justify-between items-center mb-5 pb-2 border-b border-white/10">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-lightbulb text-yellow-400 text-xl"></i>
+        <h1 class="font-bold text-lg tracking-wide">Torch Settings</h1>
+      </div>
+      <button id="closePanelBtn" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 active:scale-95 transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="space-y-5">
+      <!-- Mode Tabs (Solid Color vs Strobe) -->
+      <div class="grid grid-cols-2 gap-1 p-1 bg-white/10 rounded-xl text-xs font-medium text-center">
+        <button id="tabSolid" class="py-2 rounded-lg bg-white/20 text-white font-bold transition">Solid Color</button>
+        <button id="tabStrobe" class="py-2 rounded-lg text-white/60 hover:text-white transition">Strobe Light</button>
+      </div>
+
+      <!-- Brightness Control Slider -->
+      <div>
+        <div class="flex justify-between text-xs font-medium mb-1.5 text-white/80">
+          <span><i class="fa-solid fa-sun mr-1.5"></i> Brightness Intensity</span>
+          <span id="brightnessVal">100%</span>
+        </div>
+        <input type="range" id="brightnessSlider" min="0" max="100" value="100" class="w-full cursor-pointer">
+      </div>
+
+      <!-- Solid Mode Settings -->
+      <div id="solidControls" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium mb-2 text-white/80">Preset Colors</label>
+          <div class="flex items-center gap-3 overflow-x-auto pb-1 no-scrollbar">
+            <button data-color="#ffffff" class="preset-color-btn w-9 h-9 rounded-full bg-white border-2 border-white/80 shrink-0 shadow-md active:scale-95 transition"></button>
+            <button data-color="#fff4cc" class="preset-color-btn w-9 h-9 rounded-full bg-[#fff4cc] border-2 border-transparent shrink-0 shadow-md active:scale-95 transition"></button>
+            <button data-color="#ff0000" class="preset-color-btn w-9 h-9 rounded-full bg-red-600 border-2 border-transparent shrink-0 shadow-md active:scale-95 transition"></button>
+            <button data-color="#00ff00" class="preset-color-btn w-9 h-9 rounded-full bg-green-500 border-2 border-transparent shrink-0 shadow-md active:scale-95 transition"></button>
+            <button data-color="#0088ff" class="preset-color-btn w-9 h-9 rounded-full bg-blue-500 border-2 border-transparent shrink-0 shadow-md active:scale-95 transition"></button>
+            <button data-color="#ff00ff" class="preset-color-btn w-9 h-9 rounded-full bg-pink-500 border-2 border-transparent shrink-0 shadow-md active:scale-95 transition"></button>
+            
+            <!-- Custom Color Picker Input -->
+            <label class="relative w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center cursor-pointer shrink-0 border-2 border-transparent hover:scale-105 transition">
+              <i class="fa-solid fa-palette text-xs text-white"></i>
+              <input type="color" id="customColorPicker" value="#ffffff" class="opacity-0 absolute inset-0 w-full h-full cursor-pointer">
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Strobe Mode Settings -->
+      <div id="strobeControls" class="space-y-4 hidden">
+        <!-- Frequency / Speed Slider -->
+        <div>
+          <div class="flex justify-between text-xs font-medium mb-1.5 text-white/80">
+            <span><i class="fa-solid fa-bolt mr-1.5"></i> Strobe Speed (Hz / Frequency)</span>
+            <span id="strobeSpeedVal">5 Hz</span>
+          </div>
+          <input type="range" id="strobeSpeedSlider" min="1" max="25" value="5" class="w-full cursor-pointer">
+        </div>
+
+        <!-- Multi-Color Selection for Strobe -->
+        <div>
+          <label class="block text-xs font-medium mb-2 text-white/80">Select Strobe Colors (Tap multiple)</label>
+          <div class="flex items-center gap-3 overflow-x-auto pb-1 no-scrollbar">
+            <button data-strobe-color="#ffffff" class="strobe-color-btn relative w-9 h-9 rounded-full bg-white border-2 border-green-400 shrink-0 shadow-md active:scale-95 transition">
+              <i class="fa-solid fa-check absolute inset-0 m-auto text-black text-xs"></i>
+            </button>
+            <button data-strobe-color="#ff0000" class="strobe-color-btn relative w-9 h-9 rounded-full bg-red-600 border-2 border-transparent shrink-0 shadow-md active:scale-95 transition">
+              <i class="fa-solid fa-check absolute inset-0 m-auto text-white text-xs hidden"></i>
+            </button>
+            <button data-strobe-color="#0088ff" class="strobe-color-btn relative w-9 h-9 rounded-full bg-blue-500 border-2 border-transparent shrink-0 shadow-md active:scale-95 transition">
+              <i class="fa-solid fa-check absolute inset-0 m-auto text-white text-xs hidden"></i>
+            </button>
+            <button data-strobe-color="#00ff00" class="strobe-color-btn relative w-9 h-9 rounded-full bg-green-500 border-2 border-transparent shrink-0 shadow-md active:scale-95 transition">
+              <i class="fa-solid fa-check absolute inset-0 m-auto text-white text-xs hidden"></i>
+            </button>
+            <button data-strobe-color="#ffff00" class="strobe-color-btn relative w-9 h-9 rounded-full bg-yellow-400 border-2 border-transparent shrink-0 shadow-md active:scale-95 transition">
+              <i class="fa-solid fa-check absolute inset-0 m-auto text-black text-xs hidden"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PWA Manifest Dynamic Injection Script -->
+  <script>
+    // Generate inline Web App Manifest for PWA installation capability
+    const manifestJSON = {
+      "name": "Torch - Screen Flashlight",
+      "short_name": "Torch",
+      "description": "Full screen high-brightness flashlight with custom colors & strobe.",
+      "start_url": "/apps/torch",
+      "scope": "/apps/torch",
+      "display": "standalone",
+      "background_color": "#ffffff",
+      "theme_color": "#ffffff",
+      "orientation": "any",
+      "icons": [
+        {
+          "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%23ffcc00'><rect width='512' height='512' fill='%23111111' rx='100'/><path fill='%23ffffff' d='M256 32c-17.7 0-32 14.3-32 32v96c0 17.7 14.3 32 32 32s32-14.3 32-32V64c0-17.7-14.3-32-32-32zm-128 64c-17.7 0-32 14.3-32 32v64c0 17.7 14.3 32 32 32s32-14.3 32-32V128c0-17.7-14.3-32-32-32zm256 0c-17.7 0-32 14.3-32 32v64c0 17.7 14.3 32 32 32s32-14.3 32-32V128c0-17.7-14.3-32-32-32z'/></svg>",
+          "sizes": "512x512",
+          "type": "image/svg+xml",
+          "purpose": "any maskable"
+        }
+      ]
+    };
+    const manifestBlob = new Blob([JSON.stringify(manifestJSON)], { type: 'application/json' });
+    const manifestURL = URL.createObjectURL(manifestBlob);
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = manifestURL;
+    document.head.appendChild(link);
+  </script>
+
+  <!-- Application Logic -->
+  <script>
+    // --- State Management ---
+    const state = {
+      wakeLock: null,
+      mode: 'solid', // 'solid' | 'strobe'
+      currentColor: '#ffffff',
+      strobeColors: ['#ffffff'],
+      brightness: 100, // percentage 0-100
+      strobeSpeed: 5, // Hz
+      strobeIntervalId: null,
+      strobeIndex: 0,
+      uiVisible: true,
+      autoHideTimeout: null,
+      touchStartY: 0,
+      touchStartBrightness: 100,
+      isDragging: false
+    };
+
+    // --- DOM Elements ---
+    const canvas = document.getElementById('flashlightCanvas');
+    const uiPanel = document.getElementById('uiPanel');
+    const uiHeader = document.getElementById('uiHeader');
+    const tapHint = document.getElementById('tapHint');
+    const wakeLockBadge = document.getElementById('wakeLockBadge');
+    const wakeLockStatusText = document.getElementById('wakeLockStatusText');
+    const wakeLockToggleBtn = document.getElementById('wakeLockToggleBtn');
+    
+    const tabSolid = document.getElementById('tabSolid');
+    const tabStrobe = document.getElementById('tabStrobe');
+    const solidControls = document.getElementById('solidControls');
+    const strobeControls = document.getElementById('strobeControls');
+
+    const brightnessSlider = document.getElementById('brightnessSlider');
+    const brightnessVal = document.getElementById('brightnessVal');
+    const strobeSpeedSlider = document.getElementById('strobeSpeedSlider');
+    const strobeSpeedVal = document.getElementById('strobeSpeedVal');
+    const customColorPicker = document.getElementById('customColorPicker');
+    const closePanelBtn = document.getElementById('closePanelBtn');
+
+    // --- Screen Wake Lock API Logic ---
+    async function requestWakeLock() {
+      if ('wakeLock' in navigator) {
+        try {
+          state.wakeLock = await navigator.wakeLock.request('screen');
+          updateWakeLockUI(true);
+          
+          // Re-acquire lock if page visibility changes (e.g., user switched apps and returned)
+          state.wakeLock.addEventListener('release', () => {
+            updateWakeLockUI(false);
+          });
+        } catch (err) {
+          console.warn(`Wake Lock error: ${err.name}, ${err.message}`);
+          updateWakeLockUI(false);
+        }
+      } else {
+        wakeLockStatusText.textContent = "Screen Lock API Unsupported";
+        wakeLockBadge.className = "w-2.5 h-2.5 rounded-full bg-yellow-500";
+        wakeLockToggleBtn.classList.add('hidden');
+      }
+    }
+
+    function releaseWakeLock() {
+      if (state.wakeLock) {
+        state.wakeLock.release().then(() => {
+          state.wakeLock = null;
+          updateWakeLockUI(false);
+        });
+      }
+    }
+
+    function updateWakeLockUI(isActive) {
+      if (isActive) {
+        wakeLockBadge.className = "w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse";
+        wakeLockStatusText.textContent = "Screen Awake: Active";
+        wakeLockToggleBtn.textContent = "Disable";
+      } else {
+        wakeLockBadge.className = "w-2.5 h-2.5 rounded-full bg-red-500";
+        wakeLockStatusText.textContent = "Screen Awake: Off";
+        wakeLockToggleBtn.textContent = "Enable";
+      }
+    }
+
+    // Toggle Wake Lock button tap
+    wakeLockToggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (state.wakeLock) {
+        releaseWakeLock();
+      } else {
+        requestWakeLock();
+      }
+    });
+
+    // Automatically re-request wake lock when visibility restores
+    document.addEventListener('visibilitychange', async () => {
+      if (state.wakeLock !== null && document.visibilityState === 'visible') {
+        await requestWakeLock();
+      }
+    });
+
+    // --- Color & Lighting Helper Functions ---
+    // Converts HEX color to RGB object
+    function hexToRgb(hex) {
+      let c = hex.replace('#', '');
+      if (c.length === 3) c = c.split('').map(x => x + x).join('');
+      const num = parseInt(c, 16);
+      return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+    }
+
+    // Applies dimming/brightness factor to HEX color
+    function applyBrightness(hexColor, factorPercent) {
+      const { r, g, b } = hexToRgb(hexColor);
+      const factor = factorPercent / 100;
+      const dimmedR = Math.round(r * factor);
+      const dimmedG = Math.round(g * factor);
+      const dimmedB = Math.round(b * factor);
+      return `rgb(${dimmedR}, ${dimmedG}, ${dimmedB})`;
+    }
+
+    // Render screen background based on mode and settings
+    function renderFlashlight() {
+      if (state.mode === 'solid') {
+        stopStrobe();
+        canvas.style.backgroundColor = applyBrightness(state.currentColor, state.brightness);
+      } else if (state.mode === 'strobe') {
+        startStrobe();
+      }
+    }
+
+    // Strobe interval handling
+    function startStrobe() {
+      stopStrobe();
+      if (state.strobeColors.length === 0) return;
+
+      const intervalMs = 1000 / state.strobeSpeed;
+      let isOn = true;
+
+      state.strobeIntervalId = setInterval(() => {
+        if (isOn) {
+          const color = state.strobeColors[state.strobeIndex % state.strobeColors.length];
+          canvas.style.backgroundColor = applyBrightness(color, state.brightness);
+          state.strobeIndex++;
+        } else {
+          canvas.style.backgroundColor = '#000000'; // Flash to dark black during off frame
+        }
+        isOn = !isOn;
+      }, intervalMs);
+    }
+
+    function stopStrobe() {
+      if (state.strobeIntervalId) {
+        clearInterval(state.strobeIntervalId);
+        state.strobeIntervalId = null;
+      }
+    }
+
+    // --- User Interface & Auto-Hide Control ---
+    function showUI() {
+      state.uiVisible = true;
+      uiPanel.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
+      uiPanel.classList.add('translate-y-0', 'opacity-100');
+      uiHeader.classList.remove('opacity-0', 'pointer-events-none');
+      uiHeader.classList.add('opacity-100');
+      
+      resetAutoHideTimer();
+    }
+
+    function hideUI() {
+      state.uiVisible = false;
+      uiPanel.classList.add('translate-y-10', 'opacity-0', 'pointer-events-none');
+      uiPanel.classList.remove('translate-y-0', 'opacity-100');
+      uiHeader.classList.add('opacity-0', 'pointer-events-none');
+      uiHeader.classList.remove('opacity-100');
+      
+      // Also hide initial hint text
+      tapHint.classList.add('opacity-0');
+    }
+
+    function resetAutoHideTimer() {
+      clearTimeout(state.autoHideTimeout);
+      // Auto-hide UI controls after 4 seconds of inactivity
+      state.autoHideTimeout = setTimeout(() => {
+        if (state.uiVisible) {
+          hideUI();
+        }
+      }, 4000);
+    }
+
+    // Touch & Drag Gesture Handling for Brightness Control
+    let dragThreshold = false;
+
+    function handleDragStart(clientY) {
+      state.touchStartY = clientY;
+      state.touchStartBrightness = state.brightness;
+      state.isDragging = true;
+      dragThreshold = false;
+    }
+
+    function handleDragMove(clientY) {
+      if (!state.isDragging) return;
+      const deltaY = state.touchStartY - clientY; // Dragging UP increases brightness
+      if (Math.abs(deltaY) > 5) {
+        dragThreshold = true;
+      }
+      const sensitivity = 0.35; // Adjust swipe sensitivity
+      let newBrightness = Math.round(state.touchStartBrightness + (deltaY * sensitivity));
+      newBrightness = Math.min(100, Math.max(0, newBrightness));
+      
+      state.brightness = newBrightness;
+      brightnessSlider.value = newBrightness;
+      brightnessVal.textContent = `${newBrightness}%`;
+      renderFlashlight();
+      resetAutoHideTimer();
+    }
+
+    function handleDragEnd() {
+      state.isDragging = false;
+    }
+
+    // Touch events
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        handleDragStart(e.touches[0].clientY);
+      }
+    }, { passive: true });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 1) {
+        handleDragMove(e.touches[0].clientY);
+      }
+    }, { passive: true });
+
+    canvas.addEventListener('touchend', () => {
+      handleDragEnd();
+    });
+
+    // Mouse drag events for desktop testing
+    canvas.addEventListener('mousedown', (e) => {
+      handleDragStart(e.clientY);
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (state.isDragging) {
+        handleDragMove(e.clientY);
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (state.isDragging) {
+        handleDragEnd();
+      }
+    });
+
+    // Tap anywhere on canvas toggles UI (if not dragging)
+    canvas.addEventListener('click', (e) => {
+      if (dragThreshold) return; // Ignore click if user was dragging/swiping
+      if (state.uiVisible) {
+        hideUI();
+      } else {
+        showUI();
+      }
+    });
+
+    closePanelBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      hideUI();
+    });
+
+    // Prevent touch/clicks inside the UI drawer from triggering canvas toggle
+    uiPanel.addEventListener('click', (e) => {
+      e.stopPropagation();
+      resetAutoHideTimer();
+    });
+
+    // --- Mode Tab Navigation ---
+    tabSolid.addEventListener('click', () => {
+      state.mode = 'solid';
+      tabSolid.className = "py-2 rounded-lg bg-white/20 text-white font-bold transition";
+      tabStrobe.className = "py-2 rounded-lg text-white/60 hover:text-white transition";
+      solidControls.classList.remove('hidden');
+      strobeControls.classList.add('hidden');
+      renderFlashlight();
+    });
+
+    tabStrobe.addEventListener('click', () => {
+      state.mode = 'strobe';
+      tabStrobe.className = "py-2 rounded-lg bg-white/20 text-white font-bold transition";
+      tabSolid.className = "py-2 rounded-lg text-white/60 hover:text-white transition";
+      strobeControls.classList.remove('hidden');
+      solidControls.classList.add('hidden');
+      renderFlashlight();
+    });
+
+    // --- Inputs Handling ---
+    brightnessSlider.addEventListener('input', (e) => {
+      state.brightness = parseInt(e.target.value, 10);
+      brightnessVal.textContent = `${state.brightness}%`;
+      renderFlashlight();
+    });
+
+    strobeSpeedSlider.addEventListener('input', (e) => {
+      state.strobeSpeed = parseInt(e.target.value, 10);
+      strobeSpeedVal.textContent = `${state.strobeSpeed} Hz`;
+      if (state.mode === 'strobe') {
+        renderFlashlight();
+      }
+    });
+
+    // Solid Color Presets Selection
+    const presetBtns = document.querySelectorAll('.preset-color-btn');
+    presetBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        presetBtns.forEach(b => b.classList.replace('border-white/80', 'border-transparent'));
+        btn.classList.replace('border-transparent', 'border-white/80');
+        state.currentColor = btn.getAttribute('data-color');
+        renderFlashlight();
+      });
+    });
+
+    // Custom Color Input
+    customColorPicker.addEventListener('input', (e) => {
+      presetBtns.forEach(b => b.classList.replace('border-white/80', 'border-transparent'));
+      state.currentColor = e.target.value;
+      renderFlashlight();
+    });
+
+    // Strobe Color Toggle Buttons
+    const strobeColorBtns = document.querySelectorAll('.strobe-color-btn');
+    strobeColorBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const color = btn.getAttribute('data-strobe-color');
+        const checkIcon = btn.querySelector('.fa-check');
+        
+        if (state.strobeColors.includes(color)) {
+          // Deselect (Ensure at least 1 color remains)
+          if (state.strobeColors.length > 1) {
+            state.strobeColors = state.strobeColors.filter(c => c !== color);
+            btn.classList.replace('border-green-400', 'border-transparent');
+            checkIcon.classList.add('hidden');
+          }
+        } else {
+          // Select
+          state.strobeColors.push(color);
+          btn.classList.replace('border-transparent', 'border-green-400');
+          checkIcon.classList.remove('hidden');
+        }
+        
+        if (state.mode === 'strobe') {
+          renderFlashlight();
+        }
+      });
+    });
+
+    // --- App Initialization ---
+    window.addEventListener('load', () => {
+      renderFlashlight();
+      requestWakeLock();
+      
+      // Auto fade initial instruction hint after 4 seconds
+      setTimeout(() => {
+        tapHint.classList.add('opacity-0');
+      }, 4000);
+
+      // Start initial UI auto-hide timer
+      resetAutoHideTimer();
+    });
+  </script>
+</body>
+</html>
