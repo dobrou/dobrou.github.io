@@ -105,9 +105,9 @@
       <div>
         <div class="flex justify-between text-xs font-medium mb-1.5 text-white/80">
           <span><i class="fa-solid fa-sun mr-1.5"></i> Brightness Intensity</span>
-          <span id="brightnessVal">100%</span>
+          <span id="brightnessVal">66%</span>
         </div>
-        <input type="range" id="brightnessSlider" min="0" max="100" value="100" class="w-full cursor-pointer">
+        <input type="range" id="brightnessSlider" min="0" max="100" value="66" class="w-full cursor-pointer">
       </div>
 
       <!-- Solid Mode Settings -->
@@ -115,7 +115,11 @@
         <div>
           <label class="block text-xs font-medium mb-2 text-white/80">Preset Colors</label>
           <div class="flex items-center gap-3 overflow-x-auto pb-1 no-scrollbar">
-            <button data-color="#ffffff" class="preset-color-btn w-9 h-9 rounded-full bg-white border-2 border-white/80 shrink-0 shadow-md active:scale-95 transition"></button>
+            <!-- Dynamic Warm Mode Preset Button -->
+            <button data-color="adaptive" title="Evening Warm Light (Adaptive)" class="preset-color-btn relative w-9 h-9 rounded-full bg-gradient-to-r from-amber-300 via-yellow-100 to-white border-2 border-white/80 shrink-0 shadow-md active:scale-95 transition flex items-center justify-center">
+              <i class="fa-solid fa-moon text-[10px] text-amber-800"></i>
+            </button>
+            <button data-color="#ffffff" class="preset-color-btn w-9 h-9 rounded-full bg-white border-2 border-transparent shrink-0 shadow-md active:scale-95 transition"></button>
             <button data-color="#fff4cc" class="preset-color-btn w-9 h-9 rounded-full bg-[#fff4cc] border-2 border-transparent shrink-0 shadow-md active:scale-95 transition"></button>
             <button data-color="#ff0000" class="preset-color-btn w-9 h-9 rounded-full bg-red-600 border-2 border-transparent shrink-0 shadow-md active:scale-95 transition"></button>
             <button data-color="#00ff00" class="preset-color-btn w-9 h-9 rounded-full bg-green-500 border-2 border-transparent shrink-0 shadow-md active:scale-95 transition"></button>
@@ -203,16 +207,16 @@
     const state = {
       wakeLock: null,
       mode: 'solid', // 'solid' | 'strobe'
-      currentColor: '#ffffff',
+      currentColor: 'adaptive', // 'adaptive' for dynamic evening warm color, or hex string
       strobeColors: ['#ffffff'],
-      brightness: 100, // percentage 0-100
+      brightness: 66, // percentage 0-100 (Default set to 66%)
       strobeSpeed: 5, // Hz
       strobeIntervalId: null,
       strobeIndex: 0,
       uiVisible: true,
       autoHideTimeout: null,
       touchStartY: 0,
-      touchStartBrightness: 100,
+      touchStartBrightness: 66,
       isDragging: false
     };
 
@@ -306,9 +310,23 @@
       return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
     }
 
-    // Applies dimming/brightness factor to HEX color
-    function applyBrightness(hexColor, factorPercent) {
-      const { r, g, b } = hexToRgb(hexColor);
+    // Calculates adaptive warm evening color based on brightness percentage
+    function getAdaptiveWarmColor(factorPercent) {
+      const factor = factorPercent / 100;
+      // White at 100%: RGB(255, 255, 255)
+      // Warm yellow/amber at dimmed levels: Red stays high, Green moderate, Blue drops fast
+      const r = Math.round(255 * factor);
+      const g = Math.round((180 + 75 * factor) * factor);
+      const b = Math.round((40 + 215 * Math.pow(factor, 2)) * factor);
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    // Applies dimming/brightness factor to HEX or adaptive color
+    function applyBrightness(color, factorPercent) {
+      if (color === 'adaptive') {
+        return getAdaptiveWarmColor(factorPercent);
+      }
+      const { r, g, b } = hexToRgb(color);
       const factor = factorPercent / 100;
       const dimmedR = Math.round(r * factor);
       const dimmedG = Math.round(g * factor);
