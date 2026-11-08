@@ -1,3 +1,39 @@
+<!--
+# plan.md - Torch Web App Project Plan
+
+## Overview
+A lightweight, installable Progressive Web App (PWA) designed to transform any smartphone or browser display into a high-intensity flashlight / torch.
+
+## Target Deployment
+- **URL**: `https://dobrou.github.io/apps/torch`
+- **File Location**: `dobrou.github.io/apps/torch.html`
+- **PWA Scope & Start URL**: `/apps/torch`
+
+## Core Features
+1. **Screen Wake Lock API**: Keeps device screen continuously illuminated without sleeping/dimming.
+2. **Gesture Brightness Control**: Vertical swipe/drag gesture anywhere on screen to smoothly adjust brightness (0% - 100%).
+3. **Adaptive Evening Warmth Mode (Default)**:
+   - Starts at 66% brightness on launch.
+   - 100% brightness = crisp maximum white light.
+   - Dimming brightness naturally shifts wavelengths towards warm, night-friendly amber/yellow tones to prevent blue-light eye strain.
+4. **Color Customization**: Preset colors (White, Warm Light, Red, Green, Blue, Pink) + dynamic dynamic evening warm mode + custom RGB HTML color picker.
+5. **Strobe Light Mode**: Multi-color selectable strobe with adjustable frequency speed control (1 Hz - 25 Hz).
+6. **Autohiding Minimal UI**: Floating controls drawer auto-hides after 4 seconds of inactivity for zero-clutter full screen output.
+
+## PWA Capabilities
+- Manifest injected inline dynamically.
+- Standalone display mode with responsive touch UI.
+- Valid root-relative scope (`/apps/torch`) tailored for GitHub Pages directory routing.
+
+## Roadmap & Status
+- [x] Initial full-screen flashlight design.
+- [x] Screen Wake Lock API implementation.
+- [x] Touch drag vertical swipe brightness control.
+- [x] GitHub Pages path routing adaptation (`/apps/torch`).
+- [x] Adaptive evening warmth (yellow-shift on dim) feature & 66% initial brightness startup.
+- [x] Dedicated Evening Warm Light button added to preset panel.
+- [x] Embedded plan.md documentation header.
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
